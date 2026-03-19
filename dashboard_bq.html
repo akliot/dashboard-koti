@@ -907,7 +907,9 @@ function renderProjetoTabela(data){
 let orcData=null;
 
 function loadOrcamento(){
-  // Try loading from window global (dados_orcamento.js) or fetch JSON
+  // Tentar carregar do campo 'orcamento' que veio junto no JSON da API
+  if(dadosOriginal && dadosOriginal.orcamento){orcData=dadosOriginal.orcamento;return Promise.resolve()}
+  // Fallback: window global ou fetch separado
   if(window.ORCAMENTO_DATA){orcData=window.ORCAMENTO_DATA;return Promise.resolve()}
   return fetch('dados_orcamento.json').then(r=>r.ok?r.json():null).then(d=>{orcData=d}).catch(()=>{orcData=null});
 }
