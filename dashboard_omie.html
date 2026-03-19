@@ -130,11 +130,11 @@ tr:hover td{background:rgba(59,130,246,.05)}
   <div class="filter-group"><label>De:</label><input type="date" id="filterDe"></div>
   <div class="filter-group"><label>Até:</label><input type="date" id="filterAte"></div>
   <div class="periodo-btns">
-    <button onclick="setPeriodo('mes')">Mês</button>
-    <button onclick="setPeriodo('tri')">Tri</button>
-    <button onclick="setPeriodo('ano')">Ano</button>
-    <button onclick="setPeriodo('ytd')">YTD</button>
-    <button onclick="setPeriodo('all')" title="Tudo">Tudo</button>
+    <button onclick="setPeriodo('mes',this)">Mês</button>
+    <button onclick="setPeriodo('tri',this)">Tri</button>
+    <button onclick="setPeriodo('ano',this)">Ano</button>
+    <button onclick="setPeriodo('ytd',this)">YTD</button>
+    <button onclick="setPeriodo('all',this)" title="Tudo">Tudo</button>
   </div>
   <div class="filter-group">
     <label>Projeto:</label>
@@ -196,8 +196,8 @@ tr:hover td{background:rgba(59,130,246,.05)}
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
             <h3 style="margin:0">Fluxo por Categoria</h3>
             <div class="periodo-btns" id="fluxoVisaoBtns">
-              <button onclick="setFluxoVisao('consolidado')" class="active">Consolidado</button>
-              <button onclick="setFluxoVisao('mensal')">Mês a mês</button>
+              <button onclick="setFluxoVisao('consolidado',this)" class="active">Consolidado</button>
+              <button onclick="setFluxoVisao('mensal',this)">Mês a mês</button>
             </div>
           </div>
           <div class="fluxo-table" id="fluxoTable"></div>
@@ -282,8 +282,8 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
           <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Período:</label>
           <div class="periodo-btns" id="orcModoBtns">
-            <button onclick="setOrcModo('acumulado')" class="active">Acumulado</button>
-            <button onclick="setOrcModo('mes')">Mês a mês</button>
+            <button onclick="setOrcModo('acumulado',this)" class="active">Acumulado</button>
+            <button onclick="setOrcModo('mes',this)">Mês a mês</button>
           </div>
           <span id="orcReguaLabel" style="font-size:13px;color:var(--accent);font-weight:600;margin-left:auto"></span>
         </div>
@@ -402,7 +402,7 @@ document.addEventListener('keydown',e=>{
 });
 
 // ============ BOTÕES DE PERÍODO ============
-function setPeriodo(tipo){
+function setPeriodo(tipo,el){
   const hoje=new Date();
   let de,ate;
   if(tipo==='mes'){de=new Date(hoje.getFullYear(),hoje.getMonth(),1);ate=new Date(hoje.getFullYear(),hoje.getMonth()+1,0)}
@@ -413,7 +413,7 @@ function setPeriodo(tipo){
   document.getElementById('filterDe').value=de.toISOString().slice(0,10);
   document.getElementById('filterAte').value=ate.toISOString().slice(0,10);
   document.querySelectorAll('.periodo-btns button').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
+  if(el)el.classList.add('active');
   aplicarFiltros();
 }
 
@@ -610,10 +610,10 @@ function renderConcilChart(){
 let _fluxoVisao='consolidado';
 let _fluxoData=null;
 
-function setFluxoVisao(visao){
+function setFluxoVisao(visao,el){
   _fluxoVisao=visao;
   document.querySelectorAll('#fluxoVisaoBtns button').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
+  if(el)el.classList.add('active');
   if(_fluxoData) renderFluxoTabela(_fluxoData);
 }
 
@@ -921,9 +921,19 @@ function buildTimeline(){
     const hasReal=mesesReal.includes(m);
     const step=document.createElement('div');
     step.className='tl-step';
+    step.setAttribute('data-idx',i);
     step.innerHTML=`<div class="tl-dot${hasReal?' has-real':''}" data-idx="${i}"></div><div class="tl-label">${_mesesNomes[i]}</div>`;
-    step.addEventListener('click',()=>{_orcIdx=i;updateTimeline();renderOrcamento(_orcIdx)});
     tl.appendChild(step);
+  });
+  // Single delegated click handler on the timeline container
+  tl.addEventListener('click',function(e){
+    const step=e.target.closest('.tl-step');
+    if(!step)return;
+    const idx=parseInt(step.getAttribute('data-idx'));
+    if(isNaN(idx))return;
+    _orcIdx=idx;
+    updateTimeline();
+    renderOrcamento(_orcIdx);
   });
   updateTimeline();
 }
@@ -962,10 +972,10 @@ function updateTimeline(){
   document.getElementById('orcRegua').value=_orcIdx;
 }
 
-function setOrcModo(modo){
+function setOrcModo(modo,el){
   _orcModo=modo;
   document.querySelectorAll('#orcModoBtns button').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
+  if(el)el.classList.add('active');
   updateTimeline();
   renderOrcamento(_orcIdx);
 }
