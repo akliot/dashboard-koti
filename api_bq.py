@@ -242,7 +242,59 @@ def build_json() -> dict:
         "por_mes_cadastro": dict(por_mes_cadastro),
     }
 
-    return {
+    # ---- Orçamento DRE (formato esperado pelo HTML: dre[], meses_disponiveis, meses_com_real) ----
+    orc_rows = query_rows(f"""
+        SELECT label, section, level, mes, valor_real, valor_bp, mes_com_real
+        FROM {tbl('orcamento_dre')}
+        ORDER BY label, mes
+    """)
+
+    orcamento = None
+    if orc_rows:
+        # Agrupar por (label, section, level) → dicts de bp e real por mês
+        dre_map: dict[str, dict] = {}
+        all_meses: set[str] = set()
+        meses_com_real: set[str] = set()
+
+        for r in orc_rows:
+            key = r["label"]
+            mes = r.get("mes", "")
+            all_meses.add(mes)
+            if r.get("mes_com_real"):
+                meses_com_real.add(mes)
+
+            if key not in dre_map:
+                dre_map[key] = {
+                    "label": r["label"],
+                    "section": r.get("section", ""),
+                    "level": int(r.get("level", 0)),
+                    "bp": {},
+                    "real": {},
+                }
+            dre_map[key]["bp"][mes] = float(r.get("valor_bp", 0) or 0)
+            dre_map[key]["real"][mes] = float(r.get("valor_real", 0) or 0)
+
+        # Ordem das linhas DRE (mesma do extract_bp_bq.py)
+        dre_order = [
+            "Receita Bruta", "SK", "BK", "RT", "Aditivo", "Vendas RP",
+            "Impostos", "ICMS", "Crédito de ICMS", "ISS", "PIS/COFINS",
+            "Receita Líquida",
+            "Custos Operacionais", "Comissões Externas", "Comissões Internas", "Obras (Total)",
+            "Margem de Contribuição",
+            "Despesas Gerais e Adm", "Salários e Encargos", "Despesas Administrativas",
+            "Despesas Comerciais", "Despesas com Imóvel", "Despesas com Veículos", "Despesas com Diretoria",
+            "EBITDA", "Receitas/Despesas Financeiras", "IRPJ/CSLL", "Lucro Líquido",
+        ]
+        order_idx = {label: i for i, label in enumerate(dre_order)}
+        dre_list = sorted(dre_map.values(), key=lambda d: order_idx.get(d["label"], 99))
+
+        orcamento = {
+            "meses_disponiveis": sorted(all_meses),
+            "meses_com_real": sorted(meses_com_real),
+            "dre": dre_list,
+        }
+
+    result = {
         "atualizado_em": now.isoformat(),
         "atualizado_em_formatado": now.strftime("%d/%m/%Y às %H:%M"),
         "lancamentos": lancamentos,
@@ -253,6 +305,12 @@ def build_json() -> dict:
         "vendas": vendas,
         "clientes": clientes,
     }
+
+    # Incluir orçamento se disponível
+    if orcamento:
+        result["orcamento"] = orcamento
+
+    return result
 
 
 # ============================================================
