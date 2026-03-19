@@ -113,6 +113,14 @@ def ensure_tables(client: bigquery.Client) -> None:
             valor_real FLOAT64, valor_bp FLOAT64, variacao_pct FLOAT64,
             mes_com_real BOOL, sync_timestamp TIMESTAMP
         )""",
+        f"""CREATE OR REPLACE VIEW `{ds_ref}.v_historico_saldos` AS
+        SELECT * EXCEPT(rn) FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY conta_id, data_referencia, tipo
+                ORDER BY sync_timestamp DESC
+            ) AS rn
+            FROM `{ds_ref}.historico_saldos`
+        ) WHERE rn = 1""",
     ]
 
     created = 0

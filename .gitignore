@@ -7,3 +7,6 @@ nohup.out
 dados_omie.json
 dados_omie.js
 dados_orcamento.json
+
+# Streamlit secrets (nunca commitar credenciais)
+.streamlit/secrets.toml
