@@ -627,15 +627,7 @@ def log_sync_start(client: bigquery.Client, sync_id: str, started_at: str) -> No
     row = {
         "sync_id": sync_id,
         "started_at": started_at,
-        "finished_at": None,
         "status": "running",
-        "duration_seconds": None,
-        "lancamentos_count": None,
-        "saldos_count": None,
-        "clientes_count": None,
-        "projetos_count": None,
-        "categorias_count": None,
-        "error_message": None,
         "is_incremental": False,
     }
     load_to_bq(client, "sync_log", [row], "WRITE_APPEND")
