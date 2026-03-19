@@ -58,6 +58,73 @@ def table_ref(table_name: str) -> str:
     return f"{GCP_PROJECT_ID}.{BQ_DATASET}.{table_name}"
 
 
+def ensure_tables(client: bigquery.Client) -> None:
+    """Cria dataset e tabelas se não existirem (DDL)."""
+    ds_ref = f"{GCP_PROJECT_ID}.{BQ_DATASET}"
+    try:
+        client.get_dataset(ds_ref)
+    except Exception:
+        print(f"  📦 Criando dataset {BQ_DATASET}...")
+        client.create_dataset(ds_ref, exists_ok=True)
+
+    ddl_statements = [
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.sync_log` (
+            sync_id STRING, started_at TIMESTAMP, finished_at TIMESTAMP,
+            status STRING, duration_seconds INT64,
+            lancamentos_count INT64, saldos_count INT64, clientes_count INT64,
+            projetos_count INT64, categorias_count INT64,
+            error_message STRING, is_incremental BOOL
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.lancamentos` (
+            id INT64, tipo STRING, valor FLOAT64, status STRING,
+            data_vencimento DATE, data_emissao DATE, numero_documento STRING,
+            categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING,
+            projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING,
+            conta_corrente_id INT64, is_faturamento_direto BOOL,
+            sync_timestamp TIMESTAMP, sync_date DATE
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.saldos_bancarios` (
+            conta_id INT64, conta_nome STRING, conta_tipo STRING,
+            saldo FLOAT64, saldo_conciliado FLOAT64, diferenca FLOAT64,
+            data_referencia DATE, sync_timestamp TIMESTAMP, sync_date DATE
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.historico_saldos` (
+            conta_id INT64, conta_nome STRING, data_referencia DATE, label STRING,
+            saldo_atual FLOAT64, saldo_conciliado FLOAT64, diferenca FLOAT64,
+            tipo STRING, sync_timestamp TIMESTAMP, sync_date DATE
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.categorias` (
+            codigo STRING, nome STRING, grupo STRING, sync_timestamp TIMESTAMP
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.projetos` (
+            id INT64, nome STRING, sync_timestamp TIMESTAMP
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.clientes` (
+            id INT64, nome_fantasia STRING, razao_social STRING, estado STRING,
+            ativo BOOL, pessoa_fisica BOOL, data_cadastro DATE, sync_timestamp TIMESTAMP
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.vendas_pedidos` (
+            pedido_id INT64, valor_mercadorias FLOAT64, etapa STRING,
+            data_previsao DATE, produto_descricao STRING, produto_quantidade FLOAT64,
+            produto_valor_total FLOAT64, sync_timestamp TIMESTAMP, sync_date DATE
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.orcamento_dre` (
+            label STRING, section STRING, level INT64, mes STRING,
+            valor_real FLOAT64, valor_bp FLOAT64, variacao_pct FLOAT64,
+            mes_com_real BOOL, sync_timestamp TIMESTAMP
+        )""",
+    ]
+
+    created = 0
+    for ddl in ddl_statements:
+        try:
+            client.query(ddl).result()
+            created += 1
+        except Exception as e:
+            print(f"  ⚠ DDL falhou: {e}")
+    print(f"  ✅ {created}/{len(ddl_statements)} tabelas verificadas/criadas")
+
+
 def load_to_bq(
     client: bigquery.Client,
     table_name: str,
@@ -73,7 +140,7 @@ def load_to_bq(
     job_config = bigquery.LoadJobConfig(
         write_disposition=write_disposition,
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        autodetect=True,  # Auto-cria tabela se não existir
+        autodetect=True,
     )
 
     job = client.load_table_from_json(rows, ref, job_config=job_config)
@@ -659,6 +726,10 @@ def main() -> None:
 
     # Inicializar BigQuery
     client = get_bq_client()
+
+    # Garantir que tabelas existem (DDL)
+    print("\n📋 Verificando tabelas BigQuery...")
+    ensure_tables(client)
 
     # Registrar início
     log_sync_start(client, sync_id, sync_ts)
