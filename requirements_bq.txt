@@ -2,3 +2,6 @@ requests
 google-cloud-bigquery
 openpyxl
 db-dtypes
+streamlit>=1.32.0
+plotly>=5.18.0
+pandas>=2.1.0
