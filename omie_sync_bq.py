@@ -73,7 +73,7 @@ def load_to_bq(
     job_config = bigquery.LoadJobConfig(
         write_disposition=write_disposition,
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        autodetect=False,
+        autodetect=True,  # Auto-cria tabela se não existir
     )
 
     job = client.load_table_from_json(rows, ref, job_config=job_config)
