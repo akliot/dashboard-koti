@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Omie</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="dados_omie.js"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--card-hover:#263348;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--purple:#a855f7;--cyan:#06b6d4;--orange:#f97316;--border:#334155}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.header h1{font-size:22px;font-weight:700}
+.header .sync-info{font-size:13px;color:var(--muted)}
+.header .dot{display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.filters-bar{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-group label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.filter-group select,.filter-group input[type=date],.search-input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px}
+.filter-group select{max-width:280px}
+.filter-group select:focus,.filter-group input:focus,.search-input:focus{outline:none;border-color:var(--accent)}
+.autocomplete-wrap{position:relative;display:inline-block}
+.autocomplete-wrap input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:260px}
+.autocomplete-wrap input:focus{outline:none;border-color:var(--accent)}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;max-height:220px;overflow-y:auto;z-index:999;display:none}
+.autocomplete-list.show{display:block}
+.autocomplete-list div{padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border)}
+.autocomplete-list div:hover,.autocomplete-list div.active{background:var(--accent);color:#fff}
+.autocomplete-list div:last-child{border-bottom:none}
+.periodo-btns{display:flex;gap:4px;margin-left:2px}
+.periodo-btns button{padding:4px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap}
+.periodo-btns button:hover,.periodo-btns button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.orc-timeline{position:relative;display:flex;align-items:flex-start;padding:0 8px;user-select:none}
+.orc-timeline .tl-step{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;z-index:2}
+.orc-timeline .tl-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:var(--bg);transition:all .15s;position:relative;z-index:3}
+.orc-timeline .tl-dot:hover{border-color:var(--accent);transform:scale(1.2)}
+.orc-timeline .tl-dot.selected{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+.orc-timeline .tl-dot.in-range{background:var(--accent);border-color:var(--accent);opacity:.7}
+.orc-timeline .tl-dot.has-real{border-color:#22c55e}
+.orc-timeline .tl-dot.has-real.selected,.orc-timeline .tl-dot.has-real.in-range{background:var(--accent);border-color:var(--accent)}
+.orc-timeline .tl-label{font-size:10px;color:var(--muted);margin-top:6px;transition:color .15s}
+.orc-timeline .tl-label.active{color:var(--accent);font-weight:600}
+.orc-timeline .tl-line{position:absolute;top:8px;left:0;right:0;height:2px;background:var(--border);z-index:1}
+.orc-timeline .tl-fill{position:absolute;top:8px;height:2px;background:var(--accent);z-index:1;transition:left .15s,width .15s;border-radius:1px}
+.search-input{width:100%;padding:8px 12px;margin-bottom:12px;font-size:14px}
+.btn-filter{padding:6px 16px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
+.btn-filter:hover{opacity:.85}
+.btn-filter.secondary{background:var(--border)}
+.tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+.tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.content{padding:20px 24px}
+.page{display:none}.page.active{display:block}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;transition:transform .15s}
+.kpi-card:hover{transform:translateY(-2px)}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.kpi-value{font-size:24px;font-weight:700}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi-value.green{color:var(--green)}.kpi-value.red{color:var(--red)}.kpi-value.blue{color:var(--accent)}.kpi-value.yellow{color:var(--yellow)}.kpi-value.purple{color:var(--purple)}.kpi-value.cyan{color:var(--cyan)}
+.chart-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-bottom:20px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.chart-card h3{font-size:14px;font-weight:600;margin-bottom:12px}
+.chart-container{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border)}
+tr:hover td{background:rgba(59,130,246,.05)}
+.progress-bar{width:100%;height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px}
+.progress-fill{height:100%;border-radius:3px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.btn{padding:10px 24px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
+#fileInput{display:none}
+.fluxo-table{max-height:620px;overflow-y:auto}
+.fluxo-table thead{position:sticky;top:0;background:var(--card);z-index:1}
+.cat-group{font-weight:600;background:rgba(59,130,246,.08);font-size:12px}
+.cat-group td{padding:7px 10px}
+.valor-entrada{color:var(--green)}.valor-saida{color:var(--red)}
+.saldo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.saldo-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center}
+.saldo-item .nome{font-size:13px;color:var(--muted)}.saldo-item .tipo{font-size:10px;color:var(--border);text-transform:uppercase}
+.saldo-item .valor{font-size:16px;font-weight:700}
+.proj-table{max-height:500px;overflow-y:auto}
+.proj-table thead{position:sticky;top:0;background:var(--card);z-index:1}
+.concil-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.concil-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;overflow:hidden}
+.concil-item.ok{border-left:4px solid var(--green)}.concil-item.warn{border-left:4px solid var(--yellow)}.concil-item.error{border-left:4px solid var(--red)}
+.concil-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.concil-nome{font-size:13px;font-weight:600}.concil-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase}
+.concil-badge.ok{background:rgba(34,197,94,.15);color:var(--green)}.concil-badge.warn{background:rgba(234,179,8,.15);color:var(--yellow)}.concil-badge.error{background:rgba(239,68,68,.15);color:var(--red)}
+.concil-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.concil-row .val{color:var(--text);font-weight:500}
+.concil-summary{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+.concil-stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center}
+.concil-stat .num{font-size:22px;font-weight:700}.concil-stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fin-detail-table{max-height:420px;overflow-y:auto}
+.fin-detail-table thead{position:sticky;top:0;background:var(--card);z-index:1}
+@media(max-width:768px){.header{padding:12px}.content{padding:12px}.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.kpi-value{font-size:18px}}
+#loginScreen{display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)}
+#loginBox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px;text-align:center}
+#loginBox h2{font-size:20px;margin-bottom:6px}
+#loginBox p{font-size:13px;color:var(--muted);margin-bottom:24px}
+#loginBox input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:12px;text-align:center}
+#loginBox input:focus{outline:none;border-color:var(--accent)}
+#loginBox button{width:100%;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+#loginBox button:hover{opacity:.85}
+#loginError{color:var(--red);font-size:12px;margin-top:8px;display:none}
+#appMain{display:none}
+</style>
+</head>
+<body>
+<div id="loginScreen">
+  <div id="loginBox">
+    <h2>Studio Koti</h2>
+    <p>Dashboard Financeiro</p>
+    <input type="password" id="loginPass" placeholder="Senha de acesso" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Entrar</button>
+    <div id="loginError">Senha incorreta</div>
+  </div>
+</div>
+<div id="appMain">
+<div class="header">
+  <h1>Studio Koti</h1>
+  <div class="sync-info" id="syncInfo">Aguardando dados...</div>
+</div>
+<div class="filters-bar" id="filtersBar" style="display:none">
+  <div class="filter-group"><label>De:</label><input type="date" id="filterDe"></div>
+  <div class="filter-group"><label>Até:</label><input type="date" id="filterAte"></div>
+  <div class="periodo-btns">
+    <button onclick="setPeriodo('mes')">Mês</button>
+    <button onclick="setPeriodo('tri')">Tri</button>
+    <button onclick="setPeriodo('ano')">Ano</button>
+    <button onclick="setPeriodo('ytd')">YTD</button>
+    <button onclick="setPeriodo('all')" title="Tudo">Tudo</button>
+  </div>
+  <div class="filter-group">
+    <label>Projeto:</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="projetoInput" placeholder="Todos os projetos" autocomplete="off" onfocus="abrirAutocomplete()" oninput="filtrarAutocomplete()">
+      <input type="hidden" id="filterProjeto" value="">
+      <div class="autocomplete-list" id="projetoDropdown"></div>
+    </div>
+  </div>
+  <button class="btn-filter" onclick="aplicarFiltros()">Aplicar</button>
+  <button class="btn-filter secondary" onclick="limparFiltros()">Limpar</button>
+</div>
+<div class="tabs" id="tabsContainer" style="display:none">
+  <button class="tab active" data-tab="visao-geral">Visão Geral</button>
+  <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
+  <button class="tab" data-tab="financeiro">Financeiro</button>
+  <button class="tab" data-tab="conciliacao">Conciliação</button>
+  <button class="tab" data-tab="vendas">Vendas</button>
+  <button class="tab" data-tab="clientes">Clientes</button>
+  <button class="tab" data-tab="projetos">Projetos</button>
+  <button class="tab" data-tab="orcamento">Real vs Orçado</button>
+</div>
+<div class="content">
+  <div id="loadingState" class="empty-state">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <h2>Carregue os dados da Omie</h2>
+    <p style="margin-bottom:16px">Execute <code style="background:var(--card);padding:2px 6px;border-radius:4px">python3 omie_sync.py</code> e carregue o <strong>dados_omie.json</strong>.</p>
+    <button class="btn" onclick="document.getElementById('fileInput').click()">Carregar dados_omie.json</button>
+    <input type="file" id="fileInput" accept=".json" onchange="loadFile(event)">
+  </div>
+  <div id="dashboardPages" style="display:none">
+
+    <!-- VISÃO GERAL -->
+    <div class="page active" id="page-visao-geral">
+      <div class="kpi-row" id="kpi-geral"></div>
+      <div class="chart-card" style="margin-bottom:20px">
+        <h3 id="saldoTitle">Saldo por Conta Bancária</h3>
+        <div class="saldo-grid" id="saldoGrid"></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Entradas vs Saídas (Mensal)</h3><div class="chart-container"><canvas id="chartGeralFluxo"></canvas></div></div>
+        <div class="chart-card"><h3>Saldo Acumulado</h3><div class="chart-container"><canvas id="chartSaldoAcum"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Top Categorias (Despesas)</h3><div class="chart-container"><canvas id="chartTopCatDesp"></canvas></div></div>
+        <div class="chart-card"><h3>Top Categorias (Receitas)</h3><div class="chart-container"><canvas id="chartTopCatRec"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- FLUXO DE CAIXA -->
+    <div class="page" id="page-fluxo-caixa">
+      <div class="kpi-row" id="kpi-fluxo"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Despesas por Grupo</h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div></div>
+        <div class="chart-card"><h3>Receitas por Grupo</h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <h3 style="margin:0">Fluxo por Categoria</h3>
+            <div class="periodo-btns" id="fluxoVisaoBtns">
+              <button onclick="setFluxoVisao('consolidado')" class="active">Consolidado</button>
+              <button onclick="setFluxoVisao('mensal')">Mês a mês</button>
+            </div>
+          </div>
+          <div class="fluxo-table" id="fluxoTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCEIRO (detalhado) -->
+    <div class="page" id="page-financeiro">
+      <div class="kpi-row" id="kpi-financeiro"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal)</h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div></div>
+        <div class="chart-card"><h3>Resultado Mensal (Receita - Custos - Despesas)</h3><div class="chart-container"><canvas id="chartFinResultado"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Despesas s/ Custo Direto (% da Receita Mensal)</h3><div class="chart-container"><canvas id="chartFinFinanceiras"></canvas></div></div>
+        <div class="chart-card"><h3>Composição de Saídas</h3><div class="chart-container"><canvas id="chartFinComposicao"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1">
+          <h3>Detalhamento Mês a Mês</h3>
+          <div class="fin-detail-table" id="finDetailTable"></div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Contas a Receber vs Pagar</h3><div class="chart-container"><canvas id="chartReceberPagar"></canvas></div></div>
+        <div class="chart-card"><h3>A Vencer vs Atrasado (Receber / Pagar)</h3><div class="chart-container"><canvas id="chartVencidos"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- CONCILIAÇÃO BANCÁRIA -->
+    <div class="page" id="page-conciliacao">
+      <div class="concil-summary" id="concilSummary"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap">
+        <div class="filter-group"><label>Banco:</label><select id="concilBanco" onchange="renderConcilChart()"><option value="__todos__">Todos (consolidado)</option></select></div>
+        <div class="filter-group"><label>Visão:</label>
+          <select id="concilVisao" onchange="renderConcilChart()">
+            <option value="mensal">Mensal (últimos 6 meses)</option>
+            <option value="diario">Diário (mês corrente)</option>
+          </select>
+        </div>
+      </div>
+      <div class="chart-card" style="margin-bottom:20px">
+        <h3>Evolução da Diferença de Conciliação</h3>
+        <div class="chart-container" style="height:320px"><canvas id="chartConcil"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Status por Conta</h3>
+        <div class="concil-grid" id="concilGrid"></div>
+      </div>
+    </div>
+
+    <!-- VENDAS -->
+    <div class="page" id="page-vendas">
+      <div class="kpi-row" id="kpi-vendas"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Vendas por Mês</h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div></div>
+        <div class="chart-card"><h3>Pedidos por Etapa</h3><div class="chart-container"><canvas id="chartEtapas"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Top Clientes (por Receita)</h3><div class="chart-container"><canvas id="chartTopClientes"></canvas></div></div>
+        <div class="chart-card"><h3>Top Projetos (por Receita)</h3><div class="chart-container"><canvas id="chartTopProjVendas"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page" id="page-clientes">
+      <div class="kpi-row" id="kpi-clientes"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Novos Clientes por Mês</h3><div class="chart-container"><canvas id="chartClientesMes"></canvas></div></div>
+        <div class="chart-card"><h3>Clientes por Estado</h3><div class="chart-container"><canvas id="chartEstados"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Tipo de Pessoa</h3><div class="chart-container"><canvas id="chartTipoPessoa"></canvas></div></div>
+        <div class="chart-card"><h3>Status</h3><div class="chart-container"><canvas id="chartStatusCliente"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ORÇAMENTO -->
+    <div class="page" id="page-orcamento">
+      <div style="background:var(--card);border-bottom:1px solid var(--border);padding:16px 20px 12px;margin:-20px -20px 16px">
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
+          <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Período:</label>
+          <div class="periodo-btns" id="orcModoBtns">
+            <button onclick="setOrcModo('acumulado')" class="active">Acumulado</button>
+            <button onclick="setOrcModo('mes')">Mês a mês</button>
+          </div>
+          <span id="orcReguaLabel" style="font-size:13px;color:var(--accent);font-weight:600;margin-left:auto"></span>
+        </div>
+        <div class="orc-timeline" id="orcTimeline"></div>
+        <input type="hidden" id="orcRegua" value="2">
+      </div>
+      <div class="kpi-row" id="kpi-orcamento"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Receita Bruta: Real vs Orçado</h3><div class="chart-container"><canvas id="chartOrcReceita"></canvas></div></div>
+        <div class="chart-card"><h3>EBITDA: Real vs Orçado</h3><div class="chart-container"><canvas id="chartOrcEbitda"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3 id="wfTitle">Waterfall: Variação Acumulada</h3><div class="chart-container" style="height:350px"><canvas id="chartOrcWaterfall"></canvas></div></div>
+        <div class="chart-card"><h3>% Atingimento por Linha</h3><div class="chart-container" style="height:350px"><canvas id="chartOrcAtingimento"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1">
+          <h3>DRE Comparativo Detalhado</h3>
+          <div class="proj-table" id="orcTabela"></div>
+          <input type="hidden" id="orcPeriodo" value="acumulado">
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJETOS -->
+    <div class="page" id="page-projetos">
+      <div class="kpi-row" id="kpi-projetos"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Top Projetos por Receita</h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjRec"></canvas></div></div>
+        <div class="chart-card"><h3>Top Projetos por Despesa</h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjDesp"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1">
+          <h3>Detalhamento por Projeto</h3>
+          <input type="text" class="search-input" id="projetoBusca" placeholder="🔍 Buscar projeto..." oninput="filtrarProjetos()">
+          <div class="proj-table" id="projetoDetalhe"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let dadosOriginal=null, dadosFiltrados=null, charts={}, allProjData=[];
+
+const fmt=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v);
+const fmtNum=v=>new Intl.NumberFormat('pt-BR').format(v);
+const fmtK=v=>v>=1e6?`R$ ${(v/1e6).toFixed(1)}M`:v>=1e3?`R$ ${(v/1e3).toFixed(0)}K`:fmt(v);
+const fmtM=v=>Math.abs(v)>=1e5?`${(v/1e6).toFixed(1)}M`:Math.abs(v)>=1e3?`${(v/1e3).toFixed(0)}K`:fmtNum(v);
+const mesNome=k=>{const[y,m]=k.split('-');return['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]+'/'+y.slice(2)};
+const cores=['#3b82f6','#22c55e','#ef4444','#eab308','#a855f7','#06b6d4','#f97316','#ec4899','#14b8a6','#8b5cf6','#f59e0b','#10b981','#6366f1','#84cc16','#e11d48'];
+const parseDate=d=>{try{const[dd,mm,yy]=d.split('/');return new Date(yy,mm-1,dd)}catch{return null}};
+const toYM=d=>{try{const[dd,mm,yy]=d.split('/');return `${yy}-${mm}`}catch{return null}};
+
+// Classificação de categorias - usa o grupo (X.YY) para agrupar
+function getGrupo(cod){
+  if(!cod || cod==='None') return null;
+  return cod.split('.').slice(0,2).join('.');
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('page-'+t.dataset.tab).classList.add('active');
+}));
+
+function loadFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=x=>{try{dadosOriginal=JSON.parse(x.target.result);initDashboard()}catch(err){alert('Erro: '+err.message)}};r.readAsText(f)}
+
+// ============ AUTOCOMPLETE PROJETO ============
+let _projetos=[];
+let _acIdx=-1;
+
+function abrirAutocomplete(){
+  filtrarAutocomplete();
+  document.getElementById('projetoDropdown').classList.add('show');
+}
+
+function filtrarAutocomplete(){
+  const input=document.getElementById('projetoInput');
+  const dd=document.getElementById('projetoDropdown');
+  const q=input.value.toLowerCase().trim();
+  _acIdx=-1;
+  let items=[{id:'',nome:'Todos os projetos'},..._projetos];
+  if(q) items=items.filter(p=>p.nome.toLowerCase().includes(q));
+  dd.innerHTML=items.slice(0,20).map(p=>
+    `<div data-id="${p.id}" onmousedown="selecionarProjeto('${p.id}','${p.nome.replace(/'/g,"\\'")}')">
+      ${q?p.nome.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>'):p.nome}
+    </div>`
+  ).join('');
+  dd.classList.add('show');
+}
+
+function selecionarProjeto(id,nome){
+  document.getElementById('filterProjeto').value=id;
+  document.getElementById('projetoInput').value=id?nome:'';
+  document.getElementById('projetoDropdown').classList.remove('show');
+  aplicarFiltros();
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.autocomplete-wrap'))document.getElementById('projetoDropdown')?.classList.remove('show');
+});
+
+document.addEventListener('keydown',e=>{
+  const dd=document.getElementById('projetoDropdown');
+  if(!dd||!dd.classList.contains('show'))return;
+  const items=dd.querySelectorAll('div');
+  if(!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_acIdx=Math.min(_acIdx+1,items.length-1);items.forEach((it,i)=>it.classList.toggle('active',i===_acIdx))}
+  else if(e.key==='ArrowUp'){e.preventDefault();_acIdx=Math.max(_acIdx-1,0);items.forEach((it,i)=>it.classList.toggle('active',i===_acIdx))}
+  else if(e.key==='Enter'&&_acIdx>=0){e.preventDefault();items[_acIdx].dispatchEvent(new Event('mousedown'))}
+  else if(e.key==='Escape'){dd.classList.remove('show')}
+});
+
+// ============ BOTÕES DE PERÍODO ============
+function setPeriodo(tipo){
+  const hoje=new Date();
+  let de,ate;
+  if(tipo==='mes'){de=new Date(hoje.getFullYear(),hoje.getMonth(),1);ate=new Date(hoje.getFullYear(),hoje.getMonth()+1,0)}
+  else if(tipo==='tri'){const m=hoje.getMonth(),qStart=m-m%3;de=new Date(hoje.getFullYear(),qStart,1);ate=new Date(hoje.getFullYear(),qStart+3,0)}
+  else if(tipo==='ano'){de=new Date(hoje.getFullYear(),0,1);ate=new Date(hoje.getFullYear(),11,31)}
+  else if(tipo==='ytd'){de=new Date(hoje.getFullYear(),0,1);ate=hoje}
+  else{de=new Date('2025-07-01');ate=new Date('2026-07-01')}
+  document.getElementById('filterDe').value=de.toISOString().slice(0,10);
+  document.getElementById('filterAte').value=ate.toISOString().slice(0,10);
+  document.querySelectorAll('.periodo-btns button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  aplicarFiltros();
+}
+
+function initDashboard(){
+  document.getElementById('loadingState').style.display='none';
+  document.getElementById('dashboardPages').style.display='block';
+  document.getElementById('tabsContainer').style.display='flex';
+  document.getElementById('filtersBar').style.display='flex';
+  document.getElementById('syncInfo').innerHTML=`<span class="dot"></span>Atualizado em ${dadosOriginal.atualizado_em_formatado}`;
+  _projetos=(dadosOriginal.projetos||[]).slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+  document.getElementById('projetoInput').value='';
+  document.getElementById('filterProjeto').value='';
+  const DEFAULT_DE='2025-07-01', DEFAULT_ATE='2026-07-01';
+  document.getElementById('filterDe').value=DEFAULT_DE;
+  document.getElementById('filterAte').value=DEFAULT_ATE;
+  aplicarFiltros();
+}
+
+function aplicarFiltros(){
+  const de=new Date(document.getElementById('filterDe').value+'T00:00:00'),ate=new Date(document.getElementById('filterAte').value+'T23:59:59'),proj=document.getElementById('filterProjeto').value;
+  dadosFiltrados={...dadosOriginal,lancamentos:dadosOriginal.lancamentos.filter(l=>{const dt=parseDate(l.data);if(!dt)return false;if(dt<de||dt>ate)return false;if(proj&&l.projeto!=proj)return false;return true})};
+  renderAll();
+}
+
+function resetDatas(){
+  document.getElementById('filterDe').value='2025-07-01';
+  document.getElementById('filterAte').value='2026-07-01';
+  aplicarFiltros();
+}
+
+function limparFiltros(){
+  document.getElementById('filterProjeto').value='';
+  document.getElementById('projetoInput').value='';
+  document.querySelectorAll('.periodo-btns button').forEach(b=>b.classList.remove('active'));
+  resetDatas();
+}
+
+function compute(){
+  const L=dadosFiltrados.lancamentos,ent=L.filter(l=>l.tipo==='entrada'),sai=L.filter(l=>l.tipo==='saida');
+  const tE=ent.reduce((s,l)=>s+l.valor,0),tS=sai.reduce((s,l)=>s+l.valor,0);
+  const isDone=s=>['RECEBIDO','PAGO','LIQUIDADO','CANCELADO'].includes(s);
+  const isOpen=s=>!isDone(s);
+  const rec=ent.filter(l=>isDone(l.status)).reduce((s,l)=>s+l.valor,0);
+  const pag=sai.filter(l=>isDone(l.status)).reduce((s,l)=>s+l.valor,0);
+  const abRec=ent.filter(l=>isOpen(l.status)).reduce((s,l)=>s+l.valor,0);
+  const abPag=sai.filter(l=>isOpen(l.status)).reduce((s,l)=>s+l.valor,0);
+  const vRec=ent.filter(l=>l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const vPag=sai.filter(l=>l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const avRec=ent.filter(l=>['A VENCER','VENCE HOJE'].includes(l.status)).reduce((s,l)=>s+l.valor,0);
+  const avPag=sai.filter(l=>['A VENCER','VENCE HOJE'].includes(l.status)).reduce((s,l)=>s+l.valor,0);
+  const porMes={};L.forEach(l=>{const m=toYM(l.data);if(!m)return;if(!porMes[m])porMes[m]={entrada:0,saida:0};porMes[m][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porCat={};L.forEach(l=>{const k=l.categoria||'N/I';if(!porCat[k])porCat[k]={nome:l.categoria_nome||k,entrada:0,saida:0};porCat[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porCliente={};L.filter(l=>l.tipo==='entrada'&&l.cliente_nome).forEach(l=>{const k=l.cliente_nome;porCliente[k]=(porCliente[k]||0)+l.valor});
+  const gruposDesp={},gruposRec={};
+  L.forEach(l=>{const g=getGrupo(l.categoria);if(!g)return;const gn=dadosFiltrados.categorias?.[g]||g;if(l.tipo==='saida'){gruposDesp[g]=gruposDesp[g]||{nome:gn,valor:0};gruposDesp[g].valor+=l.valor}else{gruposRec[g]=gruposRec[g]||{nome:gn,valor:0};gruposRec[g].valor+=l.valor}});
+
+  // Análise financeira detalhada — agrupar por grupo de categoria mês a mês
+  const finGrupos={};  // {grupo: {nome, total, porMes:{mes: valor}}}
+  const finMesAll={};  // {mes: {receita, saida}}
+  L.forEach(l=>{
+    const m=toYM(l.data);if(!m)return;
+    if(!finMesAll[m])finMesAll[m]={receita:0,saida:0};
+    if(l.tipo==='entrada'){finMesAll[m].receita+=l.valor;return;}
+    finMesAll[m].saida+=l.valor;
+    const g=getGrupo(l.categoria);
+    if(!g)return;
+    const gn=dadosFiltrados.categorias?.[g]||g;
+    if(!finGrupos[g])finGrupos[g]={nome:gn,total:0,porMes:{}};
+    finGrupos[g].total+=l.valor;
+    finGrupos[g].porMes[m]=(finGrupos[g].porMes[m]||0)+l.valor;
+  });
+  // Ordenar grupos por valor total (desc) e pegar os top para charts
+  const finGruposArr=Object.entries(finGrupos).sort((a,b)=>b[1].total-a[1].total);
+
+  return{tE,tS,rec,pag,abRec,abPag,vRec,vPag,avRec,avPag,porMes,porCat,porProj,porCliente,gruposDesp,gruposRec,ent,sai,finGrupos,finGruposArr,finMesAll};
+}
+
+function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
+
+function renderAll(){destroyCharts();const d=compute();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(d);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(d);renderClientes();renderProjetos();renderOrcamento()}
+
+Chart.register(ChartDataLabels);
+Chart.defaults.color='#94a3b8';
+const dlCurrency={display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:'end',align:'end',formatter:v=>fmtK(v)};
+const dlNum={display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:'end',align:'end',formatter:v=>fmtNum(v)};
+const dlNone={display:false};
+const cOpts=f=>({responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>f==='currency'?fmtK(v):fmtNum(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:f==='currency'?dlCurrency:dlNum}});
+const dOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}},datalabels:{display:ctx=>{const d=ctx.dataset.data;const t=d.reduce((a,b)=>a+b,0);return d[ctx.dataIndex]/t>0.05},color:'#fff',font:{size:9,weight:600},formatter:(v)=>fmtK(v)}}};
+const hBarOpts=(f)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtK(v)}}});
+
+// ============ VISÃO GERAL ============
+function renderVisaoGeral(d){
+  const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
+  const dataRef=(dadosFiltrados.saldos_bancarios||[])[0]?.data||'';
+  document.getElementById('kpi-geral').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Saldo Bancário (D-1)</div><div class="kpi-value ${saldoTotal>=0?'green':'red'}">${fmt(saldoTotal)}</div><div class="kpi-sub">Ref: ${dataRef} (conciliado)</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Entradas (período)</div><div class="kpi-value green">${fmt(d.tE)}</div><div class="kpi-sub">${d.ent.length} lançamentos</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Saídas (período)</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">${d.sai.length} lançamentos</div></div>
+    <div class="kpi-card"><div class="kpi-label">Previsão (Saldo+Receber-Pagar)</div><div class="kpi-value cyan">${fmt(saldoTotal+d.abRec-d.abPag)}</div></div>`;
+
+  const saldos=(dadosFiltrados.saldos_bancarios||[]).filter(s=>s.saldo!==0).sort((a,b)=>b.saldo-a.saldo);
+  document.getElementById('saldoTitle').textContent=`Saldo por Conta (D-1 conciliado) — ${dataRef}`;
+  document.getElementById('saldoGrid').innerHTML=saldos.map(s=>`
+    <div class="saldo-item">
+      <div><div class="nome">${s.nome}</div><div class="tipo">${s.tipo==='CC'?'Conta Corrente':s.tipo==='CR'?'Cartão':s.tipo==='CG'?'Garantida':s.tipo==='CA'?'Aplicação':s.tipo==='CX'?'Caixa':s.tipo}</div></div>
+      <div class="valor" style="color:${s.saldo>=0?'var(--green)':'var(--red)'}">${fmt(s.saldo)}</div>
+    </div>`).join('');
+
+  const meses=Object.keys(d.porMes).sort();
+  charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Entradas',data:meses.map(m=>d.porMes[m].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},{label:'Saídas',data:meses.map(m=>d.porMes[m].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:cOpts('currency')});
+
+  let ac=0;const saldoArr=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
+  charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{labels:meses.map(mesNome),datasets:[{label:'Saldo Acumulado',data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3}]},options:cOpts('currency')});
+
+  const tD=Object.entries(d.gruposDesp).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
+  charts.tCatD=new Chart(document.getElementById('chartTopCatDesp'),{type:'doughnut',data:{labels:tD.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tD.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
+  const tR=Object.entries(d.gruposRec).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
+  charts.tCatR=new Chart(document.getElementById('chartTopCatRec'),{type:'doughnut',data:{labels:tR.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tR.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
+}
+
+// ============ CONCILIAÇÃO BANCÁRIA (aba própria) ============
+function renderConciliacao(saldos){
+  const contas=saldos.filter(s=>s.saldo!==0||s.saldo_conciliado!==0);
+  if(!contas.length){
+    document.getElementById('concilSummary').innerHTML='<p style="color:var(--muted)">Sem dados de conciliação. Execute o sync v5+.</p>';
+    document.getElementById('concilGrid').innerHTML='';
+    return;
+  }
+  let ok=0,warn=0,error=0,totalDif=0;
+  contas.forEach(c=>{const dif=Math.abs(c.diferenca||0);totalDif+=dif;if(dif<1)ok++;else if(dif<1000)warn++;else error++});
+  document.getElementById('concilSummary').innerHTML=`
+    <div class="concil-stat"><div class="num" style="color:var(--green)">${ok}</div><div class="lbl">Conciliadas</div></div>
+    <div class="concil-stat"><div class="num" style="color:var(--yellow)">${warn}</div><div class="lbl">Peq. Diferença</div></div>
+    <div class="concil-stat"><div class="num" style="color:var(--red)">${error}</div><div class="lbl">Pendentes</div></div>
+    <div class="concil-stat"><div class="num" style="color:var(--text)">${contas.length}</div><div class="lbl">Total</div></div>
+    <div class="concil-stat"><div class="num" style="color:${totalDif<1?'var(--green)':'var(--red)'}; font-size:16px">${fmt(totalDif)}</div><div class="lbl">Diferença Total</div></div>`;
+  const sel=document.getElementById('concilBanco');
+  const curVal=sel.value;
+  sel.innerHTML='<option value="__todos__">Todos (consolidado)</option>';
+  contas.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(c=>{
+    const o=document.createElement('option');o.value=c.id;o.textContent=c.nome;sel.appendChild(o);
+  });
+  sel.value=curVal||'__todos__';
+  renderConcilChart();
+  document.getElementById('concilGrid').innerHTML=contas.sort((a,b)=>Math.abs(b.diferenca||0)-Math.abs(a.diferenca||0)).map(c=>{
+    const dif=Math.abs(c.diferenca||0);
+    let cls='error',badge='Pendente';
+    if(dif<1){cls='ok';badge='OK'}else if(dif<1000){cls='warn';badge='Atenção'}
+    return`<div class="concil-item ${cls}">
+      <div class="concil-header"><span class="concil-nome">${c.nome}</span><span class="concil-badge ${cls}">${badge}</span></div>
+      <div class="concil-row"><span>Saldo (D-1)</span><span class="val">${fmt(c.saldo)}</span></div>
+      <div class="concil-row"><span>Conciliado</span><span class="val">${fmt(c.saldo_conciliado||0)}</span></div>
+      <div class="concil-row"><span>Diferença</span><span class="val" style="color:${dif<1?'var(--green)':'var(--red)'}; font-weight:700">${dif<1?'R$ 0,00':fmt(c.diferenca)}</span></div>
+    </div>`}).join('');
+}
+
+function renderConcilChart(){
+  if(charts.concil){charts.concil.destroy();delete charts.concil}
+  const hist=dadosOriginal.historico_conciliacao||[];
+  if(!hist.length)return;
+  const banco=document.getElementById('concilBanco').value;
+  const visao=document.getElementById('concilVisao').value;
+  let filtered=hist.filter(h=>h.tipo===visao);
+  if(banco!=='__todos__'){
+    filtered=filtered.filter(h=>String(h.banco_id)===String(banco));
+  } else {
+    const byDate={};
+    filtered.forEach(h=>{
+      if(!byDate[h.data])byDate[h.data]={data:h.data,label:h.label,saldo_atual:0,saldo_conciliado:0,diferenca:0};
+      byDate[h.data].saldo_atual+=h.saldo_atual;
+      byDate[h.data].saldo_conciliado+=h.saldo_conciliado;
+      byDate[h.data].diferenca+=h.diferenca;
+    });
+    filtered=Object.values(byDate).sort((a,b)=>a.data.localeCompare(b.data));
+  }
+  if(!filtered.length)return;
+  if(banco!=='__todos__') filtered.sort((a,b)=>a.data.localeCompare(b.data));
+  const labels=filtered.map(h=>h.label);
+  const difs=filtered.map(h=>h.diferenca);
+  const bgColors=difs.map(v=>Math.abs(v)<1?'#22c55e88':Math.abs(v)<1000?'#eab30888':'#ef444488');
+  const bdColors=difs.map(v=>Math.abs(v)<1?'#22c55e':Math.abs(v)<1000?'#eab308':'#ef4444');
+  charts.concil=new Chart(document.getElementById('chartConcil'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Diferença (Saldo - Conciliado)',data:difs,backgroundColor:bgColors,borderColor:bdColors,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{color:'#94a3b8',maxRotation:45},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},
+      plugins:{legend:{labels:{color:'#94a3b8'}},tooltip:{callbacks:{label:ctx=>`Diferença: ${fmt(ctx.raw)}`}},datalabels:dlCurrency}
+    }
+  });
+}
+
+// ============ FLUXO DE CAIXA ============
+let _fluxoVisao='consolidado';
+let _fluxoData=null;
+
+function setFluxoVisao(visao){
+  _fluxoVisao=visao;
+  document.querySelectorAll('#fluxoVisaoBtns button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  if(_fluxoData) renderFluxoTabela(_fluxoData);
+}
+
+function renderFluxoCaixa(d){
+  _fluxoData=d;
+  document.getElementById('kpi-fluxo').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Total Receitas</div><div class="kpi-value green">${fmt(d.tE)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Despesas</div><div class="kpi-value red">${fmt(d.tS)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Margem</div><div class="kpi-value blue">${d.tE>0?((d.tE-d.tS)/d.tE*100).toFixed(1):'0'}%</div></div>`;
+
+  // Charts primeiro
+  const dG=Object.entries(d.gruposDesp).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
+  charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{labels:dG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:dG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
+  const rG=Object.entries(d.gruposRec).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
+  charts.rGrupo=new Chart(document.getElementById('chartRecGrupo'),{type:'bar',data:{labels:rG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:rG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
+
+  // Tabela
+  renderFluxoTabela(d);
+}
+
+function renderFluxoTabela(d){
+  const cats=Object.entries(d.porCat).sort((a,b)=>a[0].localeCompare(b[0]));
+  const groups={};
+  cats.forEach(([cod,data])=>{
+    const g=cod.split('.').slice(0,2).join('.');
+    const gn=dadosFiltrados.categorias?.[g]||g;
+    if(!groups[g])groups[g]={nome:gn,items:[],tE:0,tS:0,porMes:{}};
+    groups[g].items.push({cod,...data});
+    groups[g].tE+=data.entrada;groups[g].tS+=data.saida;
+  });
+
+  // Build meses from lançamentos
+  const meses=Object.keys(d.porMes).sort();
+
+  if(_fluxoVisao==='mensal'&&meses.length>1){
+    // ---- VISÃO MÊS A MÊS ----
+    // Calcular dados por grupo por mês
+    const L=dadosFiltrados.lancamentos;
+    const groupMes={};
+    L.forEach(l=>{
+      const cat=l.categoria||'';
+      const g=cat.split('.').slice(0,2).join('.');
+      const dt=parseDate(l.data);if(!dt)return;
+      const m=dt.getFullYear()+'-'+(dt.getMonth()+1).toString().padStart(2,'0');
+      if(!groupMes[g])groupMes[g]={};
+      if(!groupMes[g][m])groupMes[g][m]={entrada:0,saida:0};
+      if(l.tipo==='entrada')groupMes[g][m].entrada+=l.valor;
+      else groupMes[g][m].saida+=l.valor;
+    });
+
+    let h='<div style="overflow-x:auto"><table style="min-width:800px;font-size:11px"><thead><tr><th style="min-width:140px;max-width:180px;font-size:10px">Grupo</th>';
+    meses.forEach(m=>{h+=`<th style="text-align:right;font-size:10px;white-space:nowrap">${mesNome(m)}</th>`});
+    h+='<th style="text-align:right;font-size:10px">Total</th></tr></thead><tbody>';
+
+    Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,data])=>{
+      if(!data.tE&&!data.tS)return;
+      const saldo=data.tE-data.tS;
+      const nome=data.nome.length>28?data.nome.substring(0,26)+'…':data.nome;
+      h+=`<tr class="cat-group"><td style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="${data.nome}">${nome}</td>`;
+      meses.forEach(m=>{
+        const gm=groupMes[g]?.[m];
+        const v=gm?gm.entrada-gm.saida:0;
+        h+=`<td style="text-align:right;color:${v>0?'var(--green)':v<0?'var(--red)':'var(--muted)'}; font-size:11px">${v!==0?fmt(v):'-'}</td>`;
+      });
+      h+=`<td style="text-align:right;color:${saldo>=0?'var(--green)':'var(--red)'}"><strong>${fmt(saldo)}</strong></td></tr>`;
+    });
+
+    // Total row
+    h+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td>`;
+    meses.forEach(m=>{
+      const v=(d.porMes[m]?.entrada||0)-(d.porMes[m]?.saida||0);
+      h+=`<td style="text-align:right;color:${v>=0?'var(--green)':'var(--red)'}">${fmt(v)}</td>`;
+    });
+    const ts=d.tE-d.tS;
+    h+=`<td style="text-align:right;color:${ts>=0?'var(--green)':'var(--red)'}">${fmt(ts)}</td></tr></tbody></table></div>`;
+    document.getElementById('fluxoTable').innerHTML=h;
+
+  } else {
+    // ---- VISÃO CONSOLIDADA (original) ----
+    let h='<table><thead><tr><th>Categoria</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo</th></tr></thead><tbody>';
+    Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,data])=>{
+      if(!data.tE&&!data.tS)return;
+      const s=data.tE-data.tS;
+      h+=`<tr class="cat-group"><td>${data.nome}</td><td style="text-align:right" class="valor-entrada">${data.tE?fmt(data.tE):'-'}</td><td style="text-align:right" class="valor-saida">${data.tS?fmt(data.tS):'-'}</td><td style="text-align:right;color:${s>=0?'var(--green)':'var(--red)'}"><strong>${fmt(s)}</strong></td></tr>`;
+      data.items.forEach(i=>{
+        if(!i.entrada&&!i.saida)return;
+        const ss=i.entrada-i.saida;
+        h+=`<tr><td style="padding-left:24px;color:var(--muted)">${i.nome}</td><td style="text-align:right" class="valor-entrada">${i.entrada?fmt(i.entrada):'-'}</td><td style="text-align:right" class="valor-saida">${i.saida?fmt(i.saida):'-'}</td><td style="text-align:right;color:${ss>=0?'var(--green)':'var(--red)'}">${fmt(ss)}</td></tr>`;
+      });
+    });
+    const ts=d.tE-d.tS;
+    h+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td><td style="text-align:right" class="valor-entrada">${fmt(d.tE)}</td><td style="text-align:right" class="valor-saida">${fmt(d.tS)}</td><td style="text-align:right;color:${ts>=0?'var(--green)':'var(--red)'}">${fmt(ts)}</td></tr></tbody></table>`;
+    document.getElementById('fluxoTable').innerHTML=h;
+  }
+}
+
+// ============ FINANCEIRO (detalhado) ============
+function renderFinanceiro(d){
+  const lucro=d.tE-d.tS;
+  // KPIs: receita, total despesa, resultado, margem, e top 2 grupos de despesa
+  const top2=d.finGruposArr.slice(0,2);
+  document.getElementById('kpi-financeiro').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value green">${fmt(d.tE)}</div><div class="kpi-sub">${d.ent.length} lançamentos</div></div>
+    <div class="kpi-card"><div class="kpi-label">Despesa Total</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">${d.sai.length} lançamentos</div></div>
+    <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${lucro>=0?'green':'red'}">${fmt(lucro)}</div><div class="kpi-sub">Margem: ${d.tE>0?(lucro/d.tE*100).toFixed(1):'0'}%</div></div>
+    ${top2.map((g,i)=>`<div class="kpi-card"><div class="kpi-label">${g[1].nome.substring(0,30)}</div><div class="kpi-value" style="color:${cores[i+2]}">${fmt(g[1].total)}</div><div class="kpi-sub">${d.tE>0?(g[1].total/d.tE*100).toFixed(1):'0'}% da receita</div></div>`).join('')}
+    <div class="kpi-card"><div class="kpi-label">A Receber (aberto)</div><div class="kpi-value blue">${fmt(d.abRec)}</div><div class="kpi-sub">Vencido: ${fmt(d.vRec)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">A Pagar (aberto)</div><div class="kpi-value yellow">${fmt(d.abPag)}</div><div class="kpi-sub">Vencido: ${fmt(d.vPag)}</div></div>`;
+
+  const meses=Object.keys(d.finMesAll).sort();
+
+  // SG&A = 4.02+4.03+4.04+4.05 (API: 2.02,2.03,2.04,2.10)
+  const sgaCodes=new Set(['2.02','2.03','2.04','2.10']);
+  const sgaMes={};meses.forEach(m=>{sgaMes[m]=0});
+  const outrosGrupos=[];
+  d.finGruposArr.forEach(g=>{
+    if(g[0]==='2.01') return; // Desp. Diretas separado como Custo Direto
+    if(sgaCodes.has(g[0])){meses.forEach(m=>{sgaMes[m]+=(g[1].porMes[m]||0)})}
+    else outrosGrupos.push(g);
+  });
+  const custoDireto=d.finGrupos['2.01'];
+  const datasets=[
+    {label:'Receita',data:meses.map(m=>d.finMesAll[m]?.receita||0),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},
+    {label:'Custo Direto',data:meses.map(m=>custoDireto?.porMes[m]||0),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1},
+    {label:'SG&A',data:meses.map(m=>sgaMes[m]),backgroundColor:'#eab30888',borderColor:'#eab308',borderWidth:1}
+  ];
+  outrosGrupos.slice(0,4).forEach((g,i)=>{
+    datasets.push({label:g[1].nome.substring(0,25),data:meses.map(m=>g[1].porMes[m]||0),backgroundColor:cores[i+4]+'88',borderColor:cores[i+4],borderWidth:1});
+  });
+  charts.finStack=new Chart(document.getElementById('chartFinStack'),{type:'bar',data:{labels:meses.map(mesNome),datasets},
+    options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#cbd5e1',font:{size:8,weight:500},anchor:'end',align:'top',offset:2,formatter:v=>fmtM(v)}}}});
+
+  // Resultado mensal
+  const resultados=meses.map(m=>(d.finMesAll[m]?.receita||0)-(d.finMesAll[m]?.saida||0));
+  charts.finRes=new Chart(document.getElementById('chartFinResultado'),{type:'bar',data:{
+    labels:meses.map(mesNome),
+    datasets:[{label:'Resultado',data:resultados,backgroundColor:resultados.map(v=>v>=0?'#22c55e88':'#ef444488'),borderColor:resultados.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1}]
+  },options:cOpts('currency')});
+
+  // Despesas (sem Custo Direto) como % da receita mensal
+  const pctGrupos=d.finGruposArr.filter(g=>g[0]!=='2.01');
+  // Consolidar SG&A no percentual também
+  const pctSGA={label:'SG&A',data:meses.map(m=>{const rec=d.finMesAll[m]?.receita||0;return rec>0?(sgaMes[m]/rec*100):0}),backgroundColor:'#eab30888',borderColor:'#eab308',borderWidth:1};
+  const pctOutros=outrosGrupos.slice(0,5).map((g,i)=>({label:g[1].nome.substring(0,25),data:meses.map(m=>{const rec=d.finMesAll[m]?.receita||0;return rec>0?((g[1].porMes[m]||0)/rec*100):0}),backgroundColor:cores[i+4]+'88',borderColor:cores[i+4],borderWidth:1}));
+  charts.finFin=new Chart(document.getElementById('chartFinFinanceiras'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[pctSGA,...pctOutros]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>v.toFixed(0)+'%'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:{display:ctx=>{const v=ctx.dataset.data[ctx.dataIndex];return v>3},color:'#fff',font:{size:8,weight:600},formatter:v=>v.toFixed(1)+'%'}}}});
+
+  // Composição de saídas (doughnut)
+  const compData=d.finGruposArr.filter(g=>g[1].total>0).slice(0,10);
+  charts.finComp=new Chart(document.getElementById('chartFinComposicao'),{type:'doughnut',data:{
+    labels:compData.map(g=>g[1].nome.substring(0,30)),datasets:[{data:compData.map(g=>g[1].total),backgroundColor:cores.slice(0,compData.length).map(c=>c+'88'),borderColor:cores.slice(0,compData.length),borderWidth:1}]
+  },options:dOpts});
+
+  // Tabela detalhada: mês a mês com cada grupo de despesa como coluna
+  const tabelaGrupos=d.finGruposArr.filter(g=>g[1].total>0);
+  let th='<table><thead><tr><th>Mês</th><th style="text-align:right">Receita</th>';
+  tabelaGrupos.forEach(g=>{th+=`<th style="text-align:right;font-size:10px">${g[1].nome.substring(0,20)}</th>`});
+  th+='<th style="text-align:right">Resultado</th><th style="text-align:right">Margem</th></tr></thead><tbody>';
+  const totais={receita:0,grupos:{},resultado:0};
+  tabelaGrupos.forEach(g=>{totais.grupos[g[0]]=0});
+  meses.forEach(m=>{
+    const rec=d.finMesAll[m]?.receita||0;
+    let desp=0;
+    totais.receita+=rec;
+    th+=`<tr><td><strong>${mesNome(m)}</strong></td><td style="text-align:right" class="valor-entrada">${fmt(rec)}</td>`;
+    tabelaGrupos.forEach(g=>{
+      const v=g[1].porMes[m]||0;desp+=v;totais.grupos[g[0]]+=v;
+      th+=`<td style="text-align:right" class="valor-saida">${v?fmt(v):'-'}</td>`;
+    });
+    const res=rec-desp;totais.resultado+=res;
+    const mg=rec>0?(res/rec*100).toFixed(1):'0';
+    th+=`<td style="text-align:right;color:${res>=0?'var(--green)':'var(--red)'}"><strong>${fmt(res)}</strong></td><td style="text-align:right;color:${res>=0?'var(--green)':'var(--red)'}">${mg}%</td></tr>`;
+  });
+  // Total row
+  const totMg=totais.receita>0?(totais.resultado/totais.receita*100).toFixed(1):'0';
+  th+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td><td style="text-align:right" class="valor-entrada">${fmt(totais.receita)}</td>`;
+  tabelaGrupos.forEach(g=>{th+=`<td style="text-align:right" class="valor-saida">${fmt(totais.grupos[g[0]])}</td>`});
+  th+=`<td style="text-align:right;color:${totais.resultado>=0?'var(--green)':'var(--red)'}">${fmt(totais.resultado)}</td><td style="text-align:right;color:${totais.resultado>=0?'var(--green)':'var(--red)'}">${totMg}%</td></tr></tbody></table>`;
+  document.getElementById('finDetailTable').innerHTML=th;
+
+  // Contas a Receber vs Pagar
+  const m2=Object.keys(d.porMes).sort();
+  charts.rp=new Chart(document.getElementById('chartReceberPagar'),{type:'line',data:{labels:m2.map(mesNome),datasets:[{label:'Receber',data:m2.map(x=>d.porMes[x].entrada),borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3},{label:'Pagar',data:m2.map(x=>d.porMes[x].saida),borderColor:'#ef4444',backgroundColor:'#ef444422',fill:true,tension:.3}]},options:cOpts('currency')});
+
+  // A Vencer vs Atrasado
+  charts.venc=new Chart(document.getElementById('chartVencidos'),{type:'bar',data:{
+    labels:['Receber','Pagar'],
+    datasets:[
+      {label:'A Vencer',data:[d.avRec,d.avPag],backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1},
+      {label:'Atrasado',data:[d.vRec,d.vPag],backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:dlCurrency}}});
+}
+
+// ============ VENDAS ============
+function renderVendas(d){
+  // Usar dados filtrados dos lançamentos para vendas
+  const ent=d.ent;
+  const totalVendas=d.tE;
+  const porMes=d.porMes;
+  const meses=Object.keys(porMes).sort();
+  const nMeses=Math.max(meses.length,1);
+
+  document.getElementById('kpi-vendas').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Total Receitas</div><div class="kpi-value green">${fmt(totalVendas)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Lançamentos</div><div class="kpi-value blue">${fmtNum(ent.length)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value purple">${fmt(ent.length>0?totalVendas/ent.length:0)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Média Mensal</div><div class="kpi-value cyan">${fmt(totalVendas/nMeses)}</div></div>`;
+
+  charts.vMes=new Chart(document.getElementById('chartVendasMes'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Receita',data:meses.map(m=>porMes[m].entrada||0),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1,yAxisID:'y'},{label:'Despesa',data:meses.map(m=>porMes[m].saida||0),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1,yAxisID:'y'}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{position:'left',ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'end',formatter:v=>fmtK(v)}}}});
+
+  // Etapas dos pedidos (API data, não filtrada por data)
+  const v=dadosOriginal.vendas;
+  if(v){
+    const et=Object.entries(v.por_etapa);
+    charts.etapas=new Chart(document.getElementById('chartEtapas'),{type:'doughnut',data:{labels:et.map(e=>e[0]),datasets:[{data:et.map(e=>e[1]),backgroundColor:cores}]},options:dOpts});
+  }
+
+  const topCli=Object.entries(d.porCliente).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.topCli=new Chart(document.getElementById('chartTopClientes'),{type:'bar',data:{labels:topCli.map(e=>e[0].substring(0,30)),datasets:[{data:topCli.map(e=>e[1]),backgroundColor:'#22c55e88'}]},options:hBarOpts()});
+  const topPrj=Object.entries(d.porProj).filter(e=>e[1].entrada>0).sort((a,b)=>b[1].entrada-a[1].entrada).slice(0,10);
+  charts.topPrjV=new Chart(document.getElementById('chartTopProjVendas'),{type:'bar',data:{labels:topPrj.map(e=>e[1].nome.substring(0,30)),datasets:[{data:topPrj.map(e=>e[1].entrada),backgroundColor:'#3b82f688'}]},options:hBarOpts()});
+}
+
+// ============ CLIENTES ============
+function renderClientes(){
+  // Clientes usa dados agregados da API (não filtra por data — é o cadastro completo)
+  const c=dadosOriginal.clientes;if(!c)return;
+  document.getElementById('kpi-clientes').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Total</div><div class="kpi-value blue">${fmtNum(c.total_clientes)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ativos</div><div class="kpi-value green">${fmtNum(c.ativos)}</div><div class="kpi-sub">${(c.ativos/c.total_clientes*100).toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">PJ</div><div class="kpi-value purple">${fmtNum(c.pessoa_juridica)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">PF</div><div class="kpi-value cyan">${fmtNum(c.pessoa_fisica)}</div></div>`;
+  const m=Object.keys(c.por_mes_cadastro).sort();
+  charts.cMes=new Chart(document.getElementById('chartClientesMes'),{type:'bar',data:{labels:m.map(mesNome),datasets:[{label:'Novos',data:m.map(x=>c.por_mes_cadastro[x]),backgroundColor:'#a855f788',borderColor:'#a855f7',borderWidth:1}]},options:cOpts('number')});
+  const est=Object.entries(c.por_estado);
+  charts.est=new Chart(document.getElementById('chartEstados'),{type:'bar',data:{labels:est.map(e=>e[0]),datasets:[{data:est.map(e=>e[1]),backgroundColor:cores}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtNum(v)}}}});
+  charts.tp=new Chart(document.getElementById('chartTipoPessoa'),{type:'doughnut',data:{labels:['PJ','PF'],datasets:[{data:[c.pessoa_juridica,c.pessoa_fisica],backgroundColor:['#a855f7','#06b6d4']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});
+  charts.sc=new Chart(document.getElementById('chartStatusCliente'),{type:'doughnut',data:{labels:['Ativos','Inativos'],datasets:[{data:[c.ativos,c.inativos],backgroundColor:['#22c55e','#ef4444']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});
+}
+
+// ============ PROJETOS ============
+function renderProjetos(){
+  // Projetos usa lançamentos filtrados por data/projeto
+  const porProj={};
+  dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const projs=Object.entries(porProj);
+  const tR=projs.reduce((s,e)=>s+e[1].entrada,0),tD=projs.reduce((s,e)=>s+e[1].saida,0);
+  document.getElementById('kpi-projetos').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Projetos</div><div class="kpi-value blue">${projs.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value green">${fmt(tR)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Despesa Total</div><div class="kpi-value red">${fmt(tD)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${tR-tD>=0?'green':'red'}">${fmt(tR-tD)}</div></div>`;
+  const topR=projs.filter(e=>e[1].entrada>0).sort((a,b)=>b[1].entrada-a[1].entrada).slice(0,10);
+  charts.tPR=new Chart(document.getElementById('chartTopProjRec'),{type:'bar',data:{labels:topR.map(e=>e[1].nome.substring(0,35)),datasets:[{data:topR.map(e=>e[1].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1}]},options:hBarOpts()});
+  const topD=projs.filter(e=>e[1].saida>0).sort((a,b)=>b[1].saida-a[1].saida).slice(0,10);
+  charts.tPD=new Chart(document.getElementById('chartTopProjDesp'),{type:'bar',data:{labels:topD.map(e=>e[1].nome.substring(0,35)),datasets:[{data:topD.map(e=>e[1].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:hBarOpts()});
+  allProjData=projs.sort((a,b)=>(b[1].entrada-b[1].saida)-(a[1].entrada-a[1].saida)).map(([id,p])=>({id,...p}));
+  document.getElementById('projetoBusca').value='';
+  renderProjetoTabela(allProjData);
+}
+
+function filtrarProjetos(){
+  const q=document.getElementById('projetoBusca').value.toLowerCase();
+  const filtered=q?allProjData.filter(p=>p.nome.toLowerCase().includes(q)):allProjData;
+  renderProjetoTabela(filtered);
+}
+
+function renderProjetoTabela(data){
+  let h='<table><thead><tr><th>Projeto</th><th style="text-align:right">Receita</th><th style="text-align:right">Despesa</th><th style="text-align:right">Resultado</th><th style="text-align:right">Margem</th></tr></thead><tbody>';
+  data.forEach(p=>{
+    const r=p.entrada-p.saida,mg=p.entrada>0?(r/p.entrada*100).toFixed(1):p.saida>0?'-100':'0';
+    h+=`<tr><td>${p.nome}</td><td style="text-align:right" class="valor-entrada">${p.entrada?fmt(p.entrada):'-'}</td><td style="text-align:right" class="valor-saida">${p.saida?fmt(p.saida):'-'}</td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}"><strong>${fmt(r)}</strong></td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}">${mg}%</td></tr>`;
+  });
+  h+=`</tbody></table>`;
+  if(!data.length) h='<p style="text-align:center;color:var(--muted);padding:24px">Nenhum projeto encontrado</p>';
+  document.getElementById('projetoDetalhe').innerHTML=h;
+}
+
+// ============================================================
+// ORÇAMENTO (Real vs BP)
+// ============================================================
+let orcData=null;
+
+function loadOrcamento(){
+  // Try loading from window global (dados_orcamento.js) or fetch JSON
+  if(window.ORCAMENTO_DATA){orcData=window.ORCAMENTO_DATA;return Promise.resolve()}
+  return fetch('dados_orcamento.json').then(r=>r.ok?r.json():null).then(d=>{orcData=d}).catch(()=>{orcData=null});
+}
+
+// ============ ORÇAMENTO: timeline visual ============
+let _orcModo='acumulado';
+let _orcIdx=2;
+const _mesesNomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function buildTimeline(){
+  if(!orcData||!orcData.dre)return;
+  const tl=document.getElementById('orcTimeline');
+  if(!tl)return;
+  const allMeses=orcData.meses_disponiveis||[];
+  const mesesReal=orcData.meses_com_real||[];
+  tl.innerHTML='<div class="tl-line"></div><div class="tl-fill" id="tlFill"></div>';
+  allMeses.forEach((m,i)=>{
+    const hasReal=mesesReal.includes(m);
+    const step=document.createElement('div');
+    step.className='tl-step';
+    step.innerHTML=`<div class="tl-dot${hasReal?' has-real':''}" data-idx="${i}"></div><div class="tl-label">${_mesesNomes[i]}</div>`;
+    step.addEventListener('click',()=>{_orcIdx=i;updateTimeline();renderOrcamento(_orcIdx)});
+    tl.appendChild(step);
+  });
+  updateTimeline();
+}
+
+function updateTimeline(){
+  const tl=document.getElementById('orcTimeline');
+  if(!tl)return;
+  const dots=tl.querySelectorAll('.tl-dot');
+  const labels=tl.querySelectorAll('.tl-label');
+  const fill=document.getElementById('tlFill');
+  const n=dots.length;if(!n)return;
+
+  dots.forEach((d,i)=>{
+    d.classList.remove('selected','in-range');
+    labels[i].classList.remove('active');
+    if(_orcModo==='acumulado'){
+      if(i<=_orcIdx) d.classList.add('in-range');
+      if(i===_orcIdx) d.classList.add('selected');
+      if(i<=_orcIdx) labels[i].classList.add('active');
+    } else {
+      if(i===_orcIdx){d.classList.add('selected');labels[i].classList.add('active')}
+    }
+  });
+
+  // Position the fill bar
+  const stepW=100/n;
+  if(_orcModo==='acumulado'){
+    fill.style.left='0%';
+    fill.style.width=`${stepW*_orcIdx+stepW/2}%`;
+    fill.style.display='block';
+    document.getElementById('orcReguaLabel').textContent=`Jan → ${_mesesNomes[_orcIdx]} (acumulado)`;
+  } else {
+    fill.style.display='none';
+    document.getElementById('orcReguaLabel').textContent=_mesesNomes[_orcIdx];
+  }
+  document.getElementById('orcRegua').value=_orcIdx;
+}
+
+function setOrcModo(modo){
+  _orcModo=modo;
+  document.querySelectorAll('#orcModoBtns button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  updateTimeline();
+  renderOrcamento(_orcIdx);
+}
+
+function renderOrcamento(reguaIdx){
+  if(!orcData||!orcData.dre){
+    const el=document.getElementById('kpi-orcamento');
+    if(el)el.innerHTML='<p style="color:var(--muted);padding:20px">Dados de orçamento não disponíveis. Verifique se dados_orcamento.enc foi gerado.</p>';
+    return;
+  }
+  const o=orcData;
+  const mesesReal=o.meses_com_real||[];
+  if(!mesesReal.length)return;
+  const allMeses=o.meses_disponiveis||[];
+
+  // Build timeline on first render
+  const tlEl=document.getElementById('orcTimeline');
+  if(tlEl&&!tlEl.querySelector('.tl-step')){
+    _orcIdx=Math.max(0,mesesReal.length-1);
+    buildTimeline();
+  }
+  if(reguaIdx===undefined) reguaIdx=_orcIdx;
+  _orcIdx=reguaIdx;
+  updateTimeline();
+
+  // Determine which months to use based on mode + régua
+  let mesesCalc, labelPeriodo;
+  if(_orcModo==='acumulado'){
+    mesesCalc=allMeses.slice(0,reguaIdx+1);
+    labelPeriodo=`Jan→${_mesesNomes[reguaIdx]}`;
+    document.getElementById('orcReguaLabel').textContent=`Jan → ${_mesesNomes[reguaIdx]} (acumulado)`;
+  } else {
+    mesesCalc=[allMeses[reguaIdx]];
+    labelPeriodo=_mesesNomes[reguaIdx];
+    document.getElementById('orcReguaLabel').textContent=_mesesNomes[reguaIdx];
+  }
+  // For KPIs: only count months that have real data
+  const mesesComReal=mesesCalc.filter(m=>mesesReal.includes(m));
+
+  const find=label=>o.dre.find(l=>l.label===label);
+  const rb=find('Receita Bruta'), eb=find('EBITDA'), ll=find('Lucro Líquido');
+
+  let accReal=0,accBP=0,accEbReal=0,accEbBP=0,accLLReal=0,accLLBP=0;
+  mesesCalc.forEach(m=>{
+    accReal+=rb.real[m]||0; accBP+=rb.bp[m]||0;
+    accEbReal+=(eb.real[m]||0); accEbBP+=(eb.bp[m]||0);
+    accLLReal+=(ll.real[m]||0); accLLBP+=(ll.bp[m]||0);
+  });
+  const pctRec=accBP?((accReal/accBP)*100):0;
+  const pctEb=accEbBP?((accEbReal/accEbBP)*100):0;
+
+  document.getElementById('kpi-orcamento').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Receita Real (${labelPeriodo})</div><div class="kpi-value">${fmtK(accReal)}</div><div class="kpi-sub">${pctRec.toFixed(0)}% do orçado</div></div>
+    <div class="kpi"><div class="kpi-label">Receita Orçada (${labelPeriodo})</div><div class="kpi-value">${fmtK(accBP)}</div><div class="kpi-sub">${mesesComReal.length} meses com real</div></div>
+    <div class="kpi"><div class="kpi-label">EBITDA Real (${labelPeriodo})</div><div class="kpi-value">${fmtK(accEbReal)}</div><div class="kpi-sub">${pctEb.toFixed(0)}% do orçado</div></div>
+    <div class="kpi"><div class="kpi-label">LL Real (${labelPeriodo})</div><div class="kpi-value">${fmtK(accLLReal)}</div><div class="kpi-sub">BP: ${fmtK(accLLBP)}</div></div>
+  `;
+
+  // Chart: Receita Real vs Orçado mensal
+  const mesLabels=allMeses.map(m=>mesNome(m));
+  const recReal=allMeses.map(m=>rb.real[m]||0);
+  const recBP=allMeses.map(m=>rb.bp[m]||0);
+
+  if(charts.orcReceita)charts.orcReceita.destroy();
+  charts.orcReceita=new Chart(document.getElementById('chartOrcReceita'),{
+    type:'bar',data:{labels:mesLabels,datasets:[
+      {label:'Real',data:recReal,backgroundColor:'#3b82f6cc',borderRadius:4},
+      {label:'Orçado',data:recBP,backgroundColor:'#64748b55',borderColor:'#64748b',borderWidth:1,borderRadius:4}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone},scales:{x:{ticks:{color:'#64748b',font:{size:9}}},y:{ticks:{color:'#64748b',callback:v=>fmtM(v)},grid:{color:'#1e293b'}}}}
+  });
+
+  // Chart: EBITDA Real vs Orçado
+  const ebReal=allMeses.map(m=>eb.real[m]||0);
+  const ebBP=allMeses.map(m=>eb.bp[m]||0);
+  if(charts.orcEbitda)charts.orcEbitda.destroy();
+  charts.orcEbitda=new Chart(document.getElementById('chartOrcEbitda'),{
+    type:'bar',data:{labels:mesLabels,datasets:[
+      {label:'Real',data:ebReal,backgroundColor:ebReal.map(v=>v>=0?'#22c55ecc':'#ef4444cc'),borderRadius:4},
+      {label:'Orçado',data:ebBP,backgroundColor:'#64748b55',borderColor:'#64748b',borderWidth:1,borderRadius:4}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone},scales:{x:{ticks:{color:'#64748b',font:{size:9}}},y:{ticks:{color:'#64748b',callback:v=>fmtM(v)},grid:{color:'#1e293b'}}}}
+  });
+
+  // Waterfall: Variação vertical
+  const mainLines=['Receita Bruta','Impostos','Custos Operacionais','Despesas Gerais e Adm','Receitas/Despesas Financeiras','IRPJ/CSLL'];
+  const wfLabels=[],wfData=[],wfColors=[];
+  mainLines.forEach(label=>{
+    const line=find(label);if(!line)return;
+    let varAcc=0;
+    mesesCalc.forEach(m=>{varAcc+=(line.real[m]||0)-(line.bp[m]||0)});
+    wfLabels.push(label.replace('Receitas/Despesas ','R/D ').replace('Despesas Gerais e Adm','SG&A'));
+    wfData.push(Math.round(varAcc));
+    wfColors.push(varAcc>=0?'#22c55ecc':'#ef4444cc');
+  });
+  let llVar=0;mesesCalc.forEach(m=>{llVar+=(ll.real[m]||0)-(ll.bp[m]||0)});
+  wfLabels.push('Lucro Líq.');wfData.push(Math.round(llVar));wfColors.push(llVar>=0?'#3b82f6cc':'#ef4444cc');
+
+  document.getElementById('wfTitle').textContent=`Waterfall: Variação ${labelPeriodo}`;
+  if(charts.orcWaterfall)charts.orcWaterfall.destroy();
+  charts.orcWaterfall=new Chart(document.getElementById('chartOrcWaterfall'),{
+    type:'bar',data:{labels:wfLabels,datasets:[{data:wfData,backgroundColor:wfColors,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9,weight:600},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtM(v)}},scales:{y:{ticks:{color:'#64748b',callback:v=>fmtM(v)},grid:{color:'#1e293b'}},x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45}}}}
+  });
+
+  // % Atingimento chart
+  const atingLabels=[],atingData=[],atingColors=[];
+  ['Receita Bruta','Receita Líquida','Custos Operacionais','Margem de Contribuição','SG&A','EBITDA','Lucro Líquido'].forEach(label=>{
+    const realLabel=label==='SG&A'?'Despesas Gerais e Adm':label;
+    const line=find(realLabel);if(!line)return;
+    let rAcc=0,bAcc=0;
+    mesesCalc.forEach(m=>{rAcc+=line.real[m]||0;bAcc+=line.bp[m]||0});
+    const pct=bAcc?Math.round((rAcc/bAcc)*100):0;
+    atingLabels.push(label);
+    atingData.push(pct);
+    atingColors.push(pct>=90?'#22c55ecc':pct>=70?'#eab308cc':'#ef4444cc');
+  });
+  if(charts.orcAting)charts.orcAting.destroy();
+  charts.orcAting=new Chart(document.getElementById('chartOrcAtingimento'),{
+    type:'bar',data:{labels:atingLabels,datasets:[{data:atingData,backgroundColor:atingColors,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:10,weight:600},anchor:'end',align:'end',formatter:v=>v+'%'}},scales:{x:{max:200,ticks:{color:'#64748b',callback:v=>v+'%'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}}}}}
+  });
+
+  // DRE Table
+  renderOrcTabela(mesesCalc,labelPeriodo);
+}
+
+function renderOrcTabela(mesesCalc,labelPeriodo){
+  if(!orcData)return;
+  const mesesReal=orcData.meses_com_real||[];
+  if(!mesesCalc) mesesCalc=mesesReal;
+  if(!labelPeriodo) labelPeriodo='YTD';
+
+  let html='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:2px solid var(--border)">';
+  html+='<th style="text-align:left;padding:6px 8px;color:var(--muted)">Linha</th>';
+  html+=`<th style="text-align:right;padding:6px 8px;color:var(--muted)">Real</th>`;
+  html+=`<th style="text-align:right;padding:6px 8px;color:var(--muted)">Orçado</th>`;
+  html+='<th style="text-align:right;padding:6px 8px;color:var(--muted)">Var (R$)</th>';
+  html+='<th style="text-align:right;padding:6px 8px;color:var(--muted)">Var (%)</th>';
+  html+='<th style="text-align:right;padding:6px 8px;color:var(--muted)">Ating.</th>';
+  html+='</tr></thead><tbody>';
+
+  orcData.dre.forEach(line=>{
+    let rVal=0,bVal=0;
+    mesesCalc.forEach(m=>{rVal+=line.real[m]||0;bVal+=line.bp[m]||0});
+    const varR=rVal-bVal;
+    const varPct=bVal?((varR/Math.abs(bVal))*100):0;
+    const ating=bVal?((rVal/bVal)*100):0;
+    const isTotal=line.level===0;
+    const indent=line.level===2?'padding-left:24px':line.level===1?'padding-left:12px':'';
+    const bold=isTotal?'font-weight:700':'';
+    const bg=isTotal?'background:rgba(59,130,246,0.08)':'';
+    const borderTop=isTotal?'border-top:1px solid var(--border)':'';
+    const isExpense=rVal<0||bVal<0;
+    const varColor=isExpense?(varR>0?'#22c55e':varR<0?'#ef4444':'var(--text)'):(varR>=0?'#22c55e':varR<0?'#ef4444':'var(--text)');
+
+    if(rVal===0&&bVal===0)return;
+    html+=`<tr style="${bg};${borderTop}">`;
+    html+=`<td style="padding:5px 8px;${indent};${bold}">${line.label}</td>`;
+    html+=`<td style="text-align:right;padding:5px 8px;${bold}">${fmt(rVal)}</td>`;
+    html+=`<td style="text-align:right;padding:5px 8px;${bold};color:var(--muted)">${fmt(bVal)}</td>`;
+    html+=`<td style="text-align:right;padding:5px 8px;color:${varColor}">${fmt(varR)}</td>`;
+    html+=`<td style="text-align:right;padding:5px 8px;color:${varColor}">${bVal?varPct.toFixed(1)+'%':'-'}</td>`;
+    html+=`<td style="text-align:right;padding:5px 8px"><span style="background:${ating>=90?'#22c55e33':ating>=70?'#eab30833':'#ef444433'};color:${ating>=90?'#22c55e':ating>=70?'#eab308':'#ef4444'};padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600">${bVal?ating.toFixed(0)+'%':'-'}</span></td>`;
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('orcTabela').innerHTML=html;
+}
+
+// ============ CRYPTO: descriptografar dados com AES-256-GCM ============
+let _userPassword=null;
+
+async function deriveKey(password,saltB64,iterations){
+  const salt=Uint8Array.from(atob(saltB64),c=>c.charCodeAt(0));
+  const keyMaterial=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),{name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations,hash:'SHA-256'},keyMaterial,{name:'AES-GCM',length:256},false,['decrypt']);
+}
+
+async function decryptFile(url,password){
+  const resp=await fetch(url);
+  if(!resp.ok)return null;
+  const enc=await resp.json();
+  if(!enc.salt||!enc.nonce||!enc.data)return null;
+  const key=await deriveKey(password,enc.salt,enc.iter||100000);
+  const nonce=Uint8Array.from(atob(enc.nonce),c=>c.charCodeAt(0));
+  const ciphertext=Uint8Array.from(atob(enc.data),c=>c.charCodeAt(0));
+  const decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv:nonce},key,ciphertext);
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
+// ============ LOGIN ============
+const PASS_HASH='b4f4c73433abb7aa1c26729be0fade444d6c4476bf22f5e8480eeb2be0fdc6f1';
+async function sha256(str){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+
+async function doLogin(){
+  const pass=document.getElementById('loginPass').value;
+  const hash=await sha256(pass);
+  if(hash===PASS_HASH){
+    _userPassword=pass;
+    sessionStorage.setItem('sk_auth','1');
+    sessionStorage.setItem('sk_p',btoa(pass));
+    showApp();
+  } else {
+    document.getElementById('loginError').style.display='block';
+    document.getElementById('loginPass').value='';
+  }
+}
+
+async function showApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appMain').style.display='block';
+  document.getElementById('loadingState').querySelector('p').textContent='Descriptografando dados...';
+
+  try{
+    // Tentar carregar dados criptografados (.enc)
+    const data=await decryptFile('dados_omie.enc',_userPassword);
+    if(data){
+      dadosOriginal=data;
+      // Carregar orçamento criptografado
+      try{orcData=await decryptFile('dados_orcamento.enc',_userPassword)}catch(e){orcData=null}
+      initDashboard();
+      return;
+    }
+  }catch(e){console.log('Enc não disponível, tentando JSON plano...',e)}
+
+  // Fallback: tentar dados em texto plano (compatibilidade)
+  const boot=d=>{dadosOriginal=d;loadOrcamento().then(()=>initDashboard())};
+  if(window.OMIE_DATA) boot(window.OMIE_DATA);
+  else fetch('dados_omie.json').then(r=>r.ok?r.json():Promise.reject()).then(boot).catch(()=>{
+    document.getElementById('loadingState').querySelector('p').textContent='Erro ao carregar dados. Tente novamente.';
+  });
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const saved=sessionStorage.getItem('sk_p');
+  if(sessionStorage.getItem('sk_auth')==='1'&&saved){_userPassword=atob(saved);showApp()}
+  else document.getElementById('loginPass').focus();
+});
+</script>
+</div><!-- /appMain -->
+</body>
+</html>
