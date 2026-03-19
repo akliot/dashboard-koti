@@ -1,0 +1,81 @@
+name: Sync Omie → BigQuery
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # 5h BRT (8h UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests google-cloud-bigquery openpyxl db-dtypes
+
+      - name: Authenticate GCP
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          echo "$GCP_SA_KEY" | base64 --decode > /tmp/gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json" >> $GITHUB_ENV
+
+      - name: Sync Omie → BigQuery
+        env:
+          OMIE_APP_KEY: ${{ secrets.OMIE_APP_KEY }}
+          OMIE_APP_SECRET: ${{ secrets.OMIE_APP_SECRET }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          BQ_DATASET: studio_koti
+          PYTHONUNBUFFERED: "1"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 60
+          command: python omie_sync_bq.py
+
+      - name: Extract BP → BigQuery
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          BQ_DATASET: studio_koti
+        run: python extract_bp_bq.py || echo "BP não processado"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/gcp-key.json
+
+      # --- LEGACY: Pipeline GitHub Pages (opcional, remover quando migrar) ---
+      - name: Sync GitHub Pages (legacy)
+        env:
+          OMIE_APP_KEY: ${{ secrets.OMIE_APP_KEY }}
+          OMIE_APP_SECRET: ${{ secrets.OMIE_APP_SECRET }}
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python omie_sync.py
+          python extract_orcamento.py || true
+          python encrypt_data.py
+
+      - name: Commit (legacy)
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add dados_omie.enc dados_orcamento.enc || true
+          git rm -f --ignore-unmatch dados_omie.json dados_omie.js dados_orcamento.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "sync: $(date +'%d/%m/%Y %H:%M')"
+            git pull --rebase origin main
+            git push
+          fi
