@@ -294,9 +294,27 @@ if __name__ == "__main__":
 
     PORT = int(os.environ.get("PORT", 8080))
 
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.path in ("/", "/api", "/api/dashboard"):
+            if self.path == "/":
+                # Servir dashboard_bq.html
+                html_path = os.path.join(SCRIPT_DIR, "dashboard_bq.html")
+                try:
+                    with open(html_path, "r", encoding="utf-8") as f:
+                        body = f.read().encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(body)
+                except FileNotFoundError:
+                    self.send_response(404)
+                    self.send_header("Content-Type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(b"dashboard_bq.html not found")
+            elif self.path in ("/api", "/api/dashboard"):
+                # Servir dados JSON do BigQuery
                 try:
                     data = build_json()
                     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -305,7 +323,6 @@ if __name__ == "__main__":
                     self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
                     self.send_header("Cache-Control", "public, max-age=300")
                     self.end_headers()
-                    self.write = self.wfile.write
                     self.wfile.write(body)
                 except Exception as e:
                     self.send_response(500)
