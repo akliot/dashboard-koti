@@ -119,11 +119,11 @@ class FinancialAssistant:
     async def process_message(self, text: str) -> str:
         """Processa uma pergunta e retorna resposta formatada."""
         try:
-            # 0. Resolver nomes fuzzy antes de gerar SQL
-            text_resolved = self.resolve_name(text)
+            # 0. Resolver nomes de fornecedores/clientes fuzzy (só se parecer ter nome próprio)
+            text_for_sql = self.resolve_name(text)
 
             # 1. Gerar SQL via LLM
-            sql = self.generate_sql(text_resolved)
+            sql = self.generate_sql(text_for_sql)
             log.info(f"SQL gerado: {sql[:200]}")
 
             # 2. Validar SQL (safety)
@@ -133,12 +133,13 @@ class FinancialAssistant:
             # 3. Executar no BQ
             results = self.execute_query(sql)
 
-            # 4. Se 0 resultados, tentar busca fuzzy por nomes similares
-            if not results or (len(results) == 0):
+            # 4. Se 0 resultados e a pergunta parecia ter nome próprio, sugerir similares
+            if not results or len(results) == 0:
                 similar = self.find_similar_names(text)
                 if similar:
                     names_list = "\n".join(f"  • {n}" for n in similar[:10])
                     return f"🔍 Não encontrei resultados exatos, mas encontrei nomes similares:\n\n{names_list}\n\nTente novamente com o nome correto."
+                return "🔍 Não encontrei dados para essa consulta."
 
             # 5. Formatar resposta via LLM
             return self.format_response(text, sql, results)
@@ -147,17 +148,27 @@ class FinancialAssistant:
             log.error(f"Erro ao processar: {e}")
             return f"❌ Erro ao processar sua pergunta: {e}"
 
+    _STOPWORDS = {
+        "quanto", "quero", "qual", "quais", "como", "para", "pagar", "paguei",
+        "pagou", "pago", "receber", "recebi", "recebeu", "faturou", "faturamos",
+        "faturei", "devo", "devemos", "total", "valor", "traga", "trazer",
+        "mostrar", "mostra", "buscar", "listar", "lista", "preciso",
+        "mês", "mes", "março", "marco", "fevereiro", "janeiro", "abril", "maio",
+        "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+        "esse", "esta", "este", "nesse", "neste", "dessa", "desse", "ontem", "hoje",
+        "semana", "contas", "conta", "saldo", "projeto", "projetos", "cliente",
+        "clientes", "fornecedor", "fornecedores", "todos", "todas", "mais", "menos",
+        "entre", "sobre", "lançamentos", "lancamentos", "lançamento", "lancamento",
+        "relação", "relacao", "emissão", "emissao", "data", "vencimento",
+        "pagamento", "recebimento", "recebimentos", "entradas", "saídas", "saidas",
+        "receita", "receitas", "despesa", "despesas", "custo", "custos",
+        "nota", "notas", "fiscal", "banco", "bancos", "saldos",
+        "categoria", "categorias", "grupo", "grupos", "margem",
+    }
+
     def find_similar_names(self, question: str) -> list[str]:
-        """Busca nomes similares usando fragmentos (pega erros ortográficos como castini→casttini)."""
-        stopwords = {"quanto", "quero", "qual", "quais", "como", "para", "pagar", "paguei",
-                     "pagou", "pago", "receber", "recebi", "recebeu", "faturou", "faturamos",
-                     "devo", "devemos", "total", "valor", "mês", "mes", "março", "marco",
-                     "fevereiro", "janeiro", "abril", "maio", "junho", "julho", "agosto",
-                     "setembro", "outubro", "novembro", "dezembro",
-                     "esse", "esta", "este", "nesse", "neste", "dessa", "desse", "ontem", "hoje",
-                     "semana", "contas", "conta", "saldo", "projeto", "cliente", "fornecedor",
-                     "todos", "todas", "mais", "menos", "entre"}
-        words = [w for w in question.lower().split() if len(w) > 3 and w not in stopwords]
+        """Busca nomes similares usando fragmentos (pega erros ortográficos)."""
+        words = [w for w in question.lower().split() if len(w) > 3 and w not in self._STOPWORDS]
         if not words:
             return []
 
@@ -190,30 +201,26 @@ class FinancialAssistant:
         return sorted(results)[:10]
 
     def resolve_name(self, question: str) -> str:
-        """Tenta resolver nomes na pergunta para o nome exato no banco.
-        Ex: 'castini' → substitui por 'NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)'"""
-        stopwords = {"quanto", "quero", "qual", "quais", "como", "para", "pagar", "paguei",
-                     "pagou", "pago", "receber", "recebi", "recebeu", "faturou", "faturamos",
-                     "devo", "devemos", "total", "valor", "mês", "mes", "março", "marco",
-                     "fevereiro", "janeiro", "esse", "esta", "este", "nesse", "neste",
-                     "dessa", "desse", "ontem", "hoje", "semana", "contas", "conta",
-                     "saldo", "projeto", "cliente", "fornecedor", "todos", "todas"}
-        words = [w for w in question.lower().split() if len(w) > 3 and w not in stopwords]
+        """Tenta resolver nomes próprios na pergunta para o nome exato no banco.
+        Só roda se detectar que a pergunta contém um possível nome de empresa/pessoa."""
+        words = [w for w in question.lower().split() if len(w) > 3 and w not in self._STOPWORDS]
+
+        if not words:
+            return question
 
         for word in words[:2]:
-            # Buscar nome exato que contenha esse termo (ou fragmento)
+            # Buscar com fragmentos de 4 chars
             fragments = [word] + ([word[i:i+4] for i in range(len(word)-3)] if len(word) >= 4 else [])
             for frag in fragments:
                 try:
                     q = f"""SELECT DISTINCT cliente_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
                             WHERE LOWER(cliente_nome) LIKE LOWER('%{frag}%')
-                            AND cliente_nome != '' LIMIT 1"""
+                            AND cliente_nome != '' LIMIT 3"""
                     rows = list(self.bq.query(q).result(timeout=5))
-                    if rows:
+                    if rows and len(rows) <= 3:  # Se achou poucos = provavelmente é um nome
                         real_name = rows[0].cliente_nome
                         log.info(f"Resolvido '{word}' → '{real_name}'")
-                        # Adicionar contexto à pergunta para o LLM
-                        return question + f"\n[NOTA: '{word}' corresponde ao fornecedor/cliente '{real_name}' no sistema]"
+                        return question + f"\n[CONTEXTO: '{word}' corresponde ao fornecedor/cliente '{real_name}' no sistema]"
                 except Exception:
                     pass
 
@@ -221,24 +228,35 @@ class FinancialAssistant:
 
     def generate_sql(self, question: str) -> str:
         """Converte pergunta em linguagem natural para SQL BigQuery."""
-        prompt = f"""Gere APENAS uma query SQL BigQuery para responder: "{question}"
+        prompt = f"""Gere APENAS uma query SQL BigQuery para responder a pergunta abaixo.
+
+Pergunta: "{question}"
 
 {self.schema_context}
 
-Regras:
-- Use SOMENTE SELECT (nunca INSERT/UPDATE/DELETE/DROP)
-- Projeto: {GCP_PROJECT_ID}, Dataset: {BQ_DATASET}
-- Use backticks para tabelas: `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
-- Valores monetários: ROUND(valor, 2)
-- Datas: FORMAT_DATE('%d/%m/%Y', data_vencimento)
-- LIMIT 20 por padrão
-- Para buscar nomes de clientes/fornecedores/projetos, SEMPRE use LOWER(campo) LIKE LOWER('%termo%') em vez de = 'termo'. Nomes podem ter variações (ex: "castini" pode ser "NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)")
-- Para perguntas sobre "quanto paguei/recebi", use data_pagamento (data real de pagamento). Para "quanto vence", use data_vencimento
-- Status PAGO = saída paga, RECEBIDO = entrada recebida
-- Retorne APENAS o SQL, sem explicação, sem markdown, sem blocos de código"""
+REGRAS OBRIGATÓRIAS:
+1. Use SOMENTE SELECT
+2. Tabelas: `{GCP_PROJECT_ID}.{BQ_DATASET}.<tabela>`
+3. LIMIT 20 por padrão
+4. Retorne APENAS o SQL puro, sem explicação, sem markdown
 
-        response = self.llm.generate("Você é um gerador de SQL BigQuery. Retorne SOMENTE o SQL.", prompt)
-        # Limpar markdown se houver
+REGRAS DE NEGÓCIO:
+- "faturei", "faturamento", "NF", "nota fiscal" = entradas (tipo='entrada') com status RECEBIDO
+- "paguei", "pagamento" = saídas (tipo='saida') com status PAGO
+- "recebimentos" = entradas recebidas
+- "a pagar", "contas a pagar" = saídas com status IN ('A VENCER','ATRASADO','VENCE HOJE')
+- "a receber", "contas a receber" = entradas com status IN ('A VENCER','ATRASADO','VENCE HOJE')
+- "esse mês", "este mês", "março" = data >= '2026-03-01' AND data < '2026-04-01'
+- Para PAGO/RECEBIDO use data_pagamento. Para pendentes use data_vencimento
+- "projetos" sem nome específico = agrupar por projeto_nome
+- "relação" = listar detalhado
+
+REGRAS DE BUSCA DE NOMES:
+- Para nomes de clientes/fornecedores: SEMPRE use LOWER(cliente_nome) LIKE LOWER('%termo%')
+- Nomes podem ter variações (ex: "castini" está como "NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)")
+- Se a pergunta tiver [CONTEXTO: ...], use o nome exato indicado"""
+
+        response = self.llm.generate("Você é um gerador de SQL BigQuery expert. Retorne SOMENTE o SQL puro.", prompt)
         sql = response.replace("```sql", "").replace("```", "").strip()
         return sql
 
