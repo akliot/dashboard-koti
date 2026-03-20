@@ -200,6 +200,10 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div class="chart-card"><h3>Receitas por Grupo</h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div></div>
       </div>
       <div class="chart-row">
+        <div class="chart-card"><h3>Custos: Realizado vs A Realizar</h3><div class="chart-container"><canvas id="chartCustosStack"></canvas></div></div>
+        <div class="chart-card"><h3>Receitas: Realizado vs A Realizar</h3><div class="chart-container"><canvas id="chartReceitasStack"></canvas></div></div>
+      </div>
+      <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
             <h3 style="margin:0">Fluxo por Categoria</h3>
@@ -635,40 +639,52 @@ function renderFluxoCaixa(d){
     <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div><div class="kpi-sub">Realizado: ${fmt(d.rec-d.pag)} · A realizar: ${fmt(d.abRec-d.abPag)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Margem</div><div class="kpi-value blue">${d.tE>0?((d.tE-d.tS)/d.tE*100).toFixed(1):'0'}%</div></div>`;
 
-  // Charts — stacked barras horizontais: realizado vs a realizar por grupo
+  // Charts — barras horizontais simples por grupo (como original)
+  const dG=Object.entries(d.gruposDesp).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
+  charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{labels:dG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:dG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
+  const rG=Object.entries(d.gruposRec).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
+  charts.rGrupo=new Chart(document.getElementById('chartRecGrupo'),{type:'bar',data:{labels:rG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:rG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
+
+  // Charts — Custos e Receitas: Realizado vs A Realizar por tipo (Direto / SG&A / Outros)
   const isDoneFC=s=>['RECEBIDO','PAGO','LIQUIDADO','CANCELADO'].includes(s);
-  const L=dadosFiltrados.lancamentos;
-
-  // Computar grupos com breakdown
-  const grupoStatus={};// {grupo: {nome, despDone, despOpen, recDone, recOpen}}
-  L.forEach(l=>{
-    const g=getGrupo(l.categoria);if(!g)return;
-    const gn=dadosFiltrados.categorias?.[g]||g;
-    if(!grupoStatus[g])grupoStatus[g]={nome:gn,dd:0,do_:0,rd:0,ro:0};
+  const sgaCodes=new Set(['2.02','2.03','2.04','2.10']);
+  const custoDiretoCod='2.01';
+  const LFC=dadosFiltrados.lancamentos;
+  // Agregar por tipo de custo
+  const tiposCusto={direto:{nome:'Custo Direto',done:0,open:0},sga:{nome:'SG&A',done:0,open:0},outros:{nome:'Outros',done:0,open:0}};
+  const tiposRec={receita:{nome:'Receitas',done:0,open:0}};
+  LFC.forEach(l=>{
+    const g=getGrupo(l.categoria);
     const done=isDoneFC(l.status);
-    if(l.tipo==='saida'){if(done)grupoStatus[g].dd+=l.valor;else grupoStatus[g].do_+=l.valor}
-    else{if(done)grupoStatus[g].rd+=l.valor;else grupoStatus[g].ro+=l.valor}
+    if(l.tipo==='saida'){
+      let bucket='outros';
+      if(g===custoDiretoCod) bucket='direto';
+      else if(sgaCodes.has(g)) bucket='sga';
+      if(done) tiposCusto[bucket].done+=l.valor; else tiposCusto[bucket].open+=l.valor;
+    } else {
+      if(done) tiposRec.receita.done+=l.valor; else tiposRec.receita.open+=l.valor;
+    }
   });
 
-  // Despesas stacked
-  const dG=Object.entries(grupoStatus).filter(e=>(e[1].dd+e[1].do_)>0).sort((a,b)=>(b[1].dd+b[1].do_)-(a[1].dd+a[1].do_)).slice(0,10);
   const dlStack={display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:9,weight:500},formatter:v=>fmtK(v)};
-  charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{
-    labels:dG.map(e=>e[1].nome.substring(0,25)),
+  const stackOpts=(colors)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:12}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlStack}});
+
+  const custosArr=Object.values(tiposCusto).filter(t=>t.done+t.open>0);
+  charts.custosStack=new Chart(document.getElementById('chartCustosStack'),{type:'bar',data:{
+    labels:custosArr.map(t=>t.nome),
     datasets:[
-      {label:'Pago',data:dG.map(e=>e[1].dd),backgroundColor:'#ef4444cc',borderRadius:2},
-      {label:'A Pagar',data:dG.map(e=>e[1].do_),backgroundColor:'#ef444444',borderRadius:2}
-    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlStack}}
+      {label:'Pago',data:custosArr.map(t=>t.done),backgroundColor:'#ef4444cc',borderRadius:3},
+      {label:'A Pagar',data:custosArr.map(t=>t.open),backgroundColor:'#ef444444',borderRadius:3}
+    ]},options:stackOpts()
   });
 
-  // Receitas stacked
-  const rG=Object.entries(grupoStatus).filter(e=>(e[1].rd+e[1].ro)>0).sort((a,b)=>(b[1].rd+b[1].ro)-(a[1].rd+a[1].ro)).slice(0,10);
-  charts.rGrupo=new Chart(document.getElementById('chartRecGrupo'),{type:'bar',data:{
-    labels:rG.map(e=>e[1].nome.substring(0,25)),
+  const recArr=Object.values(tiposRec).filter(t=>t.done+t.open>0);
+  charts.receitasStack=new Chart(document.getElementById('chartReceitasStack'),{type:'bar',data:{
+    labels:recArr.map(t=>t.nome),
     datasets:[
-      {label:'Recebido',data:rG.map(e=>e[1].rd),backgroundColor:'#22c55ecc',borderRadius:2},
-      {label:'A Receber',data:rG.map(e=>e[1].ro),backgroundColor:'#22c55e44',borderRadius:2}
-    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlStack}}
+      {label:'Recebido',data:recArr.map(t=>t.done),backgroundColor:'#22c55ecc',borderRadius:3},
+      {label:'A Receber',data:recArr.map(t=>t.open),backgroundColor:'#22c55e44',borderRadius:3}
+    ]},options:stackOpts()
   });
 
   // Tabela
