@@ -635,11 +635,40 @@ function renderFluxoCaixa(d){
     <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div><div class="kpi-sub">Realizado: ${fmt(d.rec-d.pag)} · A realizar: ${fmt(d.abRec-d.abPag)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Margem</div><div class="kpi-value blue">${d.tE>0?((d.tE-d.tS)/d.tE*100).toFixed(1):'0'}%</div></div>`;
 
-  // Charts primeiro
-  const dG=Object.entries(d.gruposDesp).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
-  charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{labels:dG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:dG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
-  const rG=Object.entries(d.gruposRec).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
-  charts.rGrupo=new Chart(document.getElementById('chartRecGrupo'),{type:'bar',data:{labels:rG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:rG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
+  // Charts — stacked barras horizontais: realizado vs a realizar por grupo
+  const isDoneFC=s=>['RECEBIDO','PAGO','LIQUIDADO','CANCELADO'].includes(s);
+  const L=dadosFiltrados.lancamentos;
+
+  // Computar grupos com breakdown
+  const grupoStatus={};// {grupo: {nome, despDone, despOpen, recDone, recOpen}}
+  L.forEach(l=>{
+    const g=getGrupo(l.categoria);if(!g)return;
+    const gn=dadosFiltrados.categorias?.[g]||g;
+    if(!grupoStatus[g])grupoStatus[g]={nome:gn,dd:0,do_:0,rd:0,ro:0};
+    const done=isDoneFC(l.status);
+    if(l.tipo==='saida'){if(done)grupoStatus[g].dd+=l.valor;else grupoStatus[g].do_+=l.valor}
+    else{if(done)grupoStatus[g].rd+=l.valor;else grupoStatus[g].ro+=l.valor}
+  });
+
+  // Despesas stacked
+  const dG=Object.entries(grupoStatus).filter(e=>(e[1].dd+e[1].do_)>0).sort((a,b)=>(b[1].dd+b[1].do_)-(a[1].dd+a[1].do_)).slice(0,10);
+  charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{
+    labels:dG.map(e=>e[1].nome.substring(0,25)),
+    datasets:[
+      {label:'Pago',data:dG.map(e=>e[1].dd),backgroundColor:'#ef4444cc',borderRadius:2},
+      {label:'A Pagar',data:dG.map(e=>e[1].do_),backgroundColor:'#ef444444',borderRadius:2}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}
+  });
+
+  // Receitas stacked
+  const rG=Object.entries(grupoStatus).filter(e=>(e[1].rd+e[1].ro)>0).sort((a,b)=>(b[1].rd+b[1].ro)-(a[1].rd+a[1].ro)).slice(0,10);
+  charts.rGrupo=new Chart(document.getElementById('chartRecGrupo'),{type:'bar',data:{
+    labels:rG.map(e=>e[1].nome.substring(0,25)),
+    datasets:[
+      {label:'Recebido',data:rG.map(e=>e[1].rd),backgroundColor:'#22c55ecc',borderRadius:2},
+      {label:'A Receber',data:rG.map(e=>e[1].ro),backgroundColor:'#22c55e44',borderRadius:2}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}
+  });
 
   // Tabela
   renderFluxoTabela(d);
