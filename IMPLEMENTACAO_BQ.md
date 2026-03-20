@@ -88,12 +88,9 @@
 | `encrypt_data.py` | Criptografa JSON → `.enc` |
 | `.github/workflows/sync_omie.yml` | Workflow legado |
 
-### Experimental
+### Removidos
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `dashboard_streamlit.py` | Dashboard Streamlit (7 páginas) — funcional mas visual inferior ao HTML |
-| `.streamlit/config.toml` | Tema escuro Streamlit |
+- `dashboard_streamlit.py` e `.streamlit/` — Streamlit descontinuado, substituído por `dashboard_bq.html` + `api_bq.py`
 
 ### Infra
 
