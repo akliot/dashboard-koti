@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `studio_koti.lancamentos` (
   status                STRING      OPTIONS(description="Status: LIQUIDADO, RECEBIDO, ATRASADO, A_VENCER, etc."),
   data_vencimento       DATE        OPTIONS(description="Data de vencimento do título"),
   data_emissao          DATE        OPTIONS(description="Data de emissão do documento (competência)"),
+  data_pagamento        DATE        OPTIONS(description="Data real de pagamento/recebimento (info.dAlt). NULL se não pago"),
   numero_documento      STRING      OPTIONS(description="Número do documento/NF"),
   categoria_codigo      STRING      OPTIONS(description="Código da categoria contábil (ex: 1.01.02)"),
   categoria_nome        STRING      OPTIONS(description="Nome da categoria (ex: Marcenaria)"),
