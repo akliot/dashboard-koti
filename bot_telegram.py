@@ -44,6 +44,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# Memória de conversa por chat
+chat_history: dict[int, list[dict]] = {}
+MAX_HISTORY = 5
+
 
 # ============================================================
 # SCHEMA CONTEXT (descrição das tabelas para o LLM)
@@ -116,14 +120,22 @@ class FinancialAssistant:
         self.bq = bq_client
         self.schema_context = get_schema_context()
 
-    async def process_message(self, text: str) -> str:
+    async def process_message(self, text: str, history: list[dict] | None = None) -> str:
         """Processa uma pergunta e retorna resposta formatada."""
         try:
-            # 0. Resolver nomes de fornecedores/clientes fuzzy (só se parecer ter nome próprio)
+            # Montar contexto de conversa
+            history_context = ""
+            if history:
+                history_context = "Conversa anterior:\n" + "\n".join(
+                    f"{'Usuário' if m['role']=='user' else 'Bot'}: {m['content']}"
+                    for m in history[-6:]
+                ) + "\n\n"
+
+            # 0. Resolver nomes fuzzy (só se parecer ter nome próprio)
             text_for_sql = self.resolve_name(text)
 
-            # 1. Gerar SQL via LLM
-            sql = self.generate_sql(text_for_sql)
+            # 1. Gerar SQL via LLM (COM contexto de conversa)
+            sql = self.generate_sql(text_for_sql, history_context)
             log.info(f"SQL gerado: {sql[:200]}")
 
             # 2. Validar SQL (safety)
@@ -133,13 +145,15 @@ class FinancialAssistant:
             # 3. Executar no BQ
             results = self.execute_query(sql)
 
-            # 4. Se 0 resultados e a pergunta parecia ter nome próprio, sugerir similares
+            # 4. Se 0 resultados, só buscar similares se a pergunta tiver nome próprio
             if not results or len(results) == 0:
-                similar = self.find_similar_names(text)
-                if similar:
-                    names_list = "\n".join(f"  • {n}" for n in similar[:10])
-                    return f"🔍 Não encontrei resultados exatos, mas encontrei nomes similares:\n\n{names_list}\n\nTente novamente com o nome correto."
-                return "🔍 Não encontrei dados para essa consulta."
+                words = [w for w in text.lower().split() if len(w) > 3 and w not in self._STOPWORDS]
+                if words:
+                    similar = self.find_similar_names(text)
+                    if similar:
+                        names_list = "\n".join(f"  • {n}" for n in similar[:10])
+                        return f"🔍 Não encontrei resultados exatos, mas encontrei nomes similares:\n\n{names_list}\n\nTente novamente com o nome correto."
+                return "🔍 Não encontrei dados para essa consulta. Tente reformular a pergunta."
 
             # 5. Formatar resposta via LLM
             return self.format_response(text, sql, results)
@@ -149,21 +163,28 @@ class FinancialAssistant:
             return f"❌ Erro ao processar sua pergunta: {e}"
 
     _STOPWORDS = {
+        # Verbos/ações
         "quanto", "quero", "qual", "quais", "como", "para", "pagar", "paguei",
         "pagou", "pago", "receber", "recebi", "recebeu", "faturou", "faturamos",
         "faturei", "devo", "devemos", "total", "valor", "traga", "trazer",
         "mostrar", "mostra", "buscar", "listar", "lista", "preciso",
+        "pode", "poderia", "gostaria", "pagamos",
+        # Tempo
         "mês", "mes", "março", "marco", "fevereiro", "janeiro", "abril", "maio",
         "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
         "esse", "esta", "este", "nesse", "neste", "dessa", "desse", "ontem", "hoje",
-        "semana", "contas", "conta", "saldo", "projeto", "projetos", "cliente",
+        "semana", "ultimo", "última", "ultima",
+        # Substantivos financeiros
+        "contas", "conta", "saldo", "saldos", "projeto", "projetos", "cliente",
         "clientes", "fornecedor", "fornecedores", "todos", "todas", "mais", "menos",
         "entre", "sobre", "lançamentos", "lancamentos", "lançamento", "lancamento",
         "relação", "relacao", "emissão", "emissao", "data", "vencimento",
         "pagamento", "recebimento", "recebimentos", "entradas", "saídas", "saidas",
         "receita", "receitas", "despesa", "despesas", "custo", "custos",
-        "nota", "notas", "fiscal", "banco", "bancos", "saldos",
+        "nota", "notas", "fiscal", "banco", "bancos",
         "categoria", "categorias", "grupo", "grupos", "margem",
+        "quantidade", "valores", "listagem", "extrato", "balanço", "balanco",
+        "faturamento", "dados", "informações", "informacoes",
     }
 
     def find_similar_names(self, question: str) -> list[str]:
@@ -174,11 +195,9 @@ class FinancialAssistant:
 
         results = set()
         for word in words[:3]:
-            # Gerar fragmentos de 4 chars para pegar variações ortográficas
-            # "castini" → ["cast", "asti", "stin", "tini"]
             fragments = [word[i:i+4] for i in range(len(word)-3)] if len(word) >= 4 else [word]
 
-            for frag in fragments[:3]:  # Max 3 fragmentos por palavra
+            for frag in fragments[:3]:
                 pattern = f"%{frag}%"
                 try:
                     q = f"""SELECT DISTINCT cliente_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
@@ -196,20 +215,18 @@ class FinancialAssistant:
                     pass
 
                 if results:
-                    break  # Encontrou com esse fragmento, não precisa tentar mais
+                    break
 
         return sorted(results)[:10]
 
     def resolve_name(self, question: str) -> str:
-        """Tenta resolver nomes próprios na pergunta para o nome exato no banco.
-        Só roda se detectar que a pergunta contém um possível nome de empresa/pessoa."""
+        """Tenta resolver nomes próprios na pergunta para o nome exato no banco."""
         words = [w for w in question.lower().split() if len(w) > 3 and w not in self._STOPWORDS]
 
         if not words:
             return question
 
         for word in words[:2]:
-            # Buscar com fragmentos de 4 chars
             fragments = [word] + ([word[i:i+4] for i in range(len(word)-3)] if len(word) >= 4 else [])
             for frag in fragments:
                 try:
@@ -217,7 +234,7 @@ class FinancialAssistant:
                             WHERE LOWER(cliente_nome) LIKE LOWER('%{frag}%')
                             AND cliente_nome != '' LIMIT 3"""
                     rows = list(self.bq.query(q).result(timeout=5))
-                    if rows and len(rows) <= 3:  # Se achou poucos = provavelmente é um nome
+                    if rows and len(rows) <= 3:
                         real_name = rows[0].cliente_nome
                         log.info(f"Resolvido '{word}' → '{real_name}'")
                         return question + f"\n[CONTEXTO: '{word}' corresponde ao fornecedor/cliente '{real_name}' no sistema]"
@@ -226,34 +243,63 @@ class FinancialAssistant:
 
         return question
 
-    def generate_sql(self, question: str) -> str:
+    def _sql_examples(self) -> str:
+        """Exemplos concretos de perguntas → SQL para guiar o Gemini."""
+        today = date.today()
+        month_start = today.replace(day=1).isoformat()
+        next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1).isoformat()
+        year = today.year
+
+        return f"""EXEMPLOS DE PERGUNTAS → SQL (estamos em {year}):
+
+"quanto faturei esse mês" →
+SELECT ROUND(SUM(valor), 2) as total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE tipo='entrada' AND status='RECEBIDO' AND data_pagamento >= '{month_start}' AND data_pagamento < '{next_month}'
+
+"relação dos projetos com data de emissão de março" →
+SELECT projeto_nome, COUNT(*) as qtd, ROUND(SUM(valor),2) as total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE data_emissao >= '{year}-03-01' AND data_emissao < '{year}-04-01' AND projeto_nome IS NOT NULL AND projeto_nome != 'Sem projeto' GROUP BY projeto_nome ORDER BY total DESC
+
+"recebimentos de março" ou "o que eu recebi esse mês" →
+SELECT cliente_nome, ROUND(SUM(valor),2) as total, COUNT(*) as qtd FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE tipo='entrada' AND status='RECEBIDO' AND data_pagamento >= '{year}-03-01' AND data_pagamento < '{year}-04-01' GROUP BY cliente_nome ORDER BY total DESC LIMIT 20
+
+"contas a pagar vencidas" →
+SELECT cliente_nome, valor, FORMAT_DATE('%d/%m/%Y', data_vencimento) as vencimento FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE tipo='saida' AND status='ATRASADO' ORDER BY valor DESC LIMIT 20
+
+"lançamentos com data de emissão de março" →
+SELECT tipo, cliente_nome, ROUND(valor,2) as valor, status, FORMAT_DATE('%d/%m/%Y', data_emissao) as emissao, categoria_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE data_emissao >= '{year}-03-01' AND data_emissao < '{year}-04-01' ORDER BY data_emissao DESC LIMIT 20
+"""
+
+    def generate_sql(self, question: str, history_context: str = "") -> str:
         """Converte pergunta em linguagem natural para SQL BigQuery."""
+        today = date.today()
+
         prompt = f"""Gere APENAS uma query SQL BigQuery para responder a pergunta abaixo.
 
-Pergunta: "{question}"
+{history_context}Pergunta atual: "{question}"
 
 {self.schema_context}
+
+{self._sql_examples()}
 
 REGRAS OBRIGATÓRIAS:
 1. Use SOMENTE SELECT
 2. Tabelas: `{GCP_PROJECT_ID}.{BQ_DATASET}.<tabela>`
 3. LIMIT 20 por padrão
 4. Retorne APENAS o SQL puro, sem explicação, sem markdown
+5. Quando o usuário mencionar um mês sem especificar o ano, SEMPRE assuma o ano corrente ({today.year}). NUNCA use anos anteriores a menos que explicitamente pedido.
 
 REGRAS DE NEGÓCIO:
 - "faturei", "faturamento", "NF", "nota fiscal" = entradas (tipo='entrada') com status RECEBIDO
 - "paguei", "pagamento" = saídas (tipo='saida') com status PAGO
-- "recebimentos" = entradas recebidas
+- "recebimentos" = entradas recebidas (tipo='entrada', status='RECEBIDO')
 - "a pagar", "contas a pagar" = saídas com status IN ('A VENCER','ATRASADO','VENCE HOJE')
 - "a receber", "contas a receber" = entradas com status IN ('A VENCER','ATRASADO','VENCE HOJE')
-- "esse mês", "este mês", "março" = data >= '2026-03-01' AND data < '2026-04-01'
 - Para PAGO/RECEBIDO use data_pagamento. Para pendentes use data_vencimento
 - "projetos" sem nome específico = agrupar por projeto_nome
 - "relação" = listar detalhado
+- Se a conversa anterior menciona um período ou filtro, mantenha o contexto
 
 REGRAS DE BUSCA DE NOMES:
 - Para nomes de clientes/fornecedores: SEMPRE use LOWER(cliente_nome) LIKE LOWER('%termo%')
-- Nomes podem ter variações (ex: "castini" está como "NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)")
 - Se a pergunta tiver [CONTEXTO: ...], use o nome exato indicado"""
 
         response = self.llm.generate("Você é um gerador de SQL BigQuery expert. Retorne SOMENTE o SQL puro.", prompt)
@@ -279,7 +325,6 @@ REGRAS DE BUSCA DE NOMES:
         try:
             job = self.bq.query(sql)
             rows = list(job.result(timeout=15))
-            # Converter tipos para serialização
             results = []
             for row in rows:
                 d = dict(row)
@@ -365,7 +410,6 @@ REGRAS DE BUSCA DE NOMES:
         """Análise financeira completa usando snapshot + LLM."""
         snapshot = self.financial_snapshot()
 
-        # Serializar para o prompt
         import json
         snapshot_str = json.dumps(snapshot, ensure_ascii=False, default=str, indent=2)
 
@@ -533,12 +577,10 @@ async def cmd_analise(update, context):
     await update.message.reply_text("🔄 Analisando dados financeiros... (pode levar ~15s)")
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-    # Pegar pergunta adicional se houver (ex: /analise como melhorar margem?)
     extra = " ".join(context.args) if context.args else ""
     response = await assistant.analyze_finances(extra)
 
     if len(response) > 4000:
-        # Dividir em mensagens
         parts = [response[i:i+4000] for i in range(0, len(response), 4000)]
         for part in parts:
             await update.message.reply_text(part)
@@ -564,12 +606,15 @@ async def handle_message(update, context):
     text = update.message.text
     log.info(f"[chat={chat_id}] Pergunta: {text}")
 
-    # Detectar perguntas analíticas que precisam de snapshot completo
-    analytical_keywords = ["saúde financeira", "saude financeira", "análise", "analise",
-                          "oportunidade", "melhorar performance", "como está a empresa",
-                          "como esta a empresa", "diagnóstico", "diagnostico",
-                          "recomendação", "recomendacao", "ponto de atenção",
-                          "ponto de atencao", "visão geral", "visao geral"]
+    # Buscar histórico de conversa
+    history = chat_history.get(chat_id, [])
+
+    # Detectar perguntas analíticas
+    analytical_keywords = ["saúde financeira", "saude financeira", "análise financeira",
+                          "analise financeira", "oportunidade", "melhorar performance",
+                          "como está a empresa", "como esta a empresa",
+                          "diagnóstico", "diagnostico", "recomendação", "recomendacao",
+                          "ponto de atenção", "ponto de atencao"]
     text_lower = text.lower()
     is_analytical = any(kw in text_lower for kw in analytical_keywords)
 
@@ -578,13 +623,21 @@ async def handle_message(update, context):
         await context.bot.send_chat_action(chat_id=chat_id, action="typing")
         response = await assistant.analyze_finances(text)
     else:
-        response = await assistant.process_message(text)
+        response = await assistant.process_message(text, history)
+
+    # Salvar no histórico
+    history.append({"role": "user", "content": text})
+    history.append({"role": "assistant", "content": response[:200]})
+    chat_history[chat_id] = history[-MAX_HISTORY * 2:]
 
     # Telegram max 4096 chars
     if len(response) > 4000:
-        response = response[:4000] + "\n\n⚠️ Resposta truncada."
+        parts = [response[i:i+4000] for i in range(0, len(response), 4000)]
+        for part in parts:
+            await update.message.reply_text(part)
+    else:
+        await update.message.reply_text(response)
 
-    await update.message.reply_text(response)
     log.info(f"[chat={chat_id}] Resposta enviada ({len(response)} chars)")
 
 
@@ -610,9 +663,10 @@ def main():
     assistant = init_assistant()
 
     if args.cli:
-        # Modo interativo no terminal
+        # Modo interativo no terminal (com memória de conversa)
         print("🏠 Koti Finance Bot — Modo CLI")
         print("Digite 'quit' para sair.\n")
+        cli_history: list[dict] = []
         while True:
             try:
                 q = input("Pergunta> ").strip()
@@ -620,7 +674,10 @@ def main():
                     break
                 if not q:
                     continue
-                response = asyncio.run(assistant.process_message(q))
+                response = asyncio.run(assistant.process_message(q, cli_history))
+                cli_history.append({"role": "user", "content": q})
+                cli_history.append({"role": "assistant", "content": response[:200]})
+                cli_history = cli_history[-MAX_HISTORY * 2:]
                 print(f"\n{response}\n")
             except (KeyboardInterrupt, EOFError):
                 break
