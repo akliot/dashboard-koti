@@ -1043,10 +1043,11 @@ function renderOrcamento(reguaIdx){
     <div class="kpi"><div class="kpi-label">LL Real (${labelPeriodo})</div><div class="kpi-value">${fmtK(accLLReal)}</div><div class="kpi-sub">BP: ${fmtK(accLLBP)}</div></div>
   `;
 
-  // Chart: Receita Real vs Orçado mensal
-  const mesLabels=allMeses.map(m=>mesNome(m));
-  const recReal=allMeses.map(m=>rb.real[m]||0);
-  const recBP=allMeses.map(m=>rb.bp[m]||0);
+  // Chart: Receita Real vs Orçado — filtrado pela régua
+  const chartMeses=_orcModo==='acumulado'?allMeses.slice(0,reguaIdx+1):[allMeses[reguaIdx]];
+  const mesLabels=chartMeses.map(m=>mesNome(m));
+  const recReal=chartMeses.map(m=>rb.real[m]||0);
+  const recBP=chartMeses.map(m=>rb.bp[m]||0);
 
   if(charts.orcReceita)charts.orcReceita.destroy();
   charts.orcReceita=new Chart(document.getElementById('chartOrcReceita'),{
@@ -1056,9 +1057,9 @@ function renderOrcamento(reguaIdx){
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone},scales:{x:{ticks:{color:'#64748b',font:{size:9}}},y:{ticks:{color:'#64748b',callback:v=>fmtM(v)},grid:{color:'#1e293b'}}}}
   });
 
-  // Chart: EBITDA Real vs Orçado
-  const ebReal=allMeses.map(m=>eb.real[m]||0);
-  const ebBP=allMeses.map(m=>eb.bp[m]||0);
+  // Chart: EBITDA Real vs Orçado — filtrado pela régua
+  const ebReal=chartMeses.map(m=>eb.real[m]||0);
+  const ebBP=chartMeses.map(m=>eb.bp[m]||0);
   if(charts.orcEbitda)charts.orcEbitda.destroy();
   charts.orcEbitda=new Chart(document.getElementById('chartOrcEbitda'),{
     type:'bar',data:{labels:mesLabels,datasets:[
