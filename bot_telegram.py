@@ -130,12 +130,53 @@ class FinancialAssistant:
             # 3. Executar no BQ
             results = self.execute_query(sql)
 
-            # 4. Formatar resposta via LLM
+            # 4. Se 0 resultados, tentar busca fuzzy por nomes similares
+            if not results or (len(results) == 0):
+                similar = self.find_similar_names(text)
+                if similar:
+                    names_list = "\n".join(f"  • {n}" for n in similar[:10])
+                    return f"🔍 Não encontrei resultados exatos, mas encontrei nomes similares:\n\n{names_list}\n\nTente novamente com o nome correto."
+
+            # 5. Formatar resposta via LLM
             return self.format_response(text, sql, results)
 
         except Exception as e:
             log.error(f"Erro ao processar: {e}")
             return f"❌ Erro ao processar sua pergunta: {e}"
+
+    def find_similar_names(self, question: str) -> list[str]:
+        """Busca nomes similares de clientes/fornecedores e projetos no BigQuery."""
+        # Extrair possíveis nomes da pergunta (palavras com >3 chars que não são stopwords)
+        stopwords = {"quanto", "quero", "qual", "quais", "como", "para", "pagar", "paguei",
+                     "pagou", "pago", "receber", "recebi", "recebeu", "faturou", "faturamos",
+                     "devo", "devemos", "total", "valor", "mês", "março", "fevereiro", "janeiro",
+                     "esse", "esta", "este", "nesse", "neste", "dessa", "desse", "ontem", "hoje",
+                     "semana", "contas", "conta", "saldo", "projeto", "cliente", "fornecedor"}
+        words = [w for w in question.lower().split() if len(w) > 3 and w not in stopwords]
+        if not words:
+            return []
+
+        results = set()
+        for word in words[:3]:  # Max 3 palavras para buscar
+            pattern = f"%{word}%"
+            try:
+                # Buscar em clientes
+                q = f"""SELECT DISTINCT cliente_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                        WHERE LOWER(cliente_nome) LIKE LOWER('{pattern}')
+                        AND cliente_nome != '' LIMIT 5"""
+                for row in self.bq.query(q).result(timeout=10):
+                    results.add(row.cliente_nome)
+
+                # Buscar em projetos
+                q2 = f"""SELECT DISTINCT projeto_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                         WHERE LOWER(projeto_nome) LIKE LOWER('{pattern}')
+                         AND projeto_nome != 'Sem projeto' LIMIT 5"""
+                for row in self.bq.query(q2).result(timeout=10):
+                    results.add(row.projeto_nome)
+            except Exception:
+                pass
+
+        return sorted(results)[:10]
 
     def generate_sql(self, question: str) -> str:
         """Converte pergunta em linguagem natural para SQL BigQuery."""
@@ -150,6 +191,9 @@ Regras:
 - Valores monetários: ROUND(valor, 2)
 - Datas: FORMAT_DATE('%d/%m/%Y', data_vencimento)
 - LIMIT 20 por padrão
+- Para buscar nomes de clientes/fornecedores/projetos, SEMPRE use LOWER(campo) LIKE LOWER('%termo%') em vez de = 'termo'. Nomes podem ter variações (ex: "castini" pode ser "NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)")
+- Para perguntas sobre "quanto paguei/recebi", use data_pagamento (data real de pagamento). Para "quanto vence", use data_vencimento
+- Status PAGO = saída paga, RECEBIDO = entrada recebida
 - Retorne APENAS o SQL, sem explicação, sem markdown, sem blocos de código"""
 
         response = self.llm.generate("Você é um gerador de SQL BigQuery. Retorne SOMENTE o SQL.", prompt)
