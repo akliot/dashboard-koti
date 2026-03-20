@@ -646,14 +646,28 @@ function renderFluxoCaixa(d){
 }
 
 function renderFluxoTabela(d){
+  const isDone=s=>['RECEBIDO','PAGO','LIQUIDADO','CANCELADO'].includes(s);
+  // Computar por categoria com breakdown realizado/a realizar
+  const L=dadosFiltrados.lancamentos;
+  const catStatus={};// {cod: {entrada_done, entrada_open, saida_done, saida_open}}
+  L.forEach(l=>{
+    const k=l.categoria||'N/I';
+    if(!catStatus[k])catStatus[k]={ed:0,eo:0,sd:0,so:0};
+    const done=isDone(l.status);
+    if(l.tipo==='entrada'){if(done)catStatus[k].ed+=l.valor;else catStatus[k].eo+=l.valor}
+    else{if(done)catStatus[k].sd+=l.valor;else catStatus[k].so+=l.valor}
+  });
+
   const cats=Object.entries(d.porCat).sort((a,b)=>a[0].localeCompare(b[0]));
   const groups={};
   cats.forEach(([cod,data])=>{
     const g=cod.split('.').slice(0,2).join('.');
     const gn=dadosFiltrados.categorias?.[g]||g;
-    if(!groups[g])groups[g]={nome:gn,items:[],tE:0,tS:0,porMes:{}};
-    groups[g].items.push({cod,...data});
+    if(!groups[g])groups[g]={nome:gn,items:[],tE:0,tS:0,ed:0,eo:0,sd:0,so:0,porMes:{}};
+    const cs=catStatus[cod]||{ed:0,eo:0,sd:0,so:0};
+    groups[g].items.push({cod,...data,ed:cs.ed,eo:cs.eo,sd:cs.sd,so:cs.so});
     groups[g].tE+=data.entrada;groups[g].tS+=data.saida;
+    groups[g].ed+=cs.ed;groups[g].eo+=cs.eo;groups[g].sd+=cs.sd;groups[g].so+=cs.so;
   });
 
   // Build meses from lançamentos
@@ -703,20 +717,57 @@ function renderFluxoTabela(d){
     document.getElementById('fluxoTable').innerHTML=h;
 
   } else {
-    // ---- VISÃO CONSOLIDADA (original) ----
-    let h='<table><thead><tr><th>Categoria</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo</th></tr></thead><tbody>';
+    // ---- VISÃO CONSOLIDADA com breakdown realizado / a realizar ----
+    const fv=v=>v?fmt(v):'-';
+    const totED=Object.values(groups).reduce((s,g)=>s+g.ed,0);
+    const totEO=Object.values(groups).reduce((s,g)=>s+g.eo,0);
+    const totSD=Object.values(groups).reduce((s,g)=>s+g.sd,0);
+    const totSO=Object.values(groups).reduce((s,g)=>s+g.so,0);
+
+    let h='<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>';
+    h+='<th>Categoria</th>';
+    h+='<th style="text-align:right;color:var(--green)">Recebido</th>';
+    h+='<th style="text-align:right;color:var(--green);opacity:.6">A Receber</th>';
+    h+='<th style="text-align:right;color:var(--green)">Total Ent.</th>';
+    h+='<th style="text-align:right;color:var(--red)">Pago</th>';
+    h+='<th style="text-align:right;color:var(--red);opacity:.6">A Pagar</th>';
+    h+='<th style="text-align:right;color:var(--red)">Total Saída</th>';
+    h+='<th style="text-align:right">Saldo</th>';
+    h+='</tr></thead><tbody>';
+
     Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,data])=>{
       if(!data.tE&&!data.tS)return;
       const s=data.tE-data.tS;
-      h+=`<tr class="cat-group"><td>${data.nome}</td><td style="text-align:right" class="valor-entrada">${data.tE?fmt(data.tE):'-'}</td><td style="text-align:right" class="valor-saida">${data.tS?fmt(data.tS):'-'}</td><td style="text-align:right;color:${s>=0?'var(--green)':'var(--red)'}"><strong>${fmt(s)}</strong></td></tr>`;
+      h+=`<tr class="cat-group"><td>${data.nome}</td>`;
+      h+=`<td style="text-align:right" class="valor-entrada">${fv(data.ed)}</td>`;
+      h+=`<td style="text-align:right;opacity:.6" class="valor-entrada">${fv(data.eo)}</td>`;
+      h+=`<td style="text-align:right" class="valor-entrada"><strong>${fv(data.tE)}</strong></td>`;
+      h+=`<td style="text-align:right" class="valor-saida">${fv(data.sd)}</td>`;
+      h+=`<td style="text-align:right;opacity:.6" class="valor-saida">${fv(data.so)}</td>`;
+      h+=`<td style="text-align:right" class="valor-saida"><strong>${fv(data.tS)}</strong></td>`;
+      h+=`<td style="text-align:right;color:${s>=0?'var(--green)':'var(--red)'}"><strong>${fmt(s)}</strong></td></tr>`;
       data.items.forEach(i=>{
         if(!i.entrada&&!i.saida)return;
         const ss=i.entrada-i.saida;
-        h+=`<tr><td style="padding-left:24px;color:var(--muted)">${i.nome}</td><td style="text-align:right" class="valor-entrada">${i.entrada?fmt(i.entrada):'-'}</td><td style="text-align:right" class="valor-saida">${i.saida?fmt(i.saida):'-'}</td><td style="text-align:right;color:${ss>=0?'var(--green)':'var(--red)'}">${fmt(ss)}</td></tr>`;
+        h+=`<tr><td style="padding-left:24px;color:var(--muted)">${i.nome}</td>`;
+        h+=`<td style="text-align:right" class="valor-entrada">${fv(i.ed)}</td>`;
+        h+=`<td style="text-align:right;opacity:.6" class="valor-entrada">${fv(i.eo)}</td>`;
+        h+=`<td style="text-align:right" class="valor-entrada">${fv(i.entrada)}</td>`;
+        h+=`<td style="text-align:right" class="valor-saida">${fv(i.sd)}</td>`;
+        h+=`<td style="text-align:right;opacity:.6" class="valor-saida">${fv(i.so)}</td>`;
+        h+=`<td style="text-align:right" class="valor-saida">${fv(i.saida)}</td>`;
+        h+=`<td style="text-align:right;color:${ss>=0?'var(--green)':'var(--red)'}">${fmt(ss)}</td></tr>`;
       });
     });
     const ts=d.tE-d.tS;
-    h+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td><td style="text-align:right" class="valor-entrada">${fmt(d.tE)}</td><td style="text-align:right" class="valor-saida">${fmt(d.tS)}</td><td style="text-align:right;color:${ts>=0?'var(--green)':'var(--red)'}">${fmt(ts)}</td></tr></tbody></table>`;
+    h+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td>`;
+    h+=`<td style="text-align:right" class="valor-entrada">${fmt(totED)}</td>`;
+    h+=`<td style="text-align:right;opacity:.6" class="valor-entrada">${fmt(totEO)}</td>`;
+    h+=`<td style="text-align:right" class="valor-entrada">${fmt(d.tE)}</td>`;
+    h+=`<td style="text-align:right" class="valor-saida">${fmt(totSD)}</td>`;
+    h+=`<td style="text-align:right;opacity:.6" class="valor-saida">${fmt(totSO)}</td>`;
+    h+=`<td style="text-align:right" class="valor-saida">${fmt(d.tS)}</td>`;
+    h+=`<td style="text-align:right;color:${ts>=0?'var(--green)':'var(--red)'}">${fmt(ts)}</td></tr></tbody></table></div>`;
     document.getElementById('fluxoTable').innerHTML=h;
   }
 }
