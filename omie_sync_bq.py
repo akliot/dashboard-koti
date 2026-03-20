@@ -77,7 +77,8 @@ def ensure_tables(client: bigquery.Client) -> None:
         )""",
         f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.lancamentos` (
             id INT64, tipo STRING, valor FLOAT64, status STRING,
-            data_vencimento DATE, data_emissao DATE, numero_documento STRING,
+            data_vencimento DATE, data_emissao DATE, data_pagamento DATE,
+            numero_documento STRING,
             categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING,
             projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING,
             conta_corrente_id INT64, is_faturamento_direto BOOL,
@@ -544,6 +545,18 @@ def coletar_lancamentos(
     # Completar categorias faltantes
     cat_map = completar_categorias(cat_map, cr_raw + cp_raw)
 
+    def _extract_data_pagamento(r: dict) -> str | None:
+        """Extrai data de pagamento/recebimento.
+        A API Omie não tem campo explícito — usa info.dAlt (data da baixa)
+        para títulos com status PAGO/RECEBIDO/LIQUIDADO."""
+        status = (r.get("status_titulo", "") or "").upper()
+        if status not in ("PAGO", "RECEBIDO", "LIQUIDADO"):
+            return None
+        # info.dAlt = data da última alteração (= data da baixa)
+        info = r.get("info", {}) or {}
+        d_alt = info.get("dAlt", "")
+        return parse_date(d_alt) if d_alt else None
+
     ignorados_cr = 0
     for r in cr_raw:
         if r.get("id_conta_corrente") in CONTAS_IGNORAR:  # ⚡ KOTI-SPECIFIC
@@ -567,6 +580,7 @@ def coletar_lancamentos(
             "status": (r.get("status_titulo", "") or "").upper(),
             "data_vencimento": parse_date(r.get("data_vencimento", "")),
             "data_emissao": parse_date(r.get("data_emissao", "")),
+            "data_pagamento": _extract_data_pagamento(r),
             "numero_documento": num_doc,
             "categoria_codigo": cat_cod or None,
             "categoria_nome": cat_nome or None,
@@ -605,6 +619,7 @@ def coletar_lancamentos(
             "status": (r.get("status_titulo", "") or "").upper(),
             "data_vencimento": parse_date(r.get("data_vencimento", "")),
             "data_emissao": parse_date(r.get("data_emissao", "")),
+            "data_pagamento": _extract_data_pagamento(r),
             "numero_documento": num_doc,
             "categoria_codigo": cat_cod or None,
             "categoria_nome": cat_nome or None,
@@ -852,10 +867,12 @@ def main() -> None:
 
         # Lançamentos — MERGE por id
         lanc_cols = ["id", "tipo", "valor", "status", "data_vencimento", "data_emissao",
-                     "numero_documento", "categoria_codigo", "categoria_nome", "categoria_grupo",
+                     "data_pagamento", "numero_documento",
+                     "categoria_codigo", "categoria_nome", "categoria_grupo",
                      "projeto_id", "projeto_nome", "cliente_id", "cliente_nome",
                      "conta_corrente_id", "is_faturamento_direto", "sync_timestamp", "sync_date"]
-        lanc_compare = ["valor", "status", "data_vencimento", "categoria_codigo", "categoria_nome",
+        lanc_compare = ["valor", "status", "data_vencimento", "data_pagamento",
+                        "categoria_codigo", "categoria_nome",
                         "projeto_id", "projeto_nome", "cliente_nome"]
         lanc_stats = merge_to_bq(client, "lancamentos", lancamentos, "id", lanc_compare, lanc_cols)
         counts["lancamentos"] = lanc_stats["inserted"] + lanc_stats["updated"]
