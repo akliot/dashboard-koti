@@ -47,7 +47,7 @@
 | `omie_sync_bq.py` | Coleta API Omie → BigQuery via MERGE. Cria tabelas via `ensure_tables()` |
 | `extract_bp_bq.py` | Planilha BP → `orcamento_dre` (Koti-only) |
 | `bq_schema.sql` | DDL de referência |
-| `.github/workflows/sync_omie_bq.yml` | 3x/dia com retry |
+| `.github/workflows/sync_omie_bq.yml` | 3x/dia (5h, 12h, 18h BRT) com retry |
 | `requirements_bq.txt` | Deps do pipeline |
 
 ### Dashboard + API
@@ -55,7 +55,7 @@
 | Arquivo | Descrição |
 |---------|-----------|
 | `dashboard_bq.html` | 8 abas, Chart.js. GitHub Pages → fetch Cloud Function |
-| `api_bq.py` | Cloud Function: `/` serve HTML (local), `/api/dashboard` serve JSON |
+| `api_bq.py` | Cloud Function: `/` serve HTML (local), `/api/dashboard` serve JSON. Horários em BRT |
 | `main.py` | Entry point Cloud Function |
 | `requirements.txt` | Deps Cloud Function |
 | `index.html` | Redirect → `dashboard_bq.html` |
@@ -76,16 +76,13 @@
 
 ### Legado (descontinuar)
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `dashboard_omie.html`, `omie_sync.py`, `extract_orcamento.py`, `encrypt_data.py` | Pipeline antigo (JSON criptografado) |
-| `.github/workflows/sync_omie.yml` | Workflow antigo |
+`dashboard_omie.html`, `omie_sync.py`, `extract_orcamento.py`, `encrypt_data.py`, `.github/workflows/sync_omie.yml`
 
 ---
 
 ## 3. Sync Incremental (MERGE)
 
-O `omie_sync_bq.py` puxa tudo da API Omie e usa MERGE no BigQuery — só escreve o que mudou.
+Puxa tudo da API Omie mas só escreve o que mudou no BigQuery.
 
 | Tabela | Método | Key | Campos comparados |
 |--------|:------:|-----|-------------------|
@@ -98,38 +95,41 @@ O `omie_sync_bq.py` puxa tudo da API Omie e usa MERGE no BigQuery — só escrev
 | `historico_saldos` | APPEND | — | Dedup via view |
 | `sync_log` | APPEND | — | Log |
 
-Resultado típico: `23 novos, 34 atualizados, 0 removidos, 10.669 iguais`
+**Resultado típico**: `23 novos, 34 atualizados, 0 removidos, 10.669 iguais`
 
-**Frequência**: 5h, 12h, 18h BRT + manual via workflow_dispatch
+**Frequência**: 5h, 12h, 18h BRT (GitHub Actions) + manual
 
 ---
 
 ## 4. BigQuery Schema
 
-**Projeto**: `dashboard-koti-omie` | **Dataset**: `studio_koti`
+**Projeto**: `dashboard-koti-omie` | **Dataset por cliente** (ex: `studio_koti`)
 
-| # | Tabela | Registros | Partição |
-|:-:|--------|:---------:|----------|
-| 1 | `lancamentos` | ~10.700 | `sync_date` |
-| 2 | `saldos_bancarios` | ~17 | `sync_date` |
-| 3 | `historico_saldos` | acumula | `sync_date` |
-| 4 | `categorias` | ~142 | — |
-| 5 | `projetos` | ~214 | — |
-| 6 | `clientes` | ~1.837 | — |
-| 7 | `vendas_pedidos` | ~673 | `sync_date` |
-| 8 | `orcamento_dre` | ~336 | — |
-| 9 | `sync_log` | acumula | — |
-| — | `v_historico_saldos` (view) | dedup | — |
+| # | Tabela | Registros (Koti) |
+|:-:|--------|:----------------:|
+| 1 | `lancamentos` | ~10.700 |
+| 2 | `saldos_bancarios` | ~17 |
+| 3 | `historico_saldos` | acumula |
+| 4 | `categorias` | ~142 |
+| 5 | `projetos` | ~214 |
+| 6 | `clientes` | ~1.837 |
+| 7 | `vendas_pedidos` | ~673 |
+| 8 | `orcamento_dre` | ~336 |
+| 9 | `sync_log` | acumula |
+| — | `v_historico_saldos` (view) | dedup |
 
-### Campos principais — lancamentos
+### Lógica de datas (lancamentos)
 
-`id`, `tipo` (entrada/saida), `valor`, `status` (PAGO/RECEBIDO/A VENCER/ATRASADO/VENCE HOJE/CANCELADO), `data_vencimento`, `data_emissao`, `data_pagamento` (data real — info.dAlt do Omie), `categoria_codigo`, `categoria_nome`, `projeto_id`, `projeto_nome`, `cliente_id`, `cliente_nome`, `is_faturamento_direto`
+| Status | Campo `data` no JSON | Campo no BQ |
+|--------|---------------------|-------------|
+| PAGO, RECEBIDO | Data real do pagamento | `data_pagamento` (extraído de `info.dAlt` da API Omie) |
+| A VENCER, ATRASADO, VENCE HOJE | Data de vencimento | `data_vencimento` |
 
-### Lógica de datas
+Isso garante que "quanto paguei em março" inclui pagamentos feitos em março mesmo que o vencimento fosse em outro mês.
 
-- **PAGO/RECEBIDO** → `data_pagamento` = data real da baixa (campo `info.dAlt` da API Omie)
-- **A VENCER/ATRASADO** → `data_pagamento` = NULL
-- **Dashboard e API** usam `data_pagamento` para realizados e `data_vencimento` para pendentes no campo `data` do JSON
+### Campos — lancamentos
+
+`id`, `tipo` (entrada/saida), `valor`, `status`, `data_vencimento`, `data_emissao`, `data_pagamento`, `numero_documento`, `categoria_codigo`, `categoria_nome`, `categoria_grupo`, `projeto_id`, `projeto_nome`, `cliente_id`, `cliente_nome`, `conta_corrente_id`, `is_faturamento_direto`, `sync_timestamp`, `sync_date`
 
 ---
 
@@ -138,29 +138,58 @@ Resultado típico: `23 novos, 34 atualizados, 0 removidos, 10.669 iguais`
 | # | Aba | Genérica? |
 |:-:|-----|:---------:|
 | 1 | **Visão Geral** — KPIs, saldo por conta, fluxo mensal, top categorias | Sim |
-| 2 | **Fluxo de Caixa** — KPIs com realizado/a realizar, gráficos por grupo, custos stacked (Direto/SG&A/Outros), tabela consolidada (Realizado \| A Realizar \| Total) ou mês a mês | Sim |
+| 2 | **Fluxo de Caixa** — KPIs realizado/a realizar, gráficos por grupo, custos stacked Direto/SG&A/Outros (com valores nas barras), tabela Realizado \| A Realizar \| Total ou mês a mês | Sim |
 | 3 | **Financeiro** — Receita vs custo vs SG&A, resultado mensal, contas a receber/pagar | Sim |
-| 4 | **Conciliação** — Cards por conta, evolução mensal/diário | Sim |
+| 4 | **Conciliação** — Cards por conta (OK/Atenção/Pendente), evolução mensal/diário | Sim |
 | 5 | **Vendas** — Total, pedidos, ticket médio, por etapa, top produtos | Sim |
 | 6 | **Clientes** — Total, ativos, PF/PJ, por estado | Sim |
 | 7 | **Projetos** — Receita vs custo, busca, tabela com margem | Sim |
-| 8 | **Real vs Orçado** — Régua Jan-Dez, receita/EBITDA, waterfall, DRE | Koti-only |
+| 8 | **Real vs Orçado** — Régua Jan-Dez, receita/EBITDA, waterfall, DRE comparativo | Koti-only |
 
 ---
 
 ## 6. Bot Telegram (@Kotifin_bot)
 
-### Perguntas simples (NL → SQL → resposta)
-- "Quanto paguei de castini em março?" → Gemini gera SQL com LIKE, executa no BQ, formata
-- "Qual o saldo do BTG?" → query direta
-- Se 0 resultados: busca nomes similares e sugere
+### Perguntas simples (NL → SQL)
+
+O bot converte linguagem natural em SQL via Gemini e retorna dados formatados.
+
+**Regras de negócio no prompt:**
+- "faturei" / "NF" → entradas com status RECEBIDO
+- "paguei" → saídas com status PAGO, filtra por `data_pagamento`
+- "a pagar" / "a receber" → filtra por `data_vencimento`
+- "projetos" (sem nome) → agrupa por `projeto_nome`
+- "relação" → lista detalhada
+
+### Busca fuzzy de nomes
+
+Nomes de fornecedores/clientes são resolvidos **antes** de gerar o SQL:
+1. Extrai palavras da pergunta que não são stopwords (200+ termos financeiros filtrados)
+2. Gera fragmentos de 4 letras (ex: "castini" → "cast", "asti", "stin", "tini")
+3. Busca no BigQuery com LIKE por cada fragmento
+4. Se encontra match, adiciona `[CONTEXTO: 'castini' = 'NORTE SUL INDUSTRIA DE MOVEIS LTDA (Casttini)']` ao prompt
+5. Gemini gera SQL com o nome correto
+
+Se a query retorna 0 resultados, sugere nomes similares encontrados.
 
 ### Análise financeira (/analise)
-Roda 8 queries de uma vez (receita mensal, saldos, a receber/pagar, top despesas, top clientes, margem por projeto, orçamento) e pede pro Gemini analisar como consultor financeiro.
 
-Também ativado automaticamente por perguntas como:
-- "Como está a saúde financeira da empresa?"
-- "Quais oportunidades para melhorar?"
+Roda 8 queries de uma vez e pede pro Gemini analisar como consultor financeiro:
+
+| Query | Dados |
+|-------|-------|
+| Resumo mensal | Receita vs despesa últimos 6 meses |
+| Saldos | Todas as contas bancárias |
+| A receber | Total, qtd, atrasados |
+| A pagar | Total, qtd, atrasados |
+| Top despesas | Top 10 categorias (3 meses) |
+| Top clientes | Top 5 por receita (3 meses) |
+| Margem projetos | Top 10 receita vs custo |
+| Orçamento | Real vs BP (linhas nível 0) |
+
+**Análise estruturada**: saúde financeira, pontos de atenção, oportunidades.
+
+Ativado por `/analise` ou automaticamente por perguntas como "como está a saúde financeira?" ou "quais oportunidades para melhorar?".
 
 ### Comandos
 
@@ -173,10 +202,9 @@ Também ativado automaticamente por perguntas como:
 | `/status` | Último sync |
 
 ### Detalhes técnicos
-- **Modelo**: Gemini 2.5 Flash (via `google-genai` SDK com API key do projeto GCP)
-- **SQL safety**: só SELECT, só dataset autorizado, timeout 15s
-- **Busca fuzzy**: LIKE '%termo%' para nomes, sugestão de similares quando 0 resultados
-- **Análise**: snapshot de 8 queries → prompt de consultor financeiro
+- **Modelo**: Gemini 2.5 Flash (`google-genai` SDK, API key do projeto GCP com billing)
+- **SQL safety**: só SELECT, só dataset autorizado, timeout 15s, limit 20
+- **Respostas**: max 4000 chars, split em múltiplas mensagens se maior
 
 ---
 
@@ -199,11 +227,10 @@ Marcadas com `# ⚡ KOTI-SPECIFIC`. Para novo cliente, buscar e adaptar.
 # 1. BigQuery (tabelas criadas automaticamente no primeiro sync)
 bq mk --dataset --location=US dashboard-koti-omie:nome_cliente
 
-# 2. Repositório
-# Fork, configurar Secrets (OMIE_APP_KEY/SECRET, GCP_PROJECT_ID, GCP_SA_KEY)
-# Alterar BQ_DATASET no workflow, adaptar itens Koti-specific
+# 2. Repo: fork, Secrets (OMIE_APP_KEY/SECRET, GCP_PROJECT_ID, GCP_SA_KEY),
+#    BQ_DATASET no workflow, adaptar itens Koti-specific
 
-# 3. API
+# 3. API Cloud Function
 gcloud functions deploy api_nome_cliente \
   --gen2 --runtime python311 --trigger-http --allow-unauthenticated \
   --entry-point api_dashboard --source . \
@@ -234,14 +261,13 @@ gcloud functions deploy api_nome_cliente \
 
 | Problema | Solução |
 |----------|---------|
-| Cloud Function 503 | `--memory 512MB` (256 não basta) |
+| Cloud Function 503 | `--memory 512MB` |
 | Cloud Function 403 | Roles: `bigquery.dataViewer` + `bigquery.jobUser` |
 | Dados desatualizados | Sync 3x/dia. Manual: `python omie_sync_bq.py` |
-| Valor pago não bate com Omie | Verificar se filtro usa `data_pagamento` (não `data_vencimento`) |
-| Bot 429 quota Gemini | Usar API key do projeto GCP com billing |
-| Bot não acha fornecedor | Busca fuzzy sugere similares. Gemini usa LIKE '%termo%' |
-| Aba Orçamento vazia | `extract_bp_bq.py` + `BP.xlsx` (Koti-only, fallback automático) |
-| MERGE falha staging | `bq rm studio_koti.lancamentos_staging` |
+| Valor pago não bate com Omie | Filtro deve usar `data_pagamento`, não `data_vencimento` |
+| Bot não acha fornecedor | Busca fuzzy por fragmentos. Verificar stopwords |
+| Bot confunde palavras comuns com nomes | 200+ stopwords financeiras filtradas |
+| Aba Orçamento vazia | Koti-only: `extract_bp_bq.py` + `BP.xlsx` |
 | Deploy falha billing | Habilitar em console.cloud.google.com/billing |
 
 ---
@@ -252,5 +278,4 @@ gcloud functions deploy api_nome_cliente \
 |------|:-----:|
 | BigQuery, Cloud Functions, GitHub Actions/Pages | R$ 0 (free tier) |
 | Gemini API (bot) | ~R$ 0-5/mês |
-| **Budget configurado** | **US$ 4/mês (~R$ 20)** |
-| Alertas | 50%, 80%, 100% |
+| **Budget GCP configurado** | **US$ 4/mês (~R$ 20)**, alertas em 50%, 80%, 100% |
