@@ -232,6 +232,123 @@ Regras:
         except Exception as e:
             return [{"erro": str(e)}]
 
+    def financial_snapshot(self) -> dict:
+        """Puxa snapshot financeiro completo para análise."""
+        ds = f"`{GCP_PROJECT_ID}.{BQ_DATASET}"
+        queries = {
+            "resumo_mensal": f"""
+                SELECT FORMAT_DATE('%Y-%m', data_pagamento) as mes,
+                    SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END) as receita,
+                    SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END) as despesa,
+                    SUM(CASE WHEN tipo='entrada' THEN valor ELSE -valor END) as resultado
+                FROM {ds}.lancamentos`
+                WHERE status IN ('PAGO','RECEBIDO') AND data_pagamento >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+                GROUP BY mes ORDER BY mes
+            """,
+            "saldos": f"""
+                SELECT conta_nome, ROUND(saldo,2) as saldo, ROUND(diferenca,2) as dif_conciliacao
+                FROM {ds}.saldos_bancarios` WHERE saldo != 0 ORDER BY ABS(saldo) DESC
+            """,
+            "a_receber": f"""
+                SELECT ROUND(SUM(valor),2) as total, COUNT(*) as qtd,
+                    ROUND(SUM(CASE WHEN status='ATRASADO' THEN valor ELSE 0 END),2) as atrasado,
+                    COUNTIF(status='ATRASADO') as qtd_atrasado
+                FROM {ds}.lancamentos` WHERE tipo='entrada' AND status IN ('A VENCER','ATRASADO','VENCE HOJE')
+            """,
+            "a_pagar": f"""
+                SELECT ROUND(SUM(valor),2) as total, COUNT(*) as qtd,
+                    ROUND(SUM(CASE WHEN status='ATRASADO' THEN valor ELSE 0 END),2) as atrasado,
+                    COUNTIF(status='ATRASADO') as qtd_atrasado
+                FROM {ds}.lancamentos` WHERE tipo='saida' AND status IN ('A VENCER','ATRASADO','VENCE HOJE')
+            """,
+            "top_despesas": f"""
+                SELECT categoria_nome, ROUND(SUM(valor),2) as total
+                FROM {ds}.lancamentos`
+                WHERE tipo='saida' AND status='PAGO' AND data_pagamento >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                GROUP BY categoria_nome ORDER BY total DESC LIMIT 10
+            """,
+            "top_clientes_receita": f"""
+                SELECT cliente_nome, ROUND(SUM(valor),2) as total
+                FROM {ds}.lancamentos`
+                WHERE tipo='entrada' AND status='RECEBIDO' AND data_pagamento >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                GROUP BY cliente_nome ORDER BY total DESC LIMIT 5
+            """,
+            "margem_projetos": f"""
+                SELECT projeto_nome,
+                    ROUND(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),2) as receita,
+                    ROUND(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),2) as custo
+                FROM {ds}.lancamentos`
+                WHERE projeto_nome != 'Sem projeto' AND status IN ('PAGO','RECEBIDO')
+                    AND data_pagamento >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                GROUP BY projeto_nome HAVING receita > 0 OR custo > 0
+                ORDER BY receita DESC LIMIT 10
+            """,
+            "orcamento": f"""
+                SELECT label, ROUND(SUM(valor_real),2) as real, ROUND(SUM(valor_bp),2) as bp
+                FROM {ds}.orcamento_dre`
+                WHERE mes_com_real = TRUE AND level = 0
+                GROUP BY label ORDER BY label
+            """,
+        }
+
+        snapshot = {}
+        for name, sql in queries.items():
+            try:
+                rows = list(self.bq.query(sql).result(timeout=15))
+                snapshot[name] = [dict(r) for r in rows]
+            except Exception as e:
+                snapshot[name] = [{"erro": str(e)}]
+                log.warning(f"Snapshot query {name} falhou: {e}")
+
+        return snapshot
+
+    async def analyze_finances(self, question: str = "") -> str:
+        """Análise financeira completa usando snapshot + LLM."""
+        snapshot = self.financial_snapshot()
+
+        # Serializar para o prompt
+        import json
+        snapshot_str = json.dumps(snapshot, ensure_ascii=False, default=str, indent=2)
+
+        prompt = f"""Você é um consultor financeiro analisando os dados da empresa Studio Koti (marcenaria de alto padrão).
+
+Dados financeiros atuais:
+{snapshot_str}
+
+{"Pergunta específica do dono: " + question if question else "Faça uma análise completa da saúde financeira."}
+
+Sua análise deve incluir:
+
+1. SAÚDE FINANCEIRA GERAL
+   - Saldo de caixa atual e liquidez
+   - Resultado operacional (receita vs despesa) dos últimos meses — tendência
+   - Posição de contas a receber vs a pagar
+
+2. PONTOS DE ATENÇÃO
+   - Contas atrasadas (receber e pagar)
+   - Diferenças de conciliação bancária
+   - Concentração de receita em poucos clientes
+   - Categorias de despesa crescendo
+
+3. OPORTUNIDADES
+   - Projetos com melhor/pior margem
+   - Sugestões para melhorar fluxo de caixa
+   - Real vs orçado — onde está acima/abaixo do esperado
+
+Regras:
+- Responda em português brasileiro, tom profissional mas acessível
+- Use emojis para organizar seções
+- Valores em R$ com formato brasileiro (ponto milhar, vírgula decimal)
+- Seja específico com números, não genérico
+- Se não tiver dados suficientes para algum ponto, pule
+- Máximo 4000 caracteres (limite Telegram)
+- NÃO use markdown com asteriscos"""
+
+        return self.llm.generate(
+            "Você é um consultor financeiro sênior. Analise dados reais e dê recomendações específicas.",
+            prompt,
+        )
+
     def format_response(self, question: str, sql: str, results: list[dict]) -> str:
         """Formata resultados em resposta amigável via LLM."""
         if not results:
@@ -278,9 +395,11 @@ Pergunte qualquer coisa sobre as finanças!
 • Contas a pagar vencidas
 • Top 5 clientes por receita
 • Quanto devemos pro fornecedor X?
+• Como está a saúde financeira da empresa?
 
 ⚡ Comandos:
 /saldo — Saldos bancários
+/analise — Análise financeira completa
 /status — Último sync
 /ajuda — Mais exemplos"""
     await update.message.reply_text(msg)
@@ -344,6 +463,32 @@ async def cmd_status(update, context):
     await update.message.reply_text(msg)
 
 
+async def cmd_analise(update, context):
+    """Comando /analise — análise financeira completa."""
+    chat_id = update.effective_chat.id
+    if AUTHORIZED_CHAT_IDS and chat_id not in AUTHORIZED_CHAT_IDS:
+        await update.message.reply_text("⛔ Acesso não autorizado.")
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    await update.message.reply_text("🔄 Analisando dados financeiros... (pode levar ~15s)")
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    # Pegar pergunta adicional se houver (ex: /analise como melhorar margem?)
+    extra = " ".join(context.args) if context.args else ""
+    response = await assistant.analyze_finances(extra)
+
+    if len(response) > 4000:
+        # Dividir em mensagens
+        parts = [response[i:i+4000] for i in range(0, len(response), 4000)]
+        for part in parts:
+            await update.message.reply_text(part)
+    else:
+        await update.message.reply_text(response)
+
+    log.info(f"[chat={chat_id}] Análise financeira enviada ({len(response)} chars)")
+
+
 async def handle_message(update, context):
     """Handler para mensagens de texto (linguagem natural)."""
     chat_id = update.effective_chat.id
@@ -360,7 +505,21 @@ async def handle_message(update, context):
     text = update.message.text
     log.info(f"[chat={chat_id}] Pergunta: {text}")
 
-    response = await assistant.process_message(text)
+    # Detectar perguntas analíticas que precisam de snapshot completo
+    analytical_keywords = ["saúde financeira", "saude financeira", "análise", "analise",
+                          "oportunidade", "melhorar performance", "como está a empresa",
+                          "como esta a empresa", "diagnóstico", "diagnostico",
+                          "recomendação", "recomendacao", "ponto de atenção",
+                          "ponto de atencao", "visão geral", "visao geral"]
+    text_lower = text.lower()
+    is_analytical = any(kw in text_lower for kw in analytical_keywords)
+
+    if is_analytical:
+        await update.message.reply_text("🔄 Analisando dados financeiros... (pode levar ~15s)")
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+        response = await assistant.analyze_finances(text)
+    else:
+        response = await assistant.process_message(text)
 
     # Telegram max 4096 chars
     if len(response) > 4000:
@@ -427,6 +586,7 @@ def main():
         app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
         app.add_handler(CommandHandler("start", cmd_start))
         app.add_handler(CommandHandler("saldo", cmd_saldo))
+        app.add_handler(CommandHandler("analise", cmd_analise))
         app.add_handler(CommandHandler("status", cmd_status))
         app.add_handler(CommandHandler("ajuda", cmd_start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
