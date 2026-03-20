@@ -4,81 +4,80 @@
 **Repositório**: https://github.com/akliot/dashboard-koti
 **Dashboard (produção)**: https://akliot.github.io/dashboard-koti/
 **API (produção)**: https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard
+**Bot Telegram**: @Kotifin_bot
 **Última atualização**: 20/03/2026
 
-> Sistema para empresas que usam Omie ERP. O primeiro cliente é o **Studio Koti** (dataset `studio_koti`). Para adicionar novos clientes, ver seção 9.
+> Sistema para empresas que usam Omie ERP. Primeiro cliente: **Studio Koti** (dataset `studio_koti`).
 
 ---
 
 ## 1. Arquitetura
 
 ```
-┌──────────┐     ┌─────────────────┐     ┌──────────────┐
-│ API Omie │────▶│ omie_sync_bq.py │────▶│   BigQuery    │
-│ (ERP)    │     │ (GitHub Actions) │     │   (GCP)      │
-└──────────┘     └─────────────────┘     └──────┬───────┘
+┌──────────┐     ┌─────────────────┐     ┌──────────────┐     ┌────────────────┐
+│ API Omie │────▶│ omie_sync_bq.py │────▶│   BigQuery    │────▶│ dashboard_bq   │
+│ (ERP)    │     │ (GitHub Actions) │     │   (GCP)      │     │ .html (GitHub  │
+└──────────┘     │ 3x/dia MERGE    │     └──────┬───────┘     │  Pages)        │
+                 └─────────────────┘            │             └────────────────┘
+                                                │                    ▲
+                  ┌─────────────────┐           │                    │ fetch JSON
+                  │ extract_bp_bq.py│──────────▶│              ┌─────┴──────┐
+                  │ (⚡ Koti-only)   │           │              │ api_bq.py  │
+                  └─────────────────┘           │              │ Cloud Func. │
+                                                │              └────────────┘
                                                 │
-                  ┌─────────────────┐           │
-                  │ extract_bp_bq.py│──────────▶│  (⚡ Koti-specific)
-                  │ (BP → BigQuery)  │           │
-                  └─────────────────┘           │
-                                                │
-                                         ┌──────┴───────┐
-                                         │  api_bq.py    │
-                                         │ Cloud Function │
-                                         │ (serve JSON)  │
-                                         └──────┬───────┘
-                                                │ fetch
-                                         ┌──────┴───────┐
-                                         │dashboard_bq   │
-                                         │.html          │
-                                         │(GitHub Pages) │
-                                         └──────────────┘
+                                          ┌─────┴──────┐
+                                          │bot_telegram │
+                                          │.py (Gemini  │
+                                          │ + BigQuery) │
+                                          └────────────┘
 ```
 
-**Fluxo diário:**
-1. **GitHub Actions** roda às 5h BRT (8h UTC) com retry automático
-2. `omie_sync_bq.py` coleta toda a API Omie → BigQuery (9 tabelas)
-3. `extract_bp_bq.py` extrai planilha BP → tabela `orcamento_dre` (Koti-specific)
-4. **Cloud Function** (`api_bq.py`) consulta BigQuery e serve JSON
-5. **Dashboard** (`dashboard_bq.html`) hospedado no GitHub Pages faz fetch da Cloud Function e renderiza com Chart.js
-
-**URLs em produção:**
-- Dashboard: https://akliot.github.io/dashboard-koti/ (redireciona para `dashboard_bq.html`)
-- API JSON: https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard
-- Horários mostrados em BRT (UTC-3)
+**Fluxo diário (3x — 5h, 12h, 18h BRT):**
+1. GitHub Actions roda `omie_sync_bq.py` com **MERGE incremental** — só atualiza o que mudou
+2. `extract_bp_bq.py` extrai planilha BP → `orcamento_dre` (Koti-specific)
+3. Cloud Function (`api_bq.py`) serve JSON do BigQuery
+4. Dashboard HTML (GitHub Pages) faz fetch da Cloud Function
+5. Bot Telegram responde perguntas em linguagem natural via Gemini + BigQuery
 
 ---
 
 ## 2. Arquivos do Projeto
 
-### Pipeline BigQuery (genérico — qualquer cliente Omie)
+### Pipeline BigQuery (genérico)
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `omie_sync_bq.py` | Coleta API Omie → BigQuery. Cria tabelas automaticamente via `ensure_tables()` |
+| `omie_sync_bq.py` | Coleta API Omie → BigQuery via MERGE incremental. `ensure_tables()` cria DDL automático |
 | `bq_schema.sql` | DDL de referência (9 CREATE TABLE + 1 VIEW) |
-| `.github/workflows/sync_omie_bq.yml` | Workflow GitHub Actions (BQ + legacy em paralelo) |
-| `requirements_bq.txt` | Dependências Python (sync + streamlit + plotly) |
+| `.github/workflows/sync_omie_bq.yml` | Workflow GitHub Actions — 3x/dia (5h, 12h, 18h BRT) com retry |
+| `requirements_bq.txt` | Dependências Python do pipeline |
 
 ### API + Dashboard (genérico)
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `api_bq.py` | Cloud Function — consulta BigQuery e serve JSON. Localmente: serve HTML na `/` e JSON na `/api/dashboard` |
-| `main.py` | Entry point para Cloud Function (importa `api_dashboard` de `api_bq.py`) |
-| `requirements.txt` | Dependências da Cloud Function (google-cloud-bigquery, db-dtypes, functions-framework) |
-| `dashboard_bq.html` | Dashboard HTML/Chart.js com 8 abas. Hospedado no GitHub Pages, faz fetch da Cloud Function |
+| `api_bq.py` | Cloud Function — serve HTML na `/` e JSON na `/api/dashboard`. Horários em BRT |
+| `main.py` | Entry point para Cloud Function |
+| `requirements.txt` | Dependências da Cloud Function |
+| `dashboard_bq.html` | Dashboard HTML/Chart.js com 8 abas. GitHub Pages → fetch da Cloud Function |
 | `index.html` | Redirect para `dashboard_bq.html` |
+
+### Bot Telegram (genérico)
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `bot_telegram.py` | Bot que responde perguntas financeiras. Gemini converte NL→SQL, executa no BQ, formata resposta |
+| `requirements_bot.txt` | Dependências do bot |
 
 ### Koti-Specific (adaptar/remover para outros clientes)
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `extract_bp_bq.py` | Extrai planilha BP Excel → `orcamento_dre`. DRE_MAP com linhas fixas da planilha Koti |
-| `BP.xlsx` | Planilha Business Plan 2026 do Studio Koti |
+| `extract_bp_bq.py` | Planilha BP Excel → `orcamento_dre`. DRE_MAP com linhas fixas do Koti |
+| `BP.xlsx` | Planilha Business Plan 2026 |
 
-### Dashboard legado (GitHub Pages — será descontinuado)
+### Legado (será descontinuado)
 
 | Arquivo | Descrição |
 |---------|-----------|
@@ -87,46 +86,80 @@
 | `extract_orcamento.py` | BP → JSON local |
 | `encrypt_data.py` | Criptografa JSON → `.enc` |
 | `.github/workflows/sync_omie.yml` | Workflow legado |
+| `dados_omie.enc` / `dados_orcamento.enc` | Dados criptografados |
 
 ### Removidos
 
-- `dashboard_streamlit.py` e `.streamlit/` — Streamlit descontinuado, substituído por `dashboard_bq.html` + `api_bq.py`
-
-### Infra
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `setup_gcp.sh` | Script de setup GCP (criar projeto, SA, dataset) |
-| `.gitignore` | Exclui secrets, JSON em texto plano, `.streamlit/secrets.toml` |
-| `dados_omie.enc` / `dados_orcamento.enc` | Dados criptografados (legado) |
+- `dashboard_streamlit.py` e `.streamlit/` — Streamlit descontinuado, substituído pelo dashboard HTML + Cloud Function
 
 ---
 
-## 3. BigQuery — Schema
+## 3. Sync Incremental (MERGE)
 
-**Projeto**: `dashboard-koti-omie`
+### Como funciona
 
-Cada cliente tem seu próprio dataset (ex: `studio_koti`) com as mesmas tabelas.
+O `omie_sync_bq.py` puxa **todos** os dados da API Omie (a API não tem endpoint incremental), mas na hora de escrever no BigQuery usa **MERGE** em vez de TRUNCATE:
+
+1. Dados da API → tabela `_staging` temporária
+2. `MERGE` compara staging vs tabela principal pelo `id`
+3. **INSERT** registros novos
+4. **UPDATE** registros com mudanças (status, valor, categoria, projeto, cliente)
+5. **DELETE** registros que sumiram do Omie
+6. Limpa staging
+
+### Resultado típico
+
+```
+lancamentos: 23 novos, 34 atualizados, 0 removidos, 10.669 iguais
+categorias:  0 novos, 0 atualizados, 0 removidos, 142 iguais
+projetos:    0 novos, 0 atualizados, 0 removidos, 214 iguais
+clientes:    0 novos, 0 atualizados, 0 removidos, 1.837 iguais
+```
+
+### Estratégia por tabela
+
+| Tabela | Método | Key | Campos comparados |
+|--------|--------|-----|-------------------|
+| `lancamentos` | MERGE | `id` | valor, status, data_vencimento, categoria, projeto, cliente |
+| `categorias` | MERGE | `codigo` | nome, grupo |
+| `projetos` | MERGE | `id` | nome |
+| `clientes` | MERGE | `id` | nome_fantasia, razao_social, estado, ativo, pessoa_fisica |
+| `saldos_bancarios` | TRUNCATE | — | Snapshot D-1, sempre substitui |
+| `vendas_pedidos` | TRUNCATE | — | Explode por item, sem key estável |
+| `historico_saldos` | APPEND | — | Acumula, dedup via view |
+| `sync_log` | APPEND | — | Log, sempre acumula |
+
+### Frequência
+
+- **3x/dia**: 5h BRT, 12h BRT, 18h BRT (GitHub Actions)
+- **Manual**: workflow_dispatch ou `python omie_sync_bq.py` local
+- Retry: 2 tentativas, 60s entre elas, timeout 30min
+
+---
+
+## 4. BigQuery — Schema
+
+**Projeto**: `dashboard-koti-omie` | Cada cliente tem seu dataset (ex: `studio_koti`)
 
 ### Tabelas
 
-| # | Tabela | Registros (Koti) | Estratégia | Partição | Cluster |
-|:-:|--------|:----------------:|:----------:|----------|---------|
-| 1 | `lancamentos` | ~10.700 | WRITE_TRUNCATE | `sync_date` | `tipo`, `categoria_grupo` |
-| 2 | `saldos_bancarios` | ~17 | WRITE_TRUNCATE | `sync_date` | — |
-| 3 | `historico_saldos` | acumula | WRITE_APPEND | `sync_date` | `conta_id`, `tipo` |
-| 4 | `categorias` | ~142 | WRITE_TRUNCATE | — | — |
-| 5 | `projetos` | ~214 | WRITE_TRUNCATE | — | — |
-| 6 | `clientes` | ~1.837 | WRITE_TRUNCATE | — | — |
-| 7 | `vendas_pedidos` | variável | WRITE_TRUNCATE | `sync_date` | — |
-| 8 | `orcamento_dre` | ~336 | WRITE_TRUNCATE | — | — |
-| 9 | `sync_log` | acumula | WRITE_APPEND | — | — |
+| # | Tabela | Registros (Koti) | Método | Partição |
+|:-:|--------|:----------------:|:------:|----------|
+| 1 | `lancamentos` | ~10.700 | MERGE | `sync_date` |
+| 2 | `saldos_bancarios` | ~17 | TRUNCATE | `sync_date` |
+| 3 | `historico_saldos` | acumula | APPEND | `sync_date` |
+| 4 | `categorias` | ~142 | MERGE | — |
+| 5 | `projetos` | ~214 | MERGE | — |
+| 6 | `clientes` | ~1.837 | MERGE | — |
+| 7 | `vendas_pedidos` | ~673 | TRUNCATE | `sync_date` |
+| 8 | `orcamento_dre` | ~336 | TRUNCATE | — |
+| 9 | `sync_log` | acumula | APPEND | — |
 
 ### View
 
 | View | Descrição |
 |------|-----------|
-| `v_historico_saldos` | Dedup de `historico_saldos` por `(conta_id, data_referencia, tipo)` — mantém último sync |
+| `v_historico_saldos` | Dedup de `historico_saldos` por `(conta_id, data_referencia, tipo)` |
 
 ### Campos por tabela
 
@@ -134,7 +167,7 @@ Cada cliente tem seu próprio dataset (ex: `studio_koti`) com as mesmas tabelas.
 
 **`saldos_bancarios`**: conta_id, conta_nome, conta_tipo, saldo, saldo_conciliado, diferenca, data_referencia, sync_timestamp, sync_date
 
-**`historico_saldos`**: conta_id, conta_nome, data_referencia, label, saldo_atual, saldo_conciliado, diferenca, tipo (mensal/diario), sync_timestamp, sync_date
+**`historico_saldos`**: conta_id, conta_nome, data_referencia, label, saldo_atual, saldo_conciliado, diferenca, tipo, sync_timestamp, sync_date
 
 **`categorias`**: codigo, nome, grupo, sync_timestamp
 
@@ -150,308 +183,254 @@ Cada cliente tem seu próprio dataset (ex: `studio_koti`) com as mesmas tabelas.
 
 ---
 
-## 4. Dashboard — 8 Abas
+## 5. Dashboard — 8 Abas
 
 | # | Aba | Componentes | Genérica? |
 |:-:|-----|-------------|:---------:|
-| 1 | **Visão Geral** | KPIs (saldo D-1, entradas, saídas, previsão), saldo por conta (grid), fluxo mensal (barras), saldo acumulado (linha), top categorias desp/rec (donuts) | Sim |
-| 2 | **Fluxo de Caixa** | KPIs, despesas/receitas por grupo (barras), pivot categoria × mês (consolidado ou mês a mês) | Sim |
-| 3 | **Financeiro** | KPIs (receita, despesa, resultado, top grupos, a receber/pagar), receita vs custo vs SG&A (barras empilhadas), resultado mensal, composição de saídas, detalhamento mês a mês, contas a receber vs pagar | Sim |
-| 4 | **Conciliação** | Cards por conta (OK/Atenção/Pendente), evolução conciliação (mensal/diário), filtro por banco | Sim |
-| 5 | **Vendas** | KPIs (total, pedidos, ticket médio), vendas por mês, por etapa, top clientes, top projetos | Sim |
-| 6 | **Clientes** | KPIs (total, ativos, PF/PJ), novos por mês, por estado, tipo pessoa, status | Sim |
-| 7 | **Projetos** | KPIs, top projetos receita/despesa, busca, tabela detalhada | Sim |
-| 8 | **Real vs Orçado** | Timeline com régua (12 meses), KPIs (receita/EBITDA/LL real vs BP), gráficos receita e EBITDA (filtrados pela régua), waterfall variação, % atingimento, tabela DRE comparativa. Modos: acumulado ou mês a mês | **Koti-specific** |
+| 1 | **Visão Geral** | KPIs (saldo D-1, entradas, saídas, previsão), saldo por conta, fluxo mensal, saldo acumulado, top categorias desp/rec | Sim |
+| 2 | **Fluxo de Caixa** | KPIs com breakdown realizado/a realizar, despesas e receitas por grupo (barras), custos Direto/SG&A/Outros stacked (realizado vs a realizar com valores), receitas stacked, tabela consolidada (Realizado \| A Realizar \| Total) ou mês a mês | Sim |
+| 3 | **Financeiro** | Receita vs custo vs SG&A, resultado mensal, composição saídas, detalhamento mês a mês, contas a receber/pagar | Sim |
+| 4 | **Conciliação** | Cards por conta (OK/Atenção/Pendente), evolução mensal/diário, filtro por banco | Sim |
+| 5 | **Vendas** | Total, pedidos, ticket médio, por mês, por etapa, top clientes/projetos | Sim |
+| 6 | **Clientes** | Total, ativos, PF/PJ, por estado, novos por mês | Sim |
+| 7 | **Projetos** | Top projetos receita/despesa, busca, tabela detalhada | Sim |
+| 8 | **Real vs Orçado** | Timeline com régua (Jan-Dez), KPIs, gráficos receita/EBITDA filtrados pela régua, waterfall, % atingimento, tabela DRE. Modos: acumulado ou mês a mês | **Koti-specific** |
 
-### Aba Real vs Orçado — detalhes
+### Fluxo de Caixa — detalhe
 
-Depende da tabela `orcamento_dre` (alimentada por `extract_bp_bq.py` + `BP.xlsx`).
-
-- **Régua**: timeline clicável Jan-Dez. Meses com dados reais em verde. Todos os componentes (KPIs, gráficos, waterfall, tabela) respondem ao mês selecionado.
-- **Para novo cliente com BP**: adaptar `DRE_MAP` no `extract_bp_bq.py`
-- **Para novo cliente sem BP**: aba mostra "Dados de orçamento não disponíveis" (fallback automático)
-- A API só inclui `orcamento` no JSON se a tabela tiver dados
+- **KPIs**: Total Receitas (Recebido X% · A receber), Total Despesas (Pago X% · A pagar), Resultado (Realizado · A realizar), Margem
+- **Gráficos por grupo**: barras horizontais simples (top 10)
+- **Gráficos stacked**: Custos (Direto/SG&A/Outros) e Receitas com breakdown Pago vs A Pagar / Recebido vs A Receber, com valores nas barras
+- **Tabela consolidada**: Categoria | Realizado (net) | A Realizar (net) | Total
+- **Tabela mês a mês**: Categoria × Mês com resultado net
 
 ---
 
-## 5. API Cloud Function (`api_bq.py`)
+## 6. API Cloud Function (`api_bq.py`)
 
 ### URLs
 
 | Ambiente | URL |
 |----------|-----|
-| **Produção** | https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard |
-| **Local** | http://localhost:8080 |
+| Produção | https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard |
+| Local | http://localhost:8080 |
 
-### Rotas (servidor local)
+### Rotas
 
-| Rota | Resposta |
-|------|----------|
-| `GET /` | `dashboard_bq.html` (text/html) |
-| `GET /api/dashboard` | JSON com dados do BigQuery |
-| `GET /api` | Alias para `/api/dashboard` |
+| Rota | Local | Produção |
+|------|-------|----------|
+| `GET /` | `dashboard_bq.html` | N/A (HTML via GitHub Pages) |
+| `GET /api/dashboard` | JSON do BigQuery | JSON do BigQuery |
 
 ### Rodar localmente
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json \
 GCP_PROJECT_ID=dashboard-koti-omie \
-BQ_DATASET=studio_koti \
 python3 api_bq.py
-# Acesse http://localhost:8080
 ```
 
-### Deploy (Cloud Function Gen2)
+### Deploy
 
 ```bash
-cd ~/dashboard-koti
 gcloud functions deploy api_dashboard \
-  --gen2 \
-  --runtime python311 \
-  --trigger-http \
-  --allow-unauthenticated \
-  --entry-point api_dashboard \
-  --source . \
+  --gen2 --runtime python311 --trigger-http --allow-unauthenticated \
+  --entry-point api_dashboard --source . \
   --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=studio_koti \
-  --region us-central1 \
-  --memory 512MB \
-  --timeout 60s \
-  --project dashboard-koti-omie
+  --region us-central1 --memory 512MB --timeout 60s
 ```
 
-**Notas de deploy:**
-- Precisa de billing habilitado no projeto GCP (free tier, sem cobrança)
-- 512MB de memória (256MB não é suficiente para ~10K lançamentos)
-- APIs necessárias: `cloudfunctions.googleapis.com`, `cloudbuild.googleapis.com`, `run.googleapis.com`, `artifactregistry.googleapis.com`
-- Service account padrão do Compute Engine precisa de roles `bigquery.dataViewer` + `bigquery.jobUser`
-- Horários mostrados em BRT (UTC-3)
-
-### JSON retornado
-
-```json
-{
-  "atualizado_em": "ISO datetime",
-  "atualizado_em_formatado": "DD/MM/YYYY às HH:MM (BRT)",
-  "lancamentos": [{"id", "valor", "tipo", "status", "data" (DD/MM/YYYY), "categoria", "categoria_nome", "projeto", "projeto_nome", "cliente_nome"}],
-  "saldos_bancarios": [{"id", "nome", "tipo", "saldo", "saldo_conciliado", "diferenca", "data" (DD/MM/YYYY)}],
-  "historico_conciliacao": [{"banco_id", "banco_nome", "data" (YYYY-MM-DD), "label", "saldo_atual", "saldo_conciliado", "diferenca", "tipo"}],
-  "categorias": {"codigo": "nome"},
-  "projetos": [{"id", "nome"}],
-  "vendas": {"total_vendas", "quantidade_pedidos", "ticket_medio", "por_mes", "por_etapa", "top_produtos"},
-  "clientes": {"total_clientes", "ativos", "inativos", "pessoa_fisica", "pessoa_juridica", "por_estado", "por_mes_cadastro"},
-  "orcamento": {"meses_disponiveis", "meses_com_real", "dre": [{"label", "section", "level", "bp": {}, "real": {}}]}
-}
-```
-
-O campo `orcamento` só aparece se `orcamento_dre` tiver dados.
-
-### Cache
-
-A Cloud Function retorna header `Cache-Control: public, max-age=300` (5 minutos). O dashboard mostra dados atualizados a cada refresh após 5 min.
+**Notas**: 512MB (256 não basta), billing obrigatório, horários em BRT, cache 5min.
 
 ---
 
-## 6. Pipeline de Sync
+## 7. Bot Telegram (`bot_telegram.py`)
 
-### `omie_sync_bq.py`
+### @Kotifin_bot
 
-1. Valida credenciais (`OMIE_APP_KEY/SECRET`, `GCP_PROJECT_ID`)
-2. `ensure_tables()` — cria dataset, 9 tabelas e view `v_historico_saldos` via DDL
-3. Registra sync no `sync_log` (status=running)
-4. Coleta API Omie:
-   - Categorias (`ListarCategorias` + `ConsultarCategoria` para faltantes)
-   - Projetos (`ListarProjetos`)
-   - Saldos bancários (`ListarExtrato` — snapshot D-1 + histórico mensal/diário com cache BQ)
-   - Clientes (`ListarClientes` — bulk)
-   - Lançamentos (`ListarContasReceber` + `ListarContasPagar`)
-   - Vendas (`ListarPedidos` — 1 linha por item)
-5. Carrega no BigQuery (TRUNCATE ou APPEND)
-6. Registra sucesso/falha no `sync_log`
+Responde perguntas financeiras em linguagem natural:
+- "Quanto faturamos em fevereiro?"
+- "Qual o saldo do BTG?"
+- "Contas a pagar vencidas"
+- "Top 5 clientes por receita"
 
-### GitHub Actions (`sync_omie_bq.yml`)
+### Como funciona
 
-- **Cron**: `0 8 * * *` (5h BRT / 8h UTC)
-- **Retry**: 2 tentativas, 60s entre elas, timeout 30min
-- **Etapas**: Install deps → Auth GCP → Sync BQ (com retry) → Extract BP → Cleanup → Legacy pipeline
-- Pipeline legado roda em paralelo (commit/push dos `.enc`)
+1. Usuário manda mensagem no Telegram
+2. Gemini (`gemini-2.5-flash` via `google-genai` SDK) converte pergunta → SQL BigQuery
+3. SQL validado (só SELECT, só dataset autorizado)
+4. Executa no BigQuery (timeout 15s, limit 20 rows)
+5. Gemini formata resultado em resposta amigável (R$ brasileiro, emojis)
 
-### Variáveis de ambiente
+### Comandos
 
-| Variável | Obrigatória | Descrição |
-|----------|:-----------:|-----------|
-| `OMIE_APP_KEY` | Sim | Chave da API Omie |
-| `OMIE_APP_SECRET` | Sim | Secret da API Omie |
-| `GCP_PROJECT_ID` | Sim | Projeto GCP (ex: `dashboard-koti-omie`) |
-| `BQ_DATASET` | Não | Dataset BigQuery (default: `studio_koti`) |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Sim (local) | Path para JSON da service account |
-| `API_CORS_ORIGIN` | Não | Origin CORS (default: `*`) |
+| Comando | Ação |
+|---------|------|
+| `/start` | Menu com exemplos |
+| `/saldo` | Saldos bancários (query direta) |
+| `/status` | Último sync |
+| `/ajuda` | Mais exemplos |
 
----
+### Rodar localmente
 
-## 7. Lógica Koti-Specific
-
-Todas marcadas com `# ⚡ KOTI-SPECIFIC` no código. Buscar e adaptar para cada novo cliente.
-
-| Item | Arquivo | O que fazer para novo cliente |
-|------|---------|-------------------------------|
-| `CONTAS_IGNORAR = {8754849088}` | `omie_sync_bq.py` | Substituir por contas fictícias do cliente (ou `set()` vazio) |
-| `is_faturamento_direto` | `omie_sync_bq.py` | Remover ou adaptar lógica de FD |
-| `DRE_MAP` (linhas fixas da planilha) | `extract_bp_bq.py` | Ajustar números de linha para planilha BP do cliente |
-| `MONTH_COLS` (ano 2026) | `extract_bp_bq.py` | Ajustar ano e colunas |
-| `BP.xlsx` | raiz do repo | Substituir pela planilha do cliente |
-| `PASS_HASH` (senha do dashboard) | `dashboard_bq.html` | Gerar novo hash: `echo -n "nova_senha" \| shasum -a 256` |
-| Aba "Real vs Orçado" | `dashboard_bq.html` | Funciona se `orcamento_dre` tiver dados; senão mostra fallback |
-
-**Status dos lançamentos** (Omie, genérico):
-- `PAGO` (~7.926) — saída liquidada
-- `RECEBIDO` (~1.075) — entrada liquidada
-- `A VENCER` (~1.229) — pendente, dentro do prazo
-- `ATRASADO` (~340) — vencido
-- `VENCE HOJE` (~91) — vence no dia
-- `CANCELADO` (~40) — cancelado
-
----
-
-## 8. GitHub Secrets
-
-| Secret | Valor | Usado por |
-|--------|-------|-----------|
-| `OMIE_APP_KEY` | Chave API Omie do cliente | `omie_sync_bq.py` |
-| `OMIE_APP_SECRET` | Secret API Omie do cliente | `omie_sync_bq.py` |
-| `GCP_PROJECT_ID` | `dashboard-koti-omie` | todos os scripts BQ |
-| `GCP_SA_KEY` | JSON service account (base64) | workflow |
-| `DASHBOARD_PASSWORD` | Senha do dashboard legado | `encrypt_data.py` |
-
-Encodar a chave:
 ```bash
-cat gcp-key.json | base64 | pbcopy
+TELEGRAM_BOT_TOKEN=<token> \
+GEMINI_API_KEY=<key> \
+GCP_PROJECT_ID=dashboard-koti-omie \
+GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json \
+python3 bot_telegram.py --local
 ```
+
+### API Key Gemini
+
+A API key é do projeto GCP com billing (`AIzaSyB1iNj...`). Criada via:
+```bash
+gcloud services api-keys create --display-name="gemini-bot" --project=dashboard-koti-omie
+```
+
+Usa modelo `gemini-2.5-flash` (mais recente). O `gemini-2.0-flash` não está mais disponível para novos projetos.
+
+### Segurança
+
+- `AUTHORIZED_CHAT_IDS`: limitar quem pode usar (opcional, comma-separated)
+- SQL validado: só SELECT, só o dataset configurado em `BQ_DATASET`, palavras perigosas bloqueadas
+- Respostas truncadas em 4000 chars (limite Telegram)
+
+---
+
+## 8. Lógica Koti-Specific
+
+Marcadas com `# ⚡ KOTI-SPECIFIC` no código.
+
+| Item | Arquivo | Para novo cliente |
+|------|---------|-------------------|
+| `CONTAS_IGNORAR = {8754849088}` | `omie_sync_bq.py` | Adaptar ou esvaziar |
+| `is_faturamento_direto` | `omie_sync_bq.py` | Remover ou adaptar |
+| `DRE_MAP` (linhas da planilha) | `extract_bp_bq.py` | Ajustar para planilha do cliente |
+| `MONTH_COLS` (ano 2026) | `extract_bp_bq.py` | Ajustar ano |
+| `BP.xlsx` | raiz do repo | Substituir |
+| `PASS_HASH` | `dashboard_bq.html` | `echo -n "senha" \| shasum -a 256` |
+| Aba "Real vs Orçado" | `dashboard_bq.html` | Funciona se `orcamento_dre` tiver dados; senão fallback |
+
+**Status dos lançamentos** (Omie, genérico): PAGO, RECEBIDO, A VENCER, ATRASADO, VENCE HOJE, CANCELADO
 
 ---
 
 ## 9. Novo Cliente Omie — Checklist
 
-### Passo 1: BigQuery
-
+### BigQuery
 ```bash
 bq mk --dataset --location=US dashboard-koti-omie:nome_cliente
+# Tabelas criadas automaticamente pelo ensure_tables() no primeiro sync
 ```
 
-As tabelas e a view são criadas automaticamente no primeiro sync (`ensure_tables()`).
+### Repositório
+- [ ] Fork ou copiar repo
+- [ ] GitHub Secrets: `OMIE_APP_KEY`, `OMIE_APP_SECRET`, `GCP_PROJECT_ID`, `GCP_SA_KEY`
+- [ ] Alterar `BQ_DATASET` no workflow
+- [ ] Buscar `⚡ KOTI-SPECIFIC` e adaptar (ver tabela seção 8)
 
-### Passo 2: Repositório
+### Orçamento (opcional)
+- [ ] Com BP: adaptar `DRE_MAP` + `BP.xlsx`
+- [ ] Sem BP: remover `extract_bp_bq.py` do workflow (aba mostra fallback)
 
-- [ ] Fork ou copiar o repo
-- [ ] Configurar GitHub Secrets:
-  - `OMIE_APP_KEY` / `OMIE_APP_SECRET` do novo cliente
-  - `GCP_PROJECT_ID` = `dashboard-koti-omie`
-  - `GCP_SA_KEY` = JSON service account (base64)
-- [ ] Alterar `BQ_DATASET` no workflow para `nome_cliente`
-- [ ] Buscar `⚡ KOTI-SPECIFIC` e adaptar/remover (ver tabela na seção 7)
+### API + Dashboard
+- [ ] Deploy Cloud Function com `BQ_DATASET=nome_cliente`
+- [ ] Copiar `dashboard_bq.html`, atualizar `PASS_HASH`
+- [ ] GitHub Pages no novo repo
+- [ ] Permissão BQ: `gcloud projects add-iam-policy-binding ... --role=roles/bigquery.dataViewer`
 
-### Passo 3: Orçamento (opcional — Koti-specific)
-
-Se o cliente tem planilha Business Plan:
-- [ ] Adaptar `DRE_MAP` no `extract_bp_bq.py` com linhas da planilha do cliente
-- [ ] Colocar `BP.xlsx` na raiz do repo
-
-Se não tem:
-- [ ] Remover `extract_bp_bq.py` do workflow — a aba "Real vs Orçado" mostra fallback
-
-### Passo 4: API + Dashboard
-
-- [ ] Deploy Cloud Function com `BQ_DATASET=nome_cliente`:
-  ```bash
-  gcloud functions deploy api_nome_cliente \
-    --gen2 --runtime python311 --trigger-http --allow-unauthenticated \
-    --entry-point api_dashboard --source . \
-    --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=nome_cliente \
-    --region us-central1 --memory 512MB --timeout 60s
-  ```
-- [ ] Copiar `dashboard_bq.html`, atualizar:
-  - `PASS_HASH` com senha do cliente
-  - `DASHBOARD_API_URL` se usar função separada
-- [ ] Hospedar no GitHub Pages do novo repo
-- [ ] Dar permissão BigQuery à service account do Compute Engine:
-  ```bash
-  gcloud projects add-iam-policy-binding dashboard-koti-omie \
-    --member="serviceAccount:294770561801-compute@developer.gserviceaccount.com" \
-    --role="roles/bigquery.dataViewer"
-  ```
+### Bot Telegram
+- [ ] Criar bot no @BotFather
+- [ ] Deploy com `BQ_DATASET=nome_cliente` e novo token
+- [ ] Configurar `AUTHORIZED_CHAT_IDS` se necessário
 
 ### Estrutura multi-cliente
-
 ```
 Projeto GCP: dashboard-koti-omie
-├── Dataset: studio_koti        ← Studio Koti
-├── Dataset: cliente_2          ← Segundo cliente
-├── Dataset: cliente_3          ← Terceiro cliente
-└── Dataset: consolidado        ← Views cross-dataset (opcional)
-
-Cloud Functions:
-├── api_dashboard               ← Studio Koti (BQ_DATASET=studio_koti)
-├── api_cliente_2               ← Segundo cliente (BQ_DATASET=cliente_2)
-└── api_cliente_3               ← Terceiro cliente
-
-GitHub Pages (um repo por cliente):
-├── akliot.github.io/dashboard-koti/
-├── akliot.github.io/dashboard-cliente2/
-└── akliot.github.io/dashboard-cliente3/
-```
-
-### Visão consolidada (opcional)
-
-```sql
-CREATE OR REPLACE VIEW `dashboard-koti-omie.consolidado.lancamentos_all` AS
-SELECT 'Studio Koti' AS cliente, * FROM `studio_koti.lancamentos`
-UNION ALL
-SELECT 'Cliente 2' AS cliente, * FROM `cliente_2.lancamentos`;
+├── Dataset: studio_koti     ← Studio Koti
+├── Dataset: cliente_2       ← Segundo cliente
+└── Dataset: cliente_3       ← Terceiro cliente
 ```
 
 ---
 
-## 10. Troubleshooting
+## 10. GitHub Secrets
+
+| Secret | Valor | Usado por |
+|--------|-------|-----------|
+| `OMIE_APP_KEY` | Chave API Omie | `omie_sync_bq.py` |
+| `OMIE_APP_SECRET` | Secret API Omie | `omie_sync_bq.py` |
+| `GCP_PROJECT_ID` | `dashboard-koti-omie` | todos scripts BQ |
+| `GCP_SA_KEY` | JSON service account (base64) | workflow |
+| `DASHBOARD_PASSWORD` | Senha dashboard legado (será descontinuado) | `encrypt_data.py` |
+
+---
+
+## 11. Variáveis de Ambiente
+
+| Variável | Usado por | Obrigatória |
+|----------|-----------|:-----------:|
+| `OMIE_APP_KEY` | sync | Sim |
+| `OMIE_APP_SECRET` | sync | Sim |
+| `GCP_PROJECT_ID` | todos | Sim |
+| `BQ_DATASET` | todos | Não (default: `studio_koti`) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | local | Sim (local) |
+| `TELEGRAM_BOT_TOKEN` | bot | Sim (bot) |
+| `GEMINI_API_KEY` | bot | Sim (bot) |
+| `AUTHORIZED_CHAT_IDS` | bot | Não |
+| `API_CORS_ORIGIN` | api | Não (default: `*`) |
+
+---
+
+## 12. Troubleshooting
 
 | Problema | Causa | Solução |
 |----------|-------|---------|
-| Cloud Function 503 | Memória insuficiente | Usar `--memory 512MB` (256MB não basta para ~10K registros) |
-| Cloud Function 403 | SA sem permissão BQ | Adicionar `bigquery.dataViewer` + `bigquery.jobUser` à SA do Compute Engine |
-| "Table not found" | View/tabelas não criadas | Rodar `omie_sync_bq.py` (cria via `ensure_tables()`) ou criar view manualmente |
-| Dashboard "Erro ao conectar" | API down ou CORS | Verificar URL da Cloud Function e se está respondendo |
-| Horário errado no dashboard | Timezone UTC | Verificar que `api_bq.py` usa `BRT = timezone(timedelta(hours=-3))` |
-| Aba Orçamento vazia | `orcamento_dre` sem dados | Rodar `extract_bp_bq.py` com `BP.xlsx` no repo |
-| Régua não muda gráficos | Bug antigo (corrigido) | Atualizar `dashboard_bq.html` para versão mais recente |
-| Sync falhou | API Omie fora do ar | Verificar credenciais. Workflow tem retry automático (2x) |
-| Histórico duplicado | WRITE_APPEND | Usar view `v_historico_saldos` (dedup automático, já é o padrão) |
-| Deploy falha "billing" | Billing não habilitado | Habilitar em https://console.cloud.google.com/billing |
-| Deploy falha "API disabled" | Cloud Functions API off | `gcloud services enable cloudfunctions.googleapis.com cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com` |
-| Deploy falha "main.py not found" | Arquivo faltando | `main.py` deve existir na raiz (importa `api_dashboard` de `api_bq.py`) |
-| Deploy falha "requirements.txt" | Arquivo faltando | `requirements.txt` (não `requirements_bq.txt`) com: google-cloud-bigquery, db-dtypes, functions-framework |
+| Cloud Function 503 | Memória | Usar `--memory 512MB` |
+| Cloud Function 403 | SA sem permissão | `bigquery.dataViewer` + `bigquery.jobUser` |
+| "Table not found" | Tabelas/view não criadas | Rodar `omie_sync_bq.py` (ensure_tables) |
+| Dashboard "Erro ao conectar" | API down | Verificar URL Cloud Function |
+| Horário errado | Timezone | `api_bq.py` usa BRT (UTC-3) |
+| Aba Orçamento vazia | Sem dados BP | Rodar `extract_bp_bq.py` com `BP.xlsx` |
+| Dados desatualizados | Sync não rodou | Sync 3x/dia. Rodar manual: `python omie_sync_bq.py` |
+| MERGE falha | Staging table | Limpar manualmente: `bq rm studio_koti.lancamentos_staging` |
+| Bot 429 quota | API key free tier | Usar key do projeto com billing |
+| Bot 404 model | Modelo indisponível | Usar `gemini-2.5-flash` |
+| Vertex AI 404 | Termos não aceitos | Aceitar em console.cloud.google.com/vertex-ai |
+| Deploy falha "billing" | Sem billing | Habilitar em console.cloud.google.com/billing |
+| Deploy falha "main.py" | Faltando | `main.py` importa de `api_bq.py` |
 
 ---
 
-## 11. Custos
+## 13. Custos
 
 | Item | Custo mensal |
 |------|:------------:|
-| BigQuery storage (por cliente) | R$ 0 (free tier < 10 GB) |
-| BigQuery queries | R$ 0 (free tier: 1 TB/mês) |
-| Cloud Functions | R$ 0 (free tier: 2M invocações/mês) |
-| GitHub Actions | R$ 0 (free tier: 2000 min/mês) |
+| BigQuery storage | R$ 0 (free tier) |
+| BigQuery queries | R$ 0 (free tier) |
+| Cloud Functions | R$ 0 (free tier) |
+| GitHub Actions (3x/dia) | R$ 0 (free tier) |
 | GitHub Pages | R$ 0 |
-| **Total por cliente** | **R$ 0/mês** |
+| Gemini API (bot) | ~R$ 0-5 |
+| **Budget configurado** | **US$ 4/mês (~R$ 20)** |
+| **Total estimado** | **~R$ 0-5/mês** |
 
-Com 10+ clientes pesados, pode sair do free tier (~R$ 5-20/mês por cliente adicional).
+Alertas de billing em 50%, 80% e 100% do budget.
 
 ---
 
-## 12. Próximos Passos
+## 14. Próximos Passos
 
-- [x] Pipeline BigQuery (`omie_sync_bq.py`)
-- [x] Dashboard HTML com Chart.js (`dashboard_bq.html`)
-- [x] API Cloud Function (`api_bq.py`) — produção
-- [x] GitHub Pages — produção
-- [x] Documentação completa
-- [ ] Descontinuar pipeline legado (GitHub Pages `.enc`)
+- [x] Pipeline BigQuery com MERGE incremental
+- [x] Dashboard HTML (8 abas) em produção (GitHub Pages)
+- [x] API Cloud Function em produção
+- [x] Bot Telegram (@Kotifin_bot)
+- [x] Sync 3x/dia (5h, 12h, 18h BRT)
+- [x] Budget GCP (US$ 4/mês)
+- [x] Fluxo de Caixa com Realizado vs A Realizar
+- [ ] Descontinuar pipeline legado
 - [ ] Onboarding segundo cliente Omie
-- [ ] Fase 2: Agente WhatsApp (Claude API + WhatsApp Business API + BigQuery)
+- [ ] Bot WhatsApp (mesmo fluxo do Telegram, via WhatsApp Business API)
+- [ ] Agente com memória de contexto (histórico de conversa)
+- [ ] Deploy do bot em produção (Cloud Run ou VM)
