@@ -139,7 +139,7 @@ def load_to_bq(
     rows: list[dict],
     write_disposition: str = "WRITE_TRUNCATE",
 ) -> int:
-    """Carrega lista de dicts no BigQuery. Retorna número de linhas carregadas."""
+    """Carrega lista de dicts no BigQuery (full replace). Retorna número de linhas."""
     if not rows:
         print(f"  ⚠ {table_name}: 0 registros — pulando")
         return 0
@@ -152,9 +152,86 @@ def load_to_bq(
     )
 
     job = client.load_table_from_json(rows, ref, job_config=job_config)
-    job.result()  # Aguarda conclusão
+    job.result()
     print(f"  ✅ {table_name}: {len(rows)} registros carregados ({write_disposition})")
     return len(rows)
+
+
+def merge_to_bq(
+    client: bigquery.Client,
+    table_name: str,
+    rows: list[dict],
+    key_column: str,
+    compare_columns: list[str],
+    all_columns: list[str],
+) -> dict[str, int]:
+    """Sync incremental via MERGE: compara por key, atualiza mudanças, insere novos, remove deletados.
+    Retorna {"inserted": N, "updated": N, "deleted": N, "unchanged": N}."""
+    if not rows:
+        print(f"  ⚠ {table_name}: 0 registros da API — pulando")
+        return {"inserted": 0, "updated": 0, "deleted": 0, "unchanged": 0}
+
+    staging = f"{table_ref(table_name)}_staging"
+    target = table_ref(table_name)
+
+    # 1. Carregar na staging (WRITE_TRUNCATE)
+    job_config = bigquery.LoadJobConfig(
+        write_disposition="WRITE_TRUNCATE",
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        autodetect=True,
+    )
+    job = client.load_table_from_json(rows, staging, job_config=job_config)
+    job.result()
+
+    # 2. Contar estado atual para estatísticas
+    try:
+        current_count = list(client.query(f"SELECT COUNT(*) as c FROM `{target}`").result())[0].c
+    except Exception:
+        current_count = 0
+
+    # 3. MERGE: insert novos, update mudados, delete removidos
+    update_set = ", ".join(f"T.{c} = S.{c}" for c in all_columns if c != key_column)
+    compare_or = " OR ".join(
+        f"IFNULL(CAST(T.{c} AS STRING),'') != IFNULL(CAST(S.{c} AS STRING),'')"
+        for c in compare_columns
+    )
+    insert_cols = ", ".join(all_columns)
+    insert_vals = ", ".join(f"S.{c}" for c in all_columns)
+
+    merge_sql = f"""
+    MERGE `{target}` AS T
+    USING `{staging}` AS S
+    ON T.{key_column} = S.{key_column}
+    WHEN MATCHED AND ({compare_or})
+        THEN UPDATE SET {update_set}
+    WHEN NOT MATCHED BY TARGET
+        THEN INSERT ({insert_cols}) VALUES ({insert_vals})
+    WHEN NOT MATCHED BY SOURCE
+        THEN DELETE
+    """
+
+    job = client.query(merge_sql)
+    result = job.result()
+    stats = job.num_dml_affected_rows or 0
+
+    # 4. Contar resultado
+    new_count = list(client.query(f"SELECT COUNT(*) as c FROM `{target}`").result())[0].c
+    staging_count = len(rows)
+
+    inserted = max(0, new_count - current_count)
+    deleted = max(0, current_count - (new_count - inserted) if inserted > 0 else current_count - new_count)
+    # DML affected = inserted + updated + deleted
+    updated = max(0, stats - inserted - deleted)
+    unchanged = staging_count - inserted - updated
+
+    # 5. Limpar staging
+    try:
+        client.delete_table(staging, not_found_ok=True)
+    except Exception:
+        pass
+
+    print(f"  ✅ {table_name}: {inserted} novos, {updated} atualizados, {deleted} removidos, {unchanged} iguais")
+    return {"inserted": inserted, "updated": updated, "deleted": deleted, "unchanged": unchanged}
 
 
 # ============================================================
@@ -769,19 +846,44 @@ def main() -> None:
             for pid, nome in proj_map.items()
         ]
 
-        # ---- Carregar no BigQuery ----
-        print("\n📤 Carregando no BigQuery...", flush=True)
+        # ---- Carregar no BigQuery (MERGE incremental) ----
+        print("\n📤 Sincronizando com BigQuery (MERGE)...", flush=True)
         counts: dict[str, int] = {}
 
-        # WRITE_TRUNCATE tables
-        counts["lancamentos"] = load_to_bq(client, "lancamentos", lancamentos, "WRITE_TRUNCATE")
+        # Lançamentos — MERGE por id
+        lanc_cols = ["id", "tipo", "valor", "status", "data_vencimento", "data_emissao",
+                     "numero_documento", "categoria_codigo", "categoria_nome", "categoria_grupo",
+                     "projeto_id", "projeto_nome", "cliente_id", "cliente_nome",
+                     "conta_corrente_id", "is_faturamento_direto", "sync_timestamp", "sync_date"]
+        lanc_compare = ["valor", "status", "data_vencimento", "categoria_codigo", "categoria_nome",
+                        "projeto_id", "projeto_nome", "cliente_nome"]
+        lanc_stats = merge_to_bq(client, "lancamentos", lancamentos, "id", lanc_compare, lanc_cols)
+        counts["lancamentos"] = lanc_stats["inserted"] + lanc_stats["updated"]
+
+        # Saldos — TRUNCATE (snapshot D-1, sempre substitui)
         counts["saldos"] = load_to_bq(client, "saldos_bancarios", saldos, "WRITE_TRUNCATE")
-        counts["categorias"] = load_to_bq(client, "categorias", categorias_bq, "WRITE_TRUNCATE")
-        counts["projetos"] = load_to_bq(client, "projetos", projetos_bq, "WRITE_TRUNCATE")
-        counts["clientes"] = load_to_bq(client, "clientes", clientes_bq, "WRITE_TRUNCATE")
+
+        # Categorias — MERGE por codigo
+        cat_cols = ["codigo", "nome", "grupo", "sync_timestamp"]
+        merge_to_bq(client, "categorias", categorias_bq, "codigo", ["nome", "grupo"], cat_cols)
+        counts["categorias"] = len(categorias_bq)
+
+        # Projetos — MERGE por id
+        proj_cols = ["id", "nome", "sync_timestamp"]
+        merge_to_bq(client, "projetos", projetos_bq, "id", ["nome"], proj_cols)
+        counts["projetos"] = len(projetos_bq)
+
+        # Clientes — MERGE por id
+        cli_cols = ["id", "nome_fantasia", "razao_social", "estado", "ativo", "pessoa_fisica",
+                    "data_cadastro", "sync_timestamp"]
+        cli_compare = ["nome_fantasia", "razao_social", "estado", "ativo", "pessoa_fisica"]
+        merge_to_bq(client, "clientes", clientes_bq, "id", cli_compare, cli_cols)
+        counts["clientes"] = len(clientes_bq)
+
+        # Vendas — TRUNCATE (explode por item, não tem key estável)
         load_to_bq(client, "vendas_pedidos", vendas, "WRITE_TRUNCATE")
 
-        # WRITE_APPEND tables (dedup delegado à view v_historico_saldos)
+        # Histórico — APPEND (dedup via view)
         load_to_bq(client, "historico_saldos", historico, "WRITE_APPEND")
 
         # ---- Registrar sucesso ----
