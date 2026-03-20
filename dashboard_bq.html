@@ -627,10 +627,12 @@ function setFluxoVisao(visao,el){
 
 function renderFluxoCaixa(d){
   _fluxoData=d;
+  const pctRecRealizado=d.tE>0?((d.rec/d.tE)*100).toFixed(0):'0';
+  const pctPagRealizado=d.tS>0?((d.pag/d.tS)*100).toFixed(0):'0';
   document.getElementById('kpi-fluxo').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Total Receitas</div><div class="kpi-value green">${fmt(d.tE)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Despesas</div><div class="kpi-value red">${fmt(d.tS)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Receitas</div><div class="kpi-value green">${fmt(d.tE)}</div><div class="kpi-sub">Recebido: ${fmt(d.rec)} (${pctRecRealizado}%) · A receber: ${fmt(d.abRec)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Despesas</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">Pago: ${fmt(d.pag)} (${pctPagRealizado}%) · A pagar: ${fmt(d.abPag)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div><div class="kpi-sub">Realizado: ${fmt(d.rec-d.pag)} · A realizar: ${fmt(d.abRec-d.abPag)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Margem</div><div class="kpi-value blue">${d.tE>0?((d.tE-d.tS)/d.tE*100).toFixed(1):'0'}%</div></div>`;
 
   // Charts primeiro
