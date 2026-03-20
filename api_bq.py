@@ -75,7 +75,7 @@ def build_json() -> dict:
     # ---- Lançamentos ----
     rows = query_rows(f"""
         SELECT id, tipo, valor, status, data_vencimento, data_emissao,
-               numero_documento, categoria_codigo, categoria_nome,
+               data_pagamento, numero_documento, categoria_codigo, categoria_nome,
                projeto_id, projeto_nome, cliente_id, cliente_nome,
                is_faturamento_direto
         FROM {tbl('lancamentos')}
@@ -86,12 +86,20 @@ def build_json() -> dict:
         proj_id = r.get("projeto_id")
         if proj_id:
             proj_ids_com_mov.add(proj_id)
+        status = (r.get("status", "") or "").upper()
+        # PAGO/RECEBIDO → usa data_pagamento; pendentes → usa data_vencimento
+        if status in ("PAGO", "RECEBIDO", "LIQUIDADO") and r.get("data_pagamento"):
+            data_ref = r.get("data_pagamento")
+        else:
+            data_ref = r.get("data_vencimento")
         lancamentos.append({
             "id": r["id"],
             "valor": float(r.get("valor", 0) or 0),
             "tipo": r.get("tipo", ""),
-            "status": (r.get("status", "") or "").upper(),
-            "data": date_to_ddmmyyyy(r.get("data_vencimento")),
+            "status": status,
+            "data": date_to_ddmmyyyy(data_ref),
+            "data_vencimento": date_to_ddmmyyyy(r.get("data_vencimento")),
+            "data_pagamento": date_to_ddmmyyyy(r.get("data_pagamento")),
             "categoria": r.get("categoria_codigo") or "",
             "categoria_nome": r.get("categoria_nome", ""),
             "projeto": proj_id,
