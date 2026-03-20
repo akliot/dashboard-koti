@@ -18,7 +18,9 @@ Variáveis de ambiente:
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+BRT = timezone(timedelta(hours=-3))
 from collections import defaultdict
 
 from google.cloud import bigquery
@@ -68,7 +70,7 @@ def query_rows(sql: str) -> list[dict]:
 def build_json() -> dict:
     """Constrói o JSON completo no formato esperado pelo dashboard HTML."""
 
-    now = datetime.now()
+    now = datetime.now(BRT)
 
     # ---- Lançamentos ----
     rows = query_rows(f"""
