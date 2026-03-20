@@ -652,12 +652,13 @@ function renderFluxoCaixa(d){
 
   // Despesas stacked
   const dG=Object.entries(grupoStatus).filter(e=>(e[1].dd+e[1].do_)>0).sort((a,b)=>(b[1].dd+b[1].do_)-(a[1].dd+a[1].do_)).slice(0,10);
+  const dlStack={display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:9,weight:500},formatter:v=>fmtK(v)};
   charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{
     labels:dG.map(e=>e[1].nome.substring(0,25)),
     datasets:[
       {label:'Pago',data:dG.map(e=>e[1].dd),backgroundColor:'#ef4444cc',borderRadius:2},
       {label:'A Pagar',data:dG.map(e=>e[1].do_),backgroundColor:'#ef444444',borderRadius:2}
-    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlStack}}
   });
 
   // Receitas stacked
@@ -667,7 +668,7 @@ function renderFluxoCaixa(d){
     datasets:[
       {label:'Recebido',data:rG.map(e=>e[1].rd),backgroundColor:'#22c55ecc',borderRadius:2},
       {label:'A Receber',data:rG.map(e=>e[1].ro),backgroundColor:'#22c55e44',borderRadius:2}
-    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}
+    ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlStack}}
   });
 
   // Tabela
