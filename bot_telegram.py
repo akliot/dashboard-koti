@@ -171,16 +171,12 @@ class FinancialAssistant:
             # 3. Executar no BQ
             results = self.execute_query(sql)
 
-            # 4. Se 0 resultados, decidir se faz fuzzy search ou não
+            # 4. Se 0 resultados, tentar desambiguar ou oferecer alternativas
             if not results or len(results) == 0:
-                # Só buscar nomes similares se a pergunta tem NOME PRÓPRIO (não genérico)
-                words = [w for w in text.lower().split()
-                         if len(w) > 3 and w not in self._STOPWORDS]
-                if words:
-                    similar = self.find_similar_names(text)
-                    if similar:
-                        names_list = "\n".join(f"  • {n}" for n in similar[:5])
-                        return f"🔍 Não encontrei resultados. Talvez você quis dizer:\n\n{names_list}\n\nTente novamente com o nome correto."
+                # Buscar projetos/clientes similares para desambiguação
+                disambig = self.disambiguate(text)
+                if disambig:
+                    return disambig
                 return "🔍 Não encontrei dados para essa consulta. Tente reformular a pergunta com mais detalhes."
 
             # 5. Formatar resposta via LLM
@@ -190,24 +186,82 @@ class FinancialAssistant:
             log.error(f"Erro ao processar: {e}")
             return f"❌ Erro ao processar sua pergunta: {e}"
 
-    def find_similar_names(self, question: str) -> list[str]:
-        """Busca nomes similares. Só chamada quando há palavras não-genéricas."""
-        words = [w for w in question.lower().split() if len(w) > 4 and w not in self._STOPWORDS]
+    def disambiguate(self, question: str) -> str | None:
+        """Busca projetos/clientes similares para desambiguação.
+        Retorna mensagem com opções, ou None se não encontrou nada."""
+        words = [w for w in question.lower().split()
+                 if len(w) > 2 and w not in self._STOPWORDS]
         if not words:
-            return []
+            return None
 
-        results = set()
-        for word in words[:2]:  # Max 2 palavras
-            pattern = f"%{word}%"
-            try:
-                q = f"""SELECT DISTINCT cliente_nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
-                        WHERE LOWER(cliente_nome) LIKE LOWER('{pattern}')
-                        AND cliente_nome != '' LIMIT 5"""
-                for row in self.bq.query(q).result(timeout=5):
-                    results.add(row.cliente_nome)
-            except Exception:
-                pass
-        return sorted(results)[:5]
+        # Montar filtro: cada palavra deve estar no nome
+        # "nex one 1513" → LOWER(nome) LIKE '%nex%' AND LIKE '%one%' AND LIKE '%1513%'
+        like_clauses_proj = " AND ".join(f"LOWER(projeto_nome) LIKE '%{w}%'" for w in words[:4])
+        like_clauses_cli = " AND ".join(f"LOWER(cliente_nome) LIKE '%{w}%'" for w in words[:4])
+
+        results = []
+        try:
+            # Buscar projetos
+            q = f"""SELECT DISTINCT projeto_nome as nome, 'projeto' as tipo
+                    FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                    WHERE {like_clauses_proj} AND projeto_nome != 'Sem projeto'
+                    LIMIT 10"""
+            for row in self.bq.query(q).result(timeout=5):
+                results.append((row.nome, row.tipo))
+        except Exception:
+            pass
+
+        try:
+            # Buscar clientes
+            q = f"""SELECT DISTINCT cliente_nome as nome, 'cliente' as tipo
+                    FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                    WHERE {like_clauses_cli} AND cliente_nome != ''
+                    LIMIT 10"""
+            for row in self.bq.query(q).result(timeout=5):
+                results.append((row.nome, row.tipo))
+        except Exception:
+            pass
+
+        if not results:
+            # Tentar com menos palavras (só as mais longas)
+            long_words = [w for w in words if len(w) > 3][:2]
+            if long_words and long_words != words:
+                for w in long_words:
+                    try:
+                        q = f"""SELECT DISTINCT projeto_nome as nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                                WHERE LOWER(projeto_nome) LIKE '%{w}%' AND projeto_nome != 'Sem projeto' LIMIT 5"""
+                        for row in self.bq.query(q).result(timeout=5):
+                            results.append((row.nome, 'projeto'))
+                        q = f"""SELECT DISTINCT cliente_nome as nome FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos`
+                                WHERE LOWER(cliente_nome) LIKE '%{w}%' AND cliente_nome != '' LIMIT 5"""
+                        for row in self.bq.query(q).result(timeout=5):
+                            results.append((row.nome, 'cliente'))
+                    except Exception:
+                        pass
+
+        if not results:
+            return None
+
+        # Deduplicate
+        seen = set()
+        unique = []
+        for nome, tipo in results:
+            if nome not in seen:
+                seen.add(nome)
+                unique.append((nome, tipo))
+
+        if len(unique) == 1:
+            # Só 1 match — provavelmente é o que o usuário quer, mas a SQL não encontrou
+            nome, tipo = unique[0]
+            return f"🔍 Encontrei '{nome}' mas a consulta não retornou dados. Tente perguntar de outra forma, por exemplo:\n• Quanto gastei no projeto {nome}?"
+
+        # Múltiplos matches — pedir desambiguação
+        lines = ["🔍 Encontrei vários resultados similares. Qual deles você quer?\n"]
+        for i, (nome, tipo) in enumerate(unique[:10], 1):
+            emoji = "📁" if tipo == 'projeto' else "👤"
+            lines.append(f"{emoji} {i}. {nome}")
+        lines.append("\nResponda com o nome completo ou o número.")
+        return "\n".join(lines)
 
     def generate_sql(self, question: str, history_context: str = "") -> str:
         """Converte pergunta em linguagem natural para SQL BigQuery."""
@@ -268,7 +322,10 @@ REGRAS OBRIGATÓRIAS:
 9. "recebimentos" sem qualificador = entradas com status RECEBIDO
 10. Para buscar nomes de clientes/fornecedores: OBRIGATÓRIO usar LOWER(cliente_nome) LIKE LOWER('%termo%') — BigQuery LIKE é case-sensitive!
 11. Se a pergunta é uma CONTINUAÇÃO da conversa anterior, use o mesmo contexto (datas, filtros)
-12. "gastei de X" ou "paguei pra X" = saídas PAGO com LOWER(cliente_nome) LIKE LOWER('%X%')"""
+12. "gastei de X" ou "paguei pra X" = saídas PAGO com LOWER(cliente_nome) LIKE LOWER('%X%')
+13. Para buscar nomes com MÚLTIPLAS PALAVRAS (ex: 'nex one 1513'), use AND entre cada palavra:
+    LOWER(projeto_nome) LIKE '%nex%' AND LOWER(projeto_nome) LIKE '%one%' AND LOWER(projeto_nome) LIKE '%1513%'
+    NUNCA junte tudo em um único LIKE '%nex one 1513%' — os nomes no banco têm separadores como | e espaços extras"""
 
         response = self.llm.generate("Você é um gerador de SQL BigQuery expert. Retorne SOMENTE o SQL puro, sem markdown.", prompt)
         sql = response.replace("```sql", "").replace("```", "").strip()
