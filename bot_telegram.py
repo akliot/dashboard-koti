@@ -351,7 +351,13 @@ REGRAS OBRIGATÓRIAS:
 8. "previstos", "a receber", "a pagar" = status IN ('A VENCER','ATRASADO','VENCE HOJE'), filtrar por data_vencimento
 9. "recebimentos" sem qualificador = entradas com status RECEBIDO
 10. Para buscar nomes de clientes/fornecedores: OBRIGATÓRIO usar LOWER(cliente_nome) LIKE LOWER('%termo%') — BigQuery LIKE é case-sensitive!
-11. Se a pergunta é uma CONTINUAÇÃO da conversa anterior, use o mesmo contexto (datas, filtros)
+11. REGRA CRÍTICA DE CONTEXTO: Se a pergunta é curta ou usa pronomes como "desse", "disso", "já", "esse valor", "deles", ela é CONTINUAÇÃO da conversa anterior. Nesse caso:
+    - COPIE os filtros de data do SQL anterior (ex: data_vencimento >= '2026-03-01' AND data_vencimento < '2026-04-01')
+    - MANTENHA o mesmo período temporal
+    - Apenas mude o que a nova pergunta pede (ex: de A VENCER para RECEBIDO)
+    - Exemplo: se perguntou "recebimentos previstos de março" (status IN 'A VENCER') e depois "quanto já recebi?", o SQL deve ser:
+      SELECT ROUND(SUM(valor),2) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.lancamentos` WHERE tipo='entrada' AND status='RECEBIDO' AND data_pagamento >= '{mes_inicio}' AND data_pagamento < '{prox_mes}'
+    - NUNCA remova filtros de data em follow-ups
 12. "gastei de X" ou "paguei pra X" = saídas PAGO com LOWER(cliente_nome) LIKE LOWER('%X%')
 13. Para buscar nomes com MÚLTIPLAS PALAVRAS (ex: 'nex one 1513'), use AND entre cada palavra:
     LOWER(projeto_nome) LIKE '%nex%' AND LOWER(projeto_nome) LIKE '%one%' AND LOWER(projeto_nome) LIKE '%1513%'
