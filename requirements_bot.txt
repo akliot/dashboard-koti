@@ -1,0 +1,6 @@
+python-telegram-bot>=20.0
+google-cloud-bigquery
+google-generativeai
+google-genai
+anthropic
+db-dtypes
