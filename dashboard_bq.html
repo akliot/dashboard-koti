@@ -446,7 +446,11 @@ function initDashboard(){
 
 function aplicarFiltros(){
   const de=new Date(document.getElementById('filterDe').value+'T00:00:00'),ate=new Date(document.getElementById('filterAte').value+'T23:59:59'),proj=document.getElementById('filterProjeto').value;
-  dadosFiltrados={...dadosOriginal,lancamentos:dadosOriginal.lancamentos.filter(l=>{const dt=parseDate(l.data);if(!dt)return false;if(dt<de||dt>ate)return false;if(proj&&l.projeto!=proj)return false;return true})};
+  // Regime CAIXA: filtra por l.data (data_pagamento para realizados, data_vencimento para pendentes)
+  const lancCaixa=dadosOriginal.lancamentos.filter(l=>{const dt=parseDate(l.data);if(!dt)return false;if(dt<de||dt>ate)return false;if(proj&&l.projeto!=proj)return false;return true});
+  // Regime COMPETÊNCIA: filtra por data_vencimento, exclui ATRASADO (já contabilizado no mês original)
+  const lancCompetencia=dadosOriginal.lancamentos.filter(l=>{const dv=l.data_vencimento?parseDate(l.data_vencimento):null;if(!dv)return false;if(dv<de||dv>ate)return false;if(l.status==='ATRASADO')return false;if(proj&&l.projeto!=proj)return false;return true});
+  dadosFiltrados={...dadosOriginal,lancamentos:lancCaixa,lancamentos_competencia:lancCompetencia};
   renderAll();
 }
 
@@ -504,9 +508,41 @@ function compute(){
   return{tE,tS,rec,pag,abRec,abPag,vRec,vPag,avRec,avPag,porMes,porCat,porProj,porCliente,gruposDesp,gruposRec,ent,sai,finGrupos,finGruposArr,finMesAll};
 }
 
+function computeCompetencia(){
+  // Competência: usa data_vencimento, exclui ATRASADO
+  const L=dadosFiltrados.lancamentos_competencia||[];
+  const ent=L.filter(l=>l.tipo==='entrada'),sai=L.filter(l=>l.tipo==='saida');
+  const tE=ent.reduce((s,l)=>s+l.valor,0),tS=sai.reduce((s,l)=>s+l.valor,0);
+  const porMes={};L.forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;if(!porMes[m])porMes[m]={entrada:0,saida:0};porMes[m][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porCliente={};L.filter(l=>l.tipo==='entrada'&&l.cliente_nome).forEach(l=>{const k=l.cliente_nome;porCliente[k]=(porCliente[k]||0)+l.valor});
+  // Financeiro detalhado
+  const finGrupos={};const finMesAll={};
+  L.forEach(l=>{
+    const m=toYM(l.data_vencimento||l.data);if(!m)return;
+    if(!finMesAll[m])finMesAll[m]={receita:0,saida:0};
+    if(l.tipo==='entrada'){finMesAll[m].receita+=l.valor;return;}
+    finMesAll[m].saida+=l.valor;
+    const g=getGrupo(l.categoria);if(!g)return;
+    const gn=dadosFiltrados.categorias?.[g]||g;
+    if(!finGrupos[g])finGrupos[g]={nome:gn,total:0,porMes:{}};
+    finGrupos[g].total+=l.valor;
+    finGrupos[g].porMes[m]=(finGrupos[g].porMes[m]||0)+l.valor;
+  });
+  const finGruposArr=Object.entries(finGrupos).sort((a,b)=>b[1].total-a[1].total);
+  // A receber/pagar pendente — sempre do regime caixa (não excluir atrasados aqui)
+  const allL=dadosFiltrados.lancamentos;
+  const isDone=s=>['RECEBIDO','PAGO','LIQUIDADO','CANCELADO'].includes(s);
+  const abRec=allL.filter(l=>l.tipo==='entrada'&&!isDone(l.status)).reduce((s,l)=>s+l.valor,0);
+  const abPag=allL.filter(l=>l.tipo==='saida'&&!isDone(l.status)).reduce((s,l)=>s+l.valor,0);
+  const vRec=allL.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const vPag=allL.filter(l=>l.tipo==='saida'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  return{tE,tS,ent,sai,porMes,porProj,porCliente,finGrupos,finGruposArr,finMesAll,abRec,abPag,vRec,vPag,L};
+}
+
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
-function renderAll(){destroyCharts();const d=compute();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(d);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(d);renderClientes();renderProjetos();renderOrcamento()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3b8';
@@ -953,10 +989,10 @@ function renderClientes(){
 }
 
 // ============ PROJETOS ============
-function renderProjetos(){
-  // Projetos usa lançamentos filtrados por data/projeto
-  const porProj={};
-  dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+function renderProjetos(dc){
+  // Projetos usa regime de COMPETÊNCIA (data_vencimento, sem atrasados)
+  const porProj=dc?dc.porProj:{};
+  if(!dc){dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});}
   const projs=Object.entries(porProj);
   const tR=projs.reduce((s,e)=>s+e[1].entrada,0),tD=projs.reduce((s,e)=>s+e[1].saida,0);
   document.getElementById('kpi-projetos').innerHTML=`
