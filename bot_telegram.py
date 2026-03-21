@@ -266,8 +266,9 @@ REGRAS OBRIGATÓRIAS:
 7. "paguei", "pagamentos" = saídas PAGO, filtrar por data_pagamento
 8. "previstos", "a receber", "a pagar" = status IN ('A VENCER','ATRASADO','VENCE HOJE'), filtrar por data_vencimento
 9. "recebimentos" sem qualificador = entradas com status RECEBIDO
-10. Para nomes: LOWER(cliente_nome) LIKE LOWER('%termo%')
-11. Se a pergunta é uma CONTINUAÇÃO da conversa anterior, use o mesmo contexto (datas, filtros)"""
+10. Para buscar nomes de clientes/fornecedores: OBRIGATÓRIO usar LOWER(cliente_nome) LIKE LOWER('%termo%') — BigQuery LIKE é case-sensitive!
+11. Se a pergunta é uma CONTINUAÇÃO da conversa anterior, use o mesmo contexto (datas, filtros)
+12. "gastei de X" ou "paguei pra X" = saídas PAGO com LOWER(cliente_nome) LIKE LOWER('%X%')"""
 
         response = self.llm.generate("Você é um gerador de SQL BigQuery expert. Retorne SOMENTE o SQL puro, sem markdown.", prompt)
         sql = response.replace("```sql", "").replace("```", "").strip()
