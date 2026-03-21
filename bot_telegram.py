@@ -101,11 +101,21 @@ class GeminiProvider(LLMProvider):
         log.info(f"Gemini provider inicializado ({self.model_name})")
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=f"{system_prompt}\n\n{user_prompt}",
-        )
-        return response.text
+        import time
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=f"{system_prompt}\n\n{user_prompt}",
+                )
+                return response.text
+            except Exception as e:
+                if "429" in str(e) and attempt < 2:
+                    wait = 25 * (attempt + 1)
+                    log.warning(f"Rate limit, aguardando {wait}s... (tentativa {attempt+1}/3)")
+                    time.sleep(wait)
+                else:
+                    raise
 
 
 # ============================================================
