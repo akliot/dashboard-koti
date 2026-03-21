@@ -148,17 +148,21 @@ class FinancialAssistant:
     async def process_message(self, text: str, history: list[dict] = None) -> str:
         """Processa uma pergunta e retorna resposta formatada."""
         try:
-            # Montar contexto de conversa
+            # Montar contexto de conversa (inclui SQL anterior para continuidade)
             history_context = ""
             if history:
-                history_context = "Conversa anterior (use como contexto):\n" + "\n".join(
-                    f"{'Usuário' if m['role']=='user' else 'Bot'}: {m['content']}"
-                    for m in history[-6:]
-                ) + "\n\n"
+                lines = []
+                for m in history[-8:]:
+                    prefix = 'Usuário' if m['role']=='user' else 'Bot'
+                    lines.append(f"{prefix}: {m['content']}")
+                    if m.get('sql'):
+                        lines.append(f"  [SQL usado: {m['sql']}]")
+                history_context = "Conversa anterior (MANTENHA os mesmos filtros de data/período se a pergunta for continuação):\n" + "\n".join(lines) + "\n\n"
 
-            # 1. Gerar SQL via LLM (SEM resolve_name — deixa o Gemini entender)
+            # 1. Gerar SQL via LLM
             sql = self.generate_sql(text, history_context)
             log.info(f"SQL gerado: {sql[:200]}")
+            self._last_sql = sql  # Salvar para o histórico
 
             # 2. Validar SQL (safety)
             if not self.is_safe_sql(sql):
@@ -588,9 +592,10 @@ async def handle_message(update, context):
     else:
         response = await assistant.process_message(text, history)
 
-    # Salvar no histórico
+    # Salvar no histórico (incluindo SQL para contexto)
+    last_sql = getattr(assistant, '_last_sql', '')
     history.append({"role": "user", "content": text})
-    history.append({"role": "assistant", "content": response[:500]})
+    history.append({"role": "assistant", "content": response[:500], "sql": last_sql})
     chat_history[chat_id] = history[-MAX_HISTORY * 2:]
 
     # Telegram max 4096 chars
@@ -636,7 +641,7 @@ def main():
                     continue
                 response = asyncio.run(assistant.process_message(q, cli_history))
                 cli_history.append({"role": "user", "content": q})
-                cli_history.append({"role": "assistant", "content": response[:500]})
+                cli_history.append({"role": "assistant", "content": response[:500], "sql": getattr(assistant, '_last_sql', '')})
                 cli_history = cli_history[-MAX_HISTORY * 2:]
                 print(f"\n{response}\n")
             except (KeyboardInterrupt, EOFError):
