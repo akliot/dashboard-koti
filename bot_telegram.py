@@ -30,6 +30,7 @@ from google.cloud import bigquery
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "dashboard-koti-omie")
 BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
 BRT = timezone(timedelta(hours=-3))
@@ -116,6 +117,25 @@ class GeminiProvider(LLMProvider):
                     time.sleep(wait)
                 else:
                     raise
+
+
+class ClaudeProvider(LLMProvider):
+    """Provedor Anthropic Claude via SDK oficial."""
+
+    def __init__(self):
+        import anthropic
+        self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.model_name = "claude-haiku-4-5-20251001"
+        log.info(f"Claude provider inicializado ({self.model_name})")
+
+    def generate(self, system_prompt: str, user_prompt: str) -> str:
+        msg = self.client.messages.create(
+            model=self.model_name,
+            max_tokens=2000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        return msg.content[0].text
 
 
 # ============================================================
@@ -679,8 +699,14 @@ async def handle_message(update, context):
 # ============================================================
 
 def init_assistant() -> FinancialAssistant:
-    """Inicializa o assistente financeiro."""
-    llm = GeminiProvider()
+    """Inicializa o assistente financeiro. Claude se tiver key, senão Gemini."""
+    if ANTHROPIC_API_KEY:
+        llm = ClaudeProvider()
+    elif GEMINI_API_KEY:
+        llm = GeminiProvider()
+    else:
+        print("❌ Configure ANTHROPIC_API_KEY ou GEMINI_API_KEY!")
+        sys.exit(1)
     bq_client = bigquery.Client(project=GCP_PROJECT_ID)
     return FinancialAssistant(llm, bq_client)
 

@@ -17,8 +17,7 @@ import json
 os.environ.setdefault("GCP_PROJECT_ID", "dashboard-koti-omie")
 os.environ.setdefault("BQ_DATASET", "studio_koti")
 
-from bot_telegram import FinancialAssistant, GeminiProvider, chat_history
-from google.cloud import bigquery
+from bot_telegram import FinancialAssistant, init_assistant, chat_history
 
 # Simula conversas reais de um dono de empresa de marcenaria de alto padrão
 # Cada teste: pergunta, critérios, se é follow-up (usa histórico)
@@ -79,9 +78,7 @@ TESTS = [
 
 
 async def run_tests():
-    llm = GeminiProvider()
-    bq_client = bigquery.Client(project="dashboard-koti-omie")
-    assistant = FinancialAssistant(llm, bq_client)
+    assistant = init_assistant()
 
     passed = 0
     failed = 0
@@ -129,8 +126,8 @@ async def run_tests():
             print(f"  ❌ {', '.join(issues)}")
             print(f"     Resp: {response[:200]}...")
 
-        # Rate limit: pausa entre chamadas ao Gemini (free tier = 10 req/min)
-        await asyncio.sleep(4)
+        # Rate limit: pausa entre testes (cada teste faz 2-3 chamadas ao Gemini)
+        await asyncio.sleep(8)
 
     # Relatório
     pct = (passed / len(TESTS)) * 100
