@@ -590,7 +590,7 @@ async def handle_message(update, context):
 
     # Salvar no histórico
     history.append({"role": "user", "content": text})
-    history.append({"role": "assistant", "content": response[:200]})
+    history.append({"role": "assistant", "content": response[:500]})
     chat_history[chat_id] = history[-MAX_HISTORY * 2:]
 
     # Telegram max 4096 chars
@@ -636,7 +636,7 @@ def main():
                     continue
                 response = asyncio.run(assistant.process_message(q, cli_history))
                 cli_history.append({"role": "user", "content": q})
-                cli_history.append({"role": "assistant", "content": response[:200]})
+                cli_history.append({"role": "assistant", "content": response[:500]})
                 cli_history = cli_history[-MAX_HISTORY * 2:]
                 print(f"\n{response}\n")
             except (KeyboardInterrupt, EOFError):
