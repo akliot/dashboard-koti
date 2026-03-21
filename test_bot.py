@@ -74,6 +74,41 @@ TESTS = [
     # ========== CENÁRIO 10: Edge cases ==========
     {"q": "btg", "must_contain": ["R$"], "must_not_contain": ["similares"], "reset": True},
     {"q": "Qual foi o último sync?", "must_not_contain": ["não encontrei"]},
+
+    # ========== CENÁRIO 11: Follow-up complexo (3 perguntas em sequência) ==========
+    {"q": "Quanto gastamos de kairos em março?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"], "reset": True},
+    {"q": "E em fevereiro?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"]},
+    {"q": "Qual foi mais caro?", "must_not_contain": ["similares", "não encontrei"]},
+
+    # ========== CENÁRIO 12: Follow-up projeto ==========
+    {"q": "Quanto já faturamos no projeto nex one teodoro?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"], "reset": True},
+    {"q": "E quanto já gastamos nele?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"]},
+    {"q": "Qual o resultado?", "must_not_contain": ["similares"]},
+
+    # ========== CENÁRIO 13: Follow-up fornecedor → detalhe → pendência ==========
+    {"q": "Me mostra o que pagamos pra norte sul esse ano", "must_contain": ["R$"], "must_not_contain": ["não encontrei"], "reset": True},
+    {"q": "Quanto disso foi em março?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"]},
+    {"q": "Tem mais alguma coisa a pagar pra eles?", "must_not_contain": ["similares"]},
+
+    # ========== CENÁRIO 14: Follow-up saldo → conciliação ==========
+    {"q": "Qual o saldo do itaú?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"], "reset": True},
+    {"q": "Está conciliado?", "must_not_contain": ["similares", "não encontrei"]},
+
+    # ========== CENÁRIO 15: Follow-up receita → devedores ==========
+    {"q": "Quem mais me deve?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"], "reset": True},
+    {"q": "Quanto ele deve no total?", "must_contain": ["R$"], "must_not_contain": ["não encontrei"]},
+    {"q": "Tem algo vencido?", "must_not_contain": ["similares"]},
+
+    # ========== CENÁRIO 16: Erros de digitação ==========
+    {"q": "Quanto paguei de castni esse mês?", "must_not_contain": ["similares"], "reset": True},
+    {"q": "Quanto gastamos de kayros em março?", "must_not_contain": ["similares"]},
+    {"q": "Quanto devo pra nort sul?", "must_not_contain": ["similares"]},
+
+    # ========== CENÁRIO 17: Perguntas ambíguas ==========
+    {"q": "Quanto devo?", "must_contain": ["R$"], "must_not_contain": ["similares"], "reset": True},
+    {"q": "Como tá o caixa?", "must_contain": ["R$"], "must_not_contain": ["similares"]},
+    {"q": "Tá tudo em dia?", "must_not_contain": ["similares"]},
+    {"q": "Resumo do mês", "must_not_contain": ["similares"]},
 ]
 
 
