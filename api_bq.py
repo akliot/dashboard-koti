@@ -13,7 +13,7 @@ Variáveis de ambiente:
   GCP_PROJECT_ID                 — projeto GCP (ex: dashboard-koti-omie)
   BQ_DATASET                     — dataset BigQuery (default: studio_koti)
   GOOGLE_APPLICATION_CREDENTIALS — path para JSON da service account (local)
-  API_CORS_ORIGIN                — origin permitido para CORS (default: *)
+  ALLOWED_ORIGINS                — origins permitidos para CORS (Cloud Function)
 """
 
 import json
@@ -27,7 +27,11 @@ from google.cloud import bigquery
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "dashboard-koti-omie")
 BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
-CORS_ORIGIN = os.environ.get("API_CORS_ORIGIN", "*")
+ALLOWED_ORIGINS = [
+    "https://akliot.github.io",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
 
 _client = None
 
@@ -327,12 +331,21 @@ def build_json() -> dict:
 # CLOUD FUNCTION ENTRY POINT
 # ============================================================
 
+def _cors_origin(request):
+    """Retorna origin permitido para CORS."""
+    origin = request.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        return origin
+    return ALLOWED_ORIGINS[0]
+
+
 def api_dashboard(request):
     """Entry point para Cloud Function (HTTP trigger)."""
-    # CORS
+    cors = _cors_origin(request)
+
     if request.method == "OPTIONS":
         headers = {
-            "Access-Control-Allow-Origin": CORS_ORIGIN,
+            "Access-Control-Allow-Origin": cors,
             "Access-Control-Allow-Methods": "GET",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Max-Age": "3600",
@@ -340,9 +353,9 @@ def api_dashboard(request):
         return ("", 204, headers)
 
     headers = {
-        "Access-Control-Allow-Origin": CORS_ORIGIN,
+        "Access-Control-Allow-Origin": cors,
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",  # Cache 5 min
+        "Cache-Control": "public, max-age=300",
     }
 
     try:
@@ -388,7 +401,7 @@ if __name__ == "__main__":
                     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
-                    self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
+                    self.send_header("Access-Control-Allow-Origin", "*")
                     self.send_header("Cache-Control", "public, max-age=300")
                     self.end_headers()
                     self.wfile.write(body)
@@ -403,7 +416,7 @@ if __name__ == "__main__":
 
         def do_OPTIONS(self):
             self.send_response(204)
-            self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
