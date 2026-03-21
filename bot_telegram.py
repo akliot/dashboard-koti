@@ -355,7 +355,22 @@ REGRAS OBRIGATÓRIAS:
 12. "gastei de X" ou "paguei pra X" = saídas PAGO com LOWER(cliente_nome) LIKE LOWER('%X%')
 13. Para buscar nomes com MÚLTIPLAS PALAVRAS (ex: 'nex one 1513'), use AND entre cada palavra:
     LOWER(projeto_nome) LIKE '%nex%' AND LOWER(projeto_nome) LIKE '%one%' AND LOWER(projeto_nome) LIKE '%1513%'
-    NUNCA junte tudo em um único LIKE '%nex one 1513%' — os nomes no banco têm separadores como | e espaços extras"""
+    NUNCA junte tudo em um único LIKE '%nex one 1513%' — os nomes no banco têm separadores como | e espaços extras
+
+REGRAS DE SINTAXE BIGQUERY (NÃO use sintaxe MySQL):
+- NÃO use GROUP_CONCAT → use STRING_AGG(campo, ', ')
+- NÃO use YEAR(data) → use EXTRACT(YEAR FROM data)
+- NÃO use MONTH(data) → use EXTRACT(MONTH FROM data)
+- NÃO use DATE_FORMAT → use FORMAT_DATE
+- NÃO use LIMIT com offset → BigQuery não suporta LIMIT x,y
+- NÃO use NOW() → use CURRENT_TIMESTAMP() ou CURRENT_DATE()
+
+REGRAS DE BUSCA DE NOMES (IMPORTANTE):
+- "kairos", "castini", "norte sul", "alpha1" e qualquer nome de empresa/pessoa = SEMPRE buscar em cliente_nome
+- Nomes de empresas/pessoas SEMPRE vão em cliente_nome, NUNCA em categoria_nome
+- Categorias são termos genéricos como "Marcenaria", "Mão de Obra", "Civil", "Aluguel", "SG&A"
+- Se a pergunta diz "gastei de X" ou "paguei pra X", X é um cliente/fornecedor → buscar em cliente_nome
+- "mão de obra" é uma CATEGORIA, não um fornecedor → buscar em LOWER(categoria_nome) LIKE LOWER('%m_o de obra%') OR LOWER(categoria_nome) LIKE LOWER('%mao de obra%')"""
 
         response = self.llm.generate("Você é um gerador de SQL BigQuery expert. Retorne SOMENTE o SQL puro, sem markdown.", prompt)
         sql = response.replace("```sql", "").replace("```", "").strip()
