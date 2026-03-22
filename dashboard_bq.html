@@ -585,15 +585,25 @@ function renderVisaoGeral(d){
     datasets:[{label:'Resultado',data:varCaixa,backgroundColor:varColors,borderRadius:4}]
   },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtK(v)}}}});
 
-  // Saldo acumulado — começa do saldo bancário real e projeta
+  // Saldo acumulado
+  const projFiltro=document.getElementById('filterProjeto').value;
   const saldoBancario=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
   let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
-  const ultimoAc=saldoPeriodo[saldoPeriodo.length-1]||0;
-  const offset=saldoBancario-ultimoAc;
-  const saldoArr=saldoPeriodo.map(v=>v+offset);
+  let saldoArr,saldoLabel;
+  if(projFiltro){
+    // Com filtro de projeto: mostra só variação acumulada (sem saldo bancário)
+    saldoArr=saldoPeriodo;
+    saldoLabel='Resultado Acumulado (projeto)';
+  } else {
+    // Sem filtro: projeta do saldo bancário real
+    const ultimoAc=saldoPeriodo[saldoPeriodo.length-1]||0;
+    const offset=saldoBancario-ultimoAc;
+    saldoArr=saldoPeriodo.map(v=>v+offset);
+    saldoLabel='Saldo';
+  }
   charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
     labels:meses.map(mesNome),
-    datasets:[{label:'Saldo',data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3}]
+    datasets:[{label:saldoLabel,data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3}]
   },options:cOpts('currency')});
 
   const tD=Object.entries(d.gruposDesp).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
