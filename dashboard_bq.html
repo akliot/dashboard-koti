@@ -1352,17 +1352,26 @@ async function sha256(str){
 }
 
 async function doLogin(){
-  const pass=document.getElementById('loginPass').value;
-  const hash=await sha256(pass);
-  // Se sha256 retornou null (HTTP sem crypto.subtle), comparar senha direta
-  const ok=hash?hash===PASS_HASH:pass==='koti2025';
-  if(ok){
-    sessionStorage.setItem('sk_auth','1');
-    showApp();
-  } else {
-    document.getElementById('loginError').style.display='block';
-    document.getElementById('loginPass').value='';
-  }
+  try{
+    const pass=document.getElementById('loginPass').value;
+    if(!pass){document.getElementById('loginError').style.display='block';return;}
+    let ok=false;
+    try{
+      const hash=await sha256(pass);
+      ok=hash&&hash===PASS_HASH;
+    }catch(e){
+      // Fallback se crypto falhar
+      ok=pass==='koti2025';
+    }
+    if(!ok)ok=pass==='koti2025'; // Fallback direto
+    if(ok){
+      sessionStorage.setItem('sk_auth','1');
+      showApp();
+    } else {
+      document.getElementById('loginError').style.display='block';
+      document.getElementById('loginPass').value='';
+    }
+  }catch(e){alert('Erro no login: '+e.message)}
 }
 
 async function showApp(){
