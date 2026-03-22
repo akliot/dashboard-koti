@@ -35,6 +35,8 @@ OMIE_APP_KEY = os.environ.get("OMIE_APP_KEY", "")
 OMIE_APP_SECRET = os.environ.get("OMIE_APP_SECRET", "")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "")
 BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "")
 
 BASE_URL = "https://app.omie.com.br/api/v1"
 
@@ -791,6 +793,23 @@ def log_sync_failed(
     load_to_bq(client, "sync_log", [row], "WRITE_APPEND")
 
 
+def notify_sync_failed(error_message: str) -> None:
+    """Envia alerta de falha de sync no Telegram."""
+    if not TELEGRAM_BOT_TOKEN or not ADMIN_CHAT_ID:
+        return
+    try:
+        now = datetime.now().strftime("%d/%m/%Y %H:%M")
+        msg = f"⚠️ Sync falhou às {now}\n\nErro: {str(error_message)[:500]}\n\nDataset: {GCP_PROJECT_ID}.{BQ_DATASET}"
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            json={"chat_id": ADMIN_CHAT_ID, "text": msg},
+            timeout=10,
+        )
+        print(f"  📩 Alerta enviado no Telegram (chat {ADMIN_CHAT_ID})")
+    except Exception as e:
+        print(f"  ⚠ Falha ao enviar alerta Telegram: {e}")
+
+
 # ============================================================
 # MAIN
 # ============================================================
@@ -927,6 +946,7 @@ def main() -> None:
             log_sync_failed(client, sync_id, sync_ts, str(e))
         except Exception as log_err:
             print(f"  ⚠ Erro ao registrar falha no sync_log: {log_err}")
+        notify_sync_failed(str(e))
         sys.exit(1)
 
 
