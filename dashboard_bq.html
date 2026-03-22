@@ -1341,12 +1341,22 @@ async function decryptFile(url,password){
 // ============ LOGIN ============
 // Dashboard BQ — login + fetch da API BigQuery
 const PASS_HASH='b4f4c73433abb7aa1c26729be0fade444d6c4476bf22f5e8480eeb2be0fdc6f1';
-async function sha256(str){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function sha256(str){
+  // crypto.subtle só funciona em HTTPS/localhost seguro
+  if(window.crypto&&window.crypto.subtle){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  // Fallback: comparação direta (menos seguro, mas funciona em HTTP)
+  return null;
+}
 
 async function doLogin(){
   const pass=document.getElementById('loginPass').value;
   const hash=await sha256(pass);
-  if(hash===PASS_HASH){
+  // Se sha256 retornou null (HTTP sem crypto.subtle), comparar senha direta
+  const ok=hash?hash===PASS_HASH:pass==='koti2025';
+  if(ok){
     sessionStorage.setItem('sk_auth','1');
     showApp();
   } else {
