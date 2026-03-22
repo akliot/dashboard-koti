@@ -184,6 +184,9 @@ tr:hover td{background:rgba(59,130,246,.05)}
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Entradas vs Saídas (Mensal)</h3><div class="chart-container"><canvas id="chartGeralFluxo"></canvas></div></div>
+        <div class="chart-card"><h3>Variação de Caixa</h3><div class="chart-container"><canvas id="chartVariacaoCaixa"></canvas></div></div>
+      </div>
+      <div class="chart-row">
         <div class="chart-card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
             <h3 style="margin:0">Saldo Acumulado</h3>
@@ -604,6 +607,14 @@ function renderVisaoGeral(d){
 
   const meses=Object.keys(d.porMes).sort();
   charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Entradas',data:meses.map(m=>d.porMes[m].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},{label:'Saídas',data:meses.map(m=>d.porMes[m].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:cOpts('currency')});
+
+  // Variação de Caixa — barras de resultado mensal (entradas - saídas)
+  const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));
+  const varColors=varCaixa.map(v=>v>=0?'#22c55ecc':'#ef4444cc');
+  charts.varCaixa=new Chart(document.getElementById('chartVariacaoCaixa'),{type:'bar',data:{
+    labels:meses.map(mesNome),
+    datasets:[{label:'Resultado',data:varCaixa,backgroundColor:varColors,borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtK(v)}}}});
 
   // Saldo acumulado — período (começa do zero) e atual (começa do saldo bancário)
   const saldoBancario=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
