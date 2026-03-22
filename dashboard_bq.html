@@ -606,11 +606,11 @@ function renderVisaoGeral(d){
   charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Entradas',data:meses.map(m=>d.porMes[m].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},{label:'Saídas',data:meses.map(m=>d.porMes[m].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:cOpts('currency')});
 
   // Saldo acumulado — período (começa do zero) e atual (começa do saldo bancário)
-  const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
+  const saldoBancario=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
   let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
   // Com saldo atual: pega o saldo bancário real e soma/subtrai de trás pra frente
   const ultimoAc=saldoPeriodo[saldoPeriodo.length-1]||0;
-  const offset=saldoTotal-ultimoAc;
+  const offset=saldoBancario-ultimoAc;
   const saldoAtual=saldoPeriodo.map(v=>v+offset);
   _saldoAcumData={meses,saldoPeriodo,saldoAtual};_saldoAcumMode='periodo';
   renderSaldoAcum();
