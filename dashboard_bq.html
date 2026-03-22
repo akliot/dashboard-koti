@@ -179,7 +179,13 @@ tr:hover td{background:rgba(59,130,246,.05)}
     <div class="page active" id="page-visao-geral">
       <div class="kpi-row" id="kpi-geral"></div>
       <div class="chart-card" style="margin-bottom:20px">
-        <h3 id="saldoTitle">Saldo por Conta Bancária</h3>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <h3 style="margin:0" id="saldoTitle">Saldo por Conta Bancária</h3>
+          <div class="periodo-btns" id="saldoContaBtns">
+            <button onclick="setSaldoContaMode('d1',this)" class="active">Atual (D-1)</button>
+            <button onclick="setSaldoContaMode('periodo',this)">Fim do período</button>
+          </div>
+        </div>
         <div class="saldo-grid" id="saldoGrid"></div>
       </div>
       <div class="chart-row">
@@ -543,6 +549,58 @@ function computeCompetencia(){
   return{tE,tS,ent,sai,porMes,porProj,porCliente,finGrupos,finGruposArr,finMesAll,abRec,abPag,vRec,vPag,L};
 }
 
+let _saldoContaMode='d1';
+
+function setSaldoContaMode(mode,el){
+  _saldoContaMode=mode;
+  document.querySelectorAll('#saldoContaBtns button').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderSaldoGrid();
+}
+
+function renderSaldoGrid(){
+  const gridEl=document.getElementById('saldoGrid');
+  const titleEl=document.getElementById('saldoTitle');
+
+  if(_saldoContaMode==='d1'){
+    // Atual D-1
+    const saldos=(dadosFiltrados.saldos_bancarios||[]).filter(s=>s.saldo!==0).sort((a,b)=>b.saldo-a.saldo);
+    const dataRef=(dadosFiltrados.saldos_bancarios||[])[0]?.data||'';
+    titleEl.textContent=`Saldo por Conta (D-1 conciliado) — ${dataRef}`;
+    gridEl.innerHTML=saldos.map(s=>`
+      <div class="saldo-item">
+        <div><div class="nome">${s.nome}</div><div class="tipo">${s.tipo==='CC'?'Conta Corrente':s.tipo==='CR'?'Cartão':s.tipo==='CG'?'Garantida':s.tipo==='CA'?'Aplicação':s.tipo==='CX'?'Caixa':s.tipo}</div></div>
+        <div class="valor" style="color:${s.saldo>=0?'var(--green)':'var(--red)'}">${fmt(s.saldo)}</div>
+      </div>`).join('');
+  } else {
+    // Fim do período — usar historico_conciliacao mensal
+    const ate=document.getElementById('filterAte').value;// YYYY-MM-DD
+    const ateMes=ate?ate.substring(0,7):'';
+    const hist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+    // Pegar meses disponíveis e encontrar o mais próximo do filterAte
+    const mesesDisp=[...new Set(hist.map(h=>h.data.substring(0,7)))].sort();
+    let mesFinal=mesesDisp[mesesDisp.length-1]||'';
+    for(const m of mesesDisp){if(m<=ateMes)mesFinal=m;}
+    // Agrupar por banco nesse mês
+    const saldosMes={};
+    hist.filter(h=>h.data.substring(0,7)===mesFinal).forEach(h=>{
+      saldosMes[h.banco_nome]=(saldosMes[h.banco_nome]||0)+h.saldo_atual;
+    });
+    const entries=Object.entries(saldosMes).filter(e=>e[1]!==0).sort((a,b)=>b[1]-a[1]);
+    const labelMes=mesFinal?mesNome(mesFinal):'—';
+    titleEl.textContent=`Saldo por Conta (fim do período — ${labelMes})`;
+    if(entries.length===0){
+      gridEl.innerHTML='<div style="color:var(--muted);padding:20px">Sem dados de saldo para esse período.</div>';
+    } else {
+      gridEl.innerHTML=entries.map(([nome,saldo])=>`
+        <div class="saldo-item">
+          <div><div class="nome">${nome}</div></div>
+          <div class="valor" style="color:${saldo>=0?'var(--green)':'var(--red)'}">${fmt(saldo)}</div>
+        </div>`).join('');
+    }
+  }
+}
+
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
 function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento()}
@@ -566,13 +624,7 @@ function renderVisaoGeral(d){
     <div class="kpi-card"><div class="kpi-label">Total Saídas (período)</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">${d.sai.length} lançamentos</div></div>
     <div class="kpi-card"><div class="kpi-label">Previsão (Saldo+Receber-Pagar)</div><div class="kpi-value cyan">${fmt(saldoTotal+d.abRec-d.abPag)}</div></div>`;
 
-  const saldos=(dadosFiltrados.saldos_bancarios||[]).filter(s=>s.saldo!==0).sort((a,b)=>b.saldo-a.saldo);
-  document.getElementById('saldoTitle').textContent=`Saldo por Conta (D-1 conciliado) — ${dataRef}`;
-  document.getElementById('saldoGrid').innerHTML=saldos.map(s=>`
-    <div class="saldo-item">
-      <div><div class="nome">${s.nome}</div><div class="tipo">${s.tipo==='CC'?'Conta Corrente':s.tipo==='CR'?'Cartão':s.tipo==='CG'?'Garantida':s.tipo==='CA'?'Aplicação':s.tipo==='CX'?'Caixa':s.tipo}</div></div>
-      <div class="valor" style="color:${s.saldo>=0?'var(--green)':'var(--red)'}">${fmt(s.saldo)}</div>
-    </div>`).join('');
+  renderSaldoGrid();
 
   const meses=Object.keys(d.porMes).sort();
   charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Entradas',data:meses.map(m=>d.porMes[m].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},{label:'Saídas',data:meses.map(m=>d.porMes[m].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:cOpts('currency')});
