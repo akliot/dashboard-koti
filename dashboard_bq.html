@@ -585,26 +585,40 @@ function renderVisaoGeral(d){
     datasets:[{label:'Resultado',data:varCaixa,backgroundColor:varColors,borderRadius:4}]
   },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtK(v)}}}});
 
-  // Saldo acumulado
+  // Saldo Bancário Real — usa historico_conciliacao (mensal)
   const projFiltro=document.getElementById('filterProjeto').value;
-  const saldoBancario=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
-  let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
-  let saldoArr,saldoLabel;
-  if(projFiltro){
-    // Com filtro de projeto: mostra só variação acumulada (sem saldo bancário)
-    saldoArr=saldoPeriodo;
-    saldoLabel='Resultado Acumulado (projeto)';
+  const hist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  if(!projFiltro&&hist.length>0){
+    // Agrupar por mês: soma dos saldos de todas as contas (excluir Renata Patelli)
+    const porMesSaldo={};
+    hist.forEach(h=>{
+      if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;
+      const m=h.data.substring(0,7);
+      porMesSaldo[m]=(porMesSaldo[m]||0)+h.saldo_atual;
+    });
+    const mesesSaldo=Object.keys(porMesSaldo).sort();
+    const saldoArr=mesesSaldo.map(m=>porMesSaldo[m]);
+    // Adicionar saldo D-1 atual como último ponto
+    const saldoAtual=(dadosFiltrados.saldos_bancarios||[]).filter(s=>!s.nome.toUpperCase().includes('RENATA PATELLI')).reduce((s,b)=>s+b.saldo,0);
+    const meAtual=new Date().toISOString().substring(0,7);
+    if(!porMesSaldo[meAtual]){mesesSaldo.push(meAtual);saldoArr.push(saldoAtual)}
+    else{saldoArr[saldoArr.length-1]=saldoAtual}// Atualizar mês corrente com D-1
+    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
+      labels:mesesSaldo.map(mesNome),
+      datasets:[{label:'Saldo Bancário Real',data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,
+        pointBackgroundColor:saldoArr.map(v=>v>=0?'#22c55e':'#ef4444'),pointRadius:4}]
+    },options:cOpts('currency')});
+  } else if(projFiltro){
+    // Com filtro de projeto: resultado acumulado do projeto
+    let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
+    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
+      labels:meses.map(mesNome),
+      datasets:[{label:'Resultado Acumulado (projeto)',data:saldoPeriodo,borderColor:'#a855f7',backgroundColor:'#a855f722',fill:true,tension:.3}]
+    },options:cOpts('currency')});
   } else {
-    // Sem filtro: projeta do saldo bancário real
-    const ultimoAc=saldoPeriodo[saldoPeriodo.length-1]||0;
-    const offset=saldoBancario-ultimoAc;
-    saldoArr=saldoPeriodo.map(v=>v+offset);
-    saldoLabel='Saldo';
+    // Sem histórico: fallback vazio
+    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{labels:[],datasets:[{label:'Sem dados',data:[]}]},options:cOpts('currency')});
   }
-  charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
-    labels:meses.map(mesNome),
-    datasets:[{label:saldoLabel,data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3}]
-  },options:cOpts('currency')});
 
   const tD=Object.entries(d.gruposDesp).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
   charts.tCatD=new Chart(document.getElementById('chartTopCatDesp'),{type:'doughnut',data:{labels:tD.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tD.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
