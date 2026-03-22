@@ -187,16 +187,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div class="chart-card"><h3>Variação de Caixa</h3><div class="chart-container"><canvas id="chartVariacaoCaixa"></canvas></div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
-            <h3 style="margin:0">Saldo Acumulado</h3>
-            <div class="periodo-btns" id="saldoAcumBtns">
-              <button onclick="setSaldoAcumMode('periodo',this)" class="active">Período</button>
-              <button onclick="setSaldoAcumMode('atual',this)">Com saldo atual</button>
-            </div>
-          </div>
-          <div class="chart-container"><canvas id="chartSaldoAcum"></canvas></div>
-        </div>
+        <div class="chart-card"><h3>Saldo Acumulado</h3><div class="chart-container"><canvas id="chartSaldoAcum"></canvas></div></div>
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Top Categorias (Despesas)</h3><div class="chart-container"><canvas id="chartTopCatDesp"></canvas></div></div>
@@ -552,28 +543,6 @@ function computeCompetencia(){
   return{tE,tS,ent,sai,porMes,porProj,porCliente,finGrupos,finGruposArr,finMesAll,abRec,abPag,vRec,vPag,L};
 }
 
-let _saldoAcumData=null,_saldoAcumMode='periodo';
-
-function setSaldoAcumMode(mode,el){
-  _saldoAcumMode=mode;
-  document.querySelectorAll('#saldoAcumBtns button').forEach(b=>b.classList.remove('active'));
-  if(el)el.classList.add('active');
-  renderSaldoAcum();
-}
-
-function renderSaldoAcum(){
-  if(!_saldoAcumData)return;
-  if(charts.sAcum){charts.sAcum.destroy();delete charts.sAcum}
-  const d=_saldoAcumData;
-  const data=_saldoAcumMode==='atual'?d.saldoAtual:d.saldoPeriodo;
-  const label=_saldoAcumMode==='atual'?'Saldo Projetado (com saldo bancário)':'Saldo Acumulado (período)';
-  const color=_saldoAcumMode==='atual'?'#a855f7':'#3b82f6';
-  charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
-    labels:d.meses.map(mesNome),
-    datasets:[{label,data,borderColor:color,backgroundColor:color+'22',fill:true,tension:.3}]
-  },options:cOpts('currency')});
-}
-
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
 function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento()}
@@ -616,15 +585,16 @@ function renderVisaoGeral(d){
     datasets:[{label:'Resultado',data:varCaixa,backgroundColor:varColors,borderRadius:4}]
   },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtK(v)}}}});
 
-  // Saldo acumulado — período (começa do zero) e atual (começa do saldo bancário)
+  // Saldo acumulado — começa do saldo bancário real e projeta
   const saldoBancario=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
   let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
-  // Com saldo atual: pega o saldo bancário real e soma/subtrai de trás pra frente
   const ultimoAc=saldoPeriodo[saldoPeriodo.length-1]||0;
   const offset=saldoBancario-ultimoAc;
-  const saldoAtual=saldoPeriodo.map(v=>v+offset);
-  _saldoAcumData={meses,saldoPeriodo,saldoAtual};_saldoAcumMode='periodo';
-  renderSaldoAcum();
+  const saldoArr=saldoPeriodo.map(v=>v+offset);
+  charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
+    labels:meses.map(mesNome),
+    datasets:[{label:'Saldo',data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3}]
+  },options:cOpts('currency')});
 
   const tD=Object.entries(d.gruposDesp).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
   charts.tCatD=new Chart(document.getElementById('chartTopCatDesp'),{type:'doughnut',data:{labels:tD.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tD.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
