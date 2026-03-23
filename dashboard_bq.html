@@ -627,7 +627,24 @@ function renderVisaoGeral(d){
   renderSaldoGrid();
 
   const meses=Object.keys(d.porMes).sort();
-  charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Entradas',data:meses.map(m=>d.porMes[m].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},{label:'Saídas',data:meses.map(m=>d.porMes[m].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:cOpts('currency')});
+  // Entradas vs Saídas separado por FD (Faturamento Direto) e SK (Studio Koti)
+  const porMesFD={};
+  dadosFiltrados.lancamentos.forEach(l=>{
+    const m=toYM(l.data);if(!m)return;
+    if(!porMesFD[m])porMesFD[m]={ent_fd:0,ent_sk:0,sai_fd:0,sai_sk:0};
+    const fd=l.is_fd;
+    if(l.tipo==='entrada'){if(fd)porMesFD[m].ent_fd+=l.valor;else porMesFD[m].ent_sk+=l.valor}
+    else{if(fd)porMesFD[m].sai_fd+=l.valor;else porMesFD[m].sai_sk+=l.valor}
+  });
+  charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{
+    labels:meses.map(mesNome),
+    datasets:[
+      {label:'Entrada SK',data:meses.map(m=>(porMesFD[m]?.ent_sk||0)),backgroundColor:'#22c55ecc',stack:'entrada'},
+      {label:'Entrada FD',data:meses.map(m=>(porMesFD[m]?.ent_fd||0)),backgroundColor:'#22c55e55',stack:'entrada'},
+      {label:'Saída SK',data:meses.map(m=>(porMesFD[m]?.sai_sk||0)),backgroundColor:'#ef4444cc',stack:'saida'},
+      {label:'Saída FD',data:meses.map(m=>(porMesFD[m]?.sai_fd||0)),backgroundColor:'#ef444455',stack:'saida'},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
 
   // Variação de Caixa — barras de resultado mensal (entradas - saídas)
   const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));

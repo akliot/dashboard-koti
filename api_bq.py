@@ -110,6 +110,7 @@ def build_json() -> dict:
             "projeto": proj_id,
             "projeto_nome": r.get("projeto_nome", "Sem projeto") or "Sem projeto",
             "cliente_nome": r.get("cliente_nome", "") or "",
+            "is_fd": bool(r.get("is_faturamento_direto")),
         })
 
     # ---- Categorias (mapa código→nome) ----
