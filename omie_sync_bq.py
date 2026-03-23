@@ -526,6 +526,41 @@ def construir_mapa_clientes_bulk() -> tuple[dict[int, str], list[dict]]:
     return cli_map, registros
 
 
+def coletar_movimentos_financeiros() -> dict[int, str]:
+    """Coleta datas reais de pagamento/recebimento via Movimentos Financeiros.
+    Retorna {nCodTitulo: data_pagamento_real (YYYY-MM-DD)}.
+    nCodTitulo = codigo_lancamento_omie do CP/CR → link direto."""
+    print("\n📥 Movimentos Financeiros (datas reais)...", flush=True)
+    mf_map: dict[int, str] = {}
+    pagina = 1
+    total_paginas = 1
+
+    while pagina <= total_paginas:
+        data = omie_request("financas/mf", "ListarMovimentos",
+                            {"nPagina": pagina, "nRegPorPagina": 500})
+        if not data:
+            break
+        total_paginas = data.get("nTotPaginas", 1)
+        movimentos = data.get("movimentos", [])
+
+        for m in movimentos:
+            det = m.get("detalhes", {})
+            cod = det.get("nCodTitulo")
+            dt_pag = det.get("dDtPagamento", "")
+            if cod and dt_pag:
+                parsed = parse_date(dt_pag)
+                if parsed:
+                    mf_map[cod] = parsed  # Se duplicado, último ganha
+
+        if pagina % 10 == 0 or pagina == total_paginas:
+            print(f"  ListarMovimentos pag {pagina}/{total_paginas} ({len(mf_map)} datas)", flush=True)
+        pagina += 1
+        time.sleep(0.1)
+
+    print(f"  ✅ {len(mf_map)} datas reais de pagamento via MF")
+    return mf_map
+
+
 
 def coletar_lancamentos(
     cat_map: dict[str, str],
@@ -533,6 +568,7 @@ def coletar_lancamentos(
     cli_map: dict[int, str],
     sync_ts: str,
     sync_date: str,
+    mf_datas: dict[int, str] | None = None,
 ) -> list[dict]:
     """Coleta lançamentos (contas a receber + pagar) e transforma para schema BQ."""
     lancamentos: list[dict] = []
@@ -548,20 +584,28 @@ def coletar_lancamentos(
     # Completar categorias faltantes
     cat_map = completar_categorias(cat_map, cr_raw + cp_raw)
 
+    mf = mf_datas or {}
+    match_mf = 0
+    match_fallback = 0
+
     def _extract_data_pagamento(r: dict) -> str | None:
-        """Extrai data de pagamento/recebimento.
-        A API Omie não expõe a data real (campo recebimento/pagamento = None).
-        Usa data_previsao como melhor aproximação (~77% do valor real).
-        nCodLancRelac do extrato não bate com codigo_lancamento_omie — match inviável."""
+        """Extrai data real de pagamento/recebimento.
+        Prioridade: Movimentos Financeiros (dDtPagamento via nCodTitulo) > data_previsao."""
+        nonlocal match_mf, match_fallback
         status = (r.get("status_titulo", "") or "").upper()
         if status not in ("PAGO", "RECEBIDO", "LIQUIDADO"):
             return None
+        # 1. Movimentos Financeiros (link direto por nCodTitulo)
+        cod = r.get("codigo_lancamento_omie")
+        if cod and cod in mf:
+            match_mf += 1
+            return mf[cod]
+        # 2. Fallback: data_previsao
         d_prev = parse_date(r.get("data_previsao", ""))
         if d_prev:
+            match_fallback += 1
             return d_prev
-        info = r.get("info", {}) or {}
-        d_alt = info.get("dAlt", "")
-        return parse_date(d_alt) if d_alt else None
+        return None
 
     ignorados_cr = 0
     for r in cr_raw:
@@ -642,6 +686,7 @@ def coletar_lancamentos(
             "sync_date": sync_date,
         })
     print(f"  ✅ {len(cp_raw) - ignorados_cp} pagar ({ignorados_cp} ignorados)")
+    print(f"  📊 data_pagamento: {match_mf} via MF (real), {match_fallback} fallback (previsão)")
 
     return lancamentos
 
@@ -862,7 +907,10 @@ def main() -> None:
         print("\n📥 Clientes/Fornecedores...", flush=True)
         cli_map, clientes_raw = construir_mapa_clientes_bulk()
 
-        lancamentos = coletar_lancamentos(cat_map, proj_map, cli_map, sync_ts, sync_date)
+        # Movimentos Financeiros (datas reais de pagamento via nCodTitulo)
+        mf_datas = coletar_movimentos_financeiros()
+
+        lancamentos = coletar_lancamentos(cat_map, proj_map, cli_map, sync_ts, sync_date, mf_datas)
         clientes_bq = coletar_clientes_bq(clientes_raw, sync_ts)
         vendas = coletar_vendas_bq(sync_ts, sync_date)
 
