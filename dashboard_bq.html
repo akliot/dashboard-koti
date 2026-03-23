@@ -632,10 +632,11 @@ function renderVisaoGeral(d){
   // Variação de Caixa — barras de resultado mensal (entradas - saídas)
   const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));
   const varColors=varCaixa.map(v=>v>=0?'#22c55ecc':'#ef4444cc');
-  charts.varCaixa=new Chart(document.getElementById('chartVariacaoCaixa'),{type:'bar',data:{
+  charts.varCaixa=new Chart(document.getElementById('chartVariacaoCaixa'),{type:'line',data:{
     labels:meses.map(mesNome),
-    datasets:[{label:'Resultado',data:varCaixa,backgroundColor:varColors,borderRadius:4}]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9,weight:500},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',formatter:v=>fmtK(v)}}}});
+    datasets:[{label:'Resultado',data:varCaixa,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,
+      pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
+  },options:cOpts('currency')});
 
   // Saldo Bancário Real — usa historico_conciliacao (mensal)
   const projFiltro=document.getElementById('filterProjeto').value;
