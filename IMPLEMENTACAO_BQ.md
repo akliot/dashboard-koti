@@ -167,20 +167,24 @@ Ver `bq_schema.sql` para DDL com OPTIONS/descriptions. Tabelas criadas automatic
 | `status` | `status_titulo` | `.upper()` |
 | `data_vencimento` | `data_vencimento` | DD/MM/YYYY → YYYY-MM-DD |
 | `data_emissao` | `data_emissao` | DD/MM/YYYY → YYYY-MM-DD |
-| `data_pagamento` | `info.dAlt` | DD/MM/YYYY → YYYY-MM-DD (só PAGO/RECEBIDO) |
+| `data_pagamento` | `dDtPagamento` (via `ListarMovimentos`) | Data real via Movimentos Financeiros (99.99% match). Fallback: `data_previsao` |
+| `data_previsao` | `data_previsao` | Dia útil previsto de pagamento |
 | `categoria_codigo` | `codigo_categoria` | direto |
 | `categoria_nome` | — | lookup via `cat_map` |
 | `cliente_nome` | — | lookup via `cli_map` (bulk) |
-| `is_faturamento_direto` | — | ⚡ Entrada: "Faturamento Direto" em categoria. Saída: "FD" em doc |
+| `is_faturamento_direto` | — | ⚡ Entrada: categoria contém "Faturamento Direto". Saída: `numero_documento` OU `numero_documento_fiscal` contém "FD" |
+| `modalidade` | — | ⚡ "FD" se is_faturamento_direto, senão "SK" |
 
 ### 4.3 Lógica de datas e regimes contábeis
 
 **No BigQuery (campo `data_pagamento`):**
 
-| Status | `data_pagamento` |
-|--------|-----------------|
-| PAGO, RECEBIDO | Data real da baixa (`info.dAlt` da API Omie) |
-| A VENCER, ATRASADO, VENCE HOJE | NULL |
+| Status | `data_pagamento` | Fonte |
+|--------|-----------------|-------|
+| PAGO, RECEBIDO | Data real do pagamento | `ListarMovimentos` (financas/mf) → `dDtPagamento` via `nCodTitulo` (99.99% match) |
+| A VENCER, ATRASADO, VENCE HOJE | NULL | — |
+
+> A API `ListarContasReceber/Pagar` não expõe data real de pagamento. O `ListarMovimentos` é a única fonte confiável — `nCodTitulo` = `codigo_lancamento_omie` (link direto).
 
 **Na API JSON (campo `data`):**
 
@@ -204,9 +208,11 @@ Ver `bq_schema.sql` para DDL com OPTIONS/descriptions. Tabelas criadas automatic
 
 Puxa tudo da API Omie mas só escreve o que mudou no BigQuery.
 
+**Etapa extra**: `coletar_movimentos_financeiros()` pagina `ListarMovimentos` (financas/mf) para obter datas reais de pagamento via `nCodTitulo` → `dDtPagamento`. ~229 páginas, ~10K datas.
+
 | Tabela | Método | Key | Campos comparados |
 |--------|:------:|-----|-------------------|
-| `lancamentos` | MERGE | `id` | valor, status, data_vencimento, data_pagamento, categoria, projeto, cliente |
+| `lancamentos` | MERGE | `id` | valor, status, data_vencimento, data_pagamento, data_previsao, modalidade, categoria, projeto, cliente |
 | `categorias` | MERGE | `codigo` | nome, grupo |
 | `projetos` | MERGE | `id` | nome |
 | `clientes` | MERGE | `id` | nome_fantasia, razao_social, estado, ativo |
@@ -229,7 +235,7 @@ Puxa tudo da API Omie mas só escreve o que mudou no BigQuery.
 
 | # | Aba | Regime | Genérica? |
 |:-:|-----|:------:|:---------:|
-| 1 | **Visão Geral** — KPIs, saldo por conta, fluxo mensal, top categorias | Caixa | Sim |
+| 1 | **Visão Geral** — KPIs, saldo por conta (toggle D-1/período), entradas vs saídas stacked FD/SK com data labels, variação de caixa (linha), saldo acumulado real (historico_saldos), top categorias | Caixa | Sim |
 | 2 | **Fluxo de Caixa** — KPIs realizado/a realizar, custos stacked, tabela Realizado \| A Realizar \| Total | Caixa | Sim |
 | 3 | **Financeiro** — Receita vs custo vs SG&A, resultado mensal, contas a receber/pagar | Competência | Sim |
 | 4 | **Conciliação** — Cards por conta, evolução mensal/diário | Caixa | Sim |
@@ -317,7 +323,7 @@ Marcadas com `# ⚡ KOTI-SPECIFIC`.
 | Item | Arquivo | Novo cliente |
 |------|---------|--------------|
 | `CONTAS_IGNORAR = {8754849088}` | `omie_sync_bq.py` | Adaptar ou esvaziar |
-| `is_faturamento_direto` | `omie_sync_bq.py` | Remover ou adaptar |
+| `is_faturamento_direto` + `modalidade` (SK/FD) | `omie_sync_bq.py` | Entrada: categoria "Faturamento Direto". Saída: "FD" em `numero_documento` ou `numero_documento_fiscal`. Remover ou adaptar para cliente |
 | `DRE_MAP` | `extract_bp_bq.py` | Ajustar linhas/ano ou remover |
 | `PASS_HASH` | `dashboard_bq.html` | `echo -n "senha" \| shasum -a 256` |
 
