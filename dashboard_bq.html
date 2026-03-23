@@ -636,15 +636,24 @@ function renderVisaoGeral(d){
     if(l.tipo==='entrada'){if(fd)porMesFD[m].ent_fd+=l.valor;else porMesFD[m].ent_sk+=l.valor}
     else{if(fd)porMesFD[m].sai_fd+=l.valor;else porMesFD[m].sai_sk+=l.valor}
   });
+  // Pré-calcular totais para labels
+  const entTotais=meses.map(m=>(porMesFD[m]?.ent_sk||0)+(porMesFD[m]?.ent_fd||0));
+  const saiTotais=meses.map(m=>(porMesFD[m]?.sai_sk||0)+(porMesFD[m]?.sai_fd||0));
   charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{
     labels:meses.map(mesNome),
     datasets:[
-      {label:'Entrada SK',data:meses.map(m=>(porMesFD[m]?.ent_sk||0)),backgroundColor:'#22c55ecc',stack:'entrada'},
-      {label:'Entrada FD',data:meses.map(m=>(porMesFD[m]?.ent_fd||0)),backgroundColor:'#22c55e55',stack:'entrada'},
-      {label:'Saída SK',data:meses.map(m=>(porMesFD[m]?.sai_sk||0)),backgroundColor:'#ef4444cc',stack:'saida'},
-      {label:'Saída FD',data:meses.map(m=>(porMesFD[m]?.sai_fd||0)),backgroundColor:'#ef444455',stack:'saida'},
+      {label:'Entrada SK',data:meses.map(m=>(porMesFD[m]?.ent_sk||0)),backgroundColor:'#22c55ecc',stack:'entrada',
+        datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
+      {label:'Entrada FD',data:meses.map(m=>(porMesFD[m]?.ent_fd||0)),backgroundColor:'#22c55e55',stack:'entrada',
+        datalabels:{display:ctx=>entTotais[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',
+          formatter:(v,ctx)=>fmtK(entTotais[ctx.dataIndex])}},
+      {label:'Saída SK',data:meses.map(m=>(porMesFD[m]?.sai_sk||0)),backgroundColor:'#ef4444cc',stack:'saida',
+        datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
+      {label:'Saída FD',data:meses.map(m=>(porMesFD[m]?.sai_fd||0)),backgroundColor:'#ef444455',stack:'saida',
+        datalabels:{display:ctx=>saiTotais[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',
+          formatter:(v,ctx)=>fmtK(saiTotais[ctx.dataIndex])}},
     ]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}}}});
 
   // Variação de Caixa — barras de resultado mensal (entradas - saídas)
   const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));
