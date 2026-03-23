@@ -81,7 +81,7 @@ def build_json() -> dict:
         SELECT id, tipo, valor, status, data_vencimento, data_emissao,
                data_pagamento, data_previsao, numero_documento, categoria_codigo, categoria_nome,
                projeto_id, projeto_nome, cliente_id, cliente_nome,
-               is_faturamento_direto
+               is_faturamento_direto, modalidade
         FROM {tbl('lancamentos')}
     """)
     lancamentos = []
