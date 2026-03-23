@@ -57,7 +57,7 @@ MAX_HISTORY = 5
 def get_schema_context() -> str:
     return f"""Tabelas no dataset `{GCP_PROJECT_ID}.{BQ_DATASET}`:
 
-1. lancamentos: id INT64, tipo STRING (entrada/saida), valor FLOAT64, status STRING (PAGO/RECEBIDO/A VENCER/ATRASADO/VENCE HOJE/CANCELADO), data_vencimento DATE, data_emissao DATE, data_pagamento DATE (data real do pagamento/recebimento, NULL se pendente), numero_documento STRING, categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING, projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING, is_faturamento_direto BOOL
+1. lancamentos: id INT64, tipo STRING (entrada/saida), valor FLOAT64, status STRING (PAGO/RECEBIDO/A VENCER/ATRASADO/VENCE HOJE/CANCELADO), data_vencimento DATE, data_emissao DATE, data_pagamento DATE (data real do pagamento/recebimento, NULL se pendente), data_previsao DATE (data prevista de pagamento — dia útil real, para pendentes), numero_documento STRING, categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING, projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING, is_faturamento_direto BOOL
 
 2. saldos_bancarios: conta_id INT64, conta_nome STRING, conta_tipo STRING, saldo FLOAT64, saldo_conciliado FLOAT64, diferenca FLOAT64, data_referencia DATE
 
@@ -348,7 +348,7 @@ REGRAS OBRIGATÓRIAS:
 5. Quando o usuário mencionar um mês sem ano, SEMPRE assuma {hoje.year}
 6. "faturei", "faturamento", "NF" = entradas RECEBIDO, filtrar por data_pagamento
 7. "paguei", "pagamentos" = saídas PAGO, filtrar por data_pagamento
-8. "previstos", "a receber", "a pagar" = status IN ('A VENCER','ATRASADO','VENCE HOJE'), filtrar por data_vencimento
+8. "previstos", "a receber", "a pagar", "pagar hoje" = status IN ('A VENCER','ATRASADO','VENCE HOJE'), filtrar por data_previsao (dia útil real, não data_vencimento)
 9. "recebimentos" sem qualificador = entradas com status RECEBIDO
 10. Para buscar nomes de clientes/fornecedores: OBRIGATÓRIO usar LOWER(cliente_nome) LIKE LOWER('%termo%') — BigQuery LIKE é case-sensitive!
 11. REGRA CRÍTICA DE CONTEXTO: Se a pergunta é curta ou usa pronomes como "desse", "disso", "já", "esse valor", "deles", ela é CONTINUAÇÃO da conversa anterior. Nesse caso:

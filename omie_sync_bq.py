@@ -79,7 +79,7 @@ def ensure_tables(client: bigquery.Client) -> None:
         )""",
         f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.lancamentos` (
             id INT64, tipo STRING, valor FLOAT64, status STRING,
-            data_vencimento DATE, data_emissao DATE, data_pagamento DATE,
+            data_vencimento DATE, data_emissao DATE, data_pagamento DATE, data_previsao DATE,
             numero_documento STRING,
             categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING,
             projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING,
@@ -583,6 +583,7 @@ def coletar_lancamentos(
             "data_vencimento": parse_date(r.get("data_vencimento", "")),
             "data_emissao": parse_date(r.get("data_emissao", "")),
             "data_pagamento": _extract_data_pagamento(r),
+            "data_previsao": parse_date(r.get("data_previsao", "")) or parse_date(r.get("data_vencimento", "")),
             "numero_documento": num_doc,
             "categoria_codigo": cat_cod or None,
             "categoria_nome": cat_nome or None,
@@ -622,6 +623,7 @@ def coletar_lancamentos(
             "data_vencimento": parse_date(r.get("data_vencimento", "")),
             "data_emissao": parse_date(r.get("data_emissao", "")),
             "data_pagamento": _extract_data_pagamento(r),
+            "data_previsao": parse_date(r.get("data_previsao", "")) or parse_date(r.get("data_vencimento", "")),
             "numero_documento": num_doc,
             "categoria_codigo": cat_cod or None,
             "categoria_nome": cat_nome or None,
@@ -886,11 +888,11 @@ def main() -> None:
 
         # Lançamentos — MERGE por id
         lanc_cols = ["id", "tipo", "valor", "status", "data_vencimento", "data_emissao",
-                     "data_pagamento", "numero_documento",
+                     "data_pagamento", "data_previsao", "numero_documento",
                      "categoria_codigo", "categoria_nome", "categoria_grupo",
                      "projeto_id", "projeto_nome", "cliente_id", "cliente_nome",
                      "conta_corrente_id", "is_faturamento_direto", "sync_timestamp", "sync_date"]
-        lanc_compare = ["valor", "status", "data_vencimento", "data_pagamento",
+        lanc_compare = ["valor", "status", "data_vencimento", "data_pagamento", "data_previsao",
                         "categoria_codigo", "categoria_nome",
                         "projeto_id", "projeto_nome", "cliente_nome"]
         lanc_stats = merge_to_bq(client, "lancamentos", lancamentos, "id", lanc_compare, lanc_cols)
