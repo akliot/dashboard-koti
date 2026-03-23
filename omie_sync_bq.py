@@ -549,12 +549,16 @@ def coletar_lancamentos(
 
     def _extract_data_pagamento(r: dict) -> str | None:
         """Extrai data de pagamento/recebimento.
-        A API Omie não tem campo explícito — usa info.dAlt (data da baixa)
-        para títulos com status PAGO/RECEBIDO/LIQUIDADO."""
+        A API Omie não expõe o campo real de pagamento (recebimento/pagamento = None).
+        Usa data_previsao como melhor aproximação (dia útil previsto).
+        Fallback: info.dAlt (data de alteração, menos precisa)."""
         status = (r.get("status_titulo", "") or "").upper()
         if status not in ("PAGO", "RECEBIDO", "LIQUIDADO"):
             return None
-        # info.dAlt = data da última alteração (= data da baixa)
+        # Prioridade: data_previsao > info.dAlt
+        d_prev = parse_date(r.get("data_previsao", ""))
+        if d_prev:
+            return d_prev
         info = r.get("info", {}) or {}
         d_alt = info.get("dAlt", "")
         return parse_date(d_alt) if d_alt else None
