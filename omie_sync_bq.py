@@ -83,7 +83,7 @@ def ensure_tables(client: bigquery.Client) -> None:
             numero_documento STRING,
             categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING,
             projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING,
-            conta_corrente_id INT64, is_faturamento_direto BOOL,
+            conta_corrente_id INT64, is_faturamento_direto BOOL, modalidade STRING,
             sync_timestamp TIMESTAMP, sync_date DATE
         )""",
         f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.saldos_bancarios` (
@@ -526,6 +526,15 @@ def construir_mapa_clientes_bulk() -> tuple[dict[int, str], list[dict]]:
     return cli_map, registros
 
 
+def coletar_fd_do_extrato() -> set[int]:
+    """Coleta IDs de lançamentos que são Faturamento Direto via extrato bancário.
+    O extrato tem cDocumentoFiscal com 'FD' que não aparece no ListarContasPagar.
+    Retorna set de nCodLancRelac (IDs do extrato, não do CP — match por MF depois)."""
+    # Não implementável por match direto (IDs incompatíveis).
+    # Usamos abordagem alternativa no _extract: checar NF no ConsultarContaPagar.
+    return set()
+
+
 def coletar_movimentos_financeiros() -> dict[int, str]:
     """Coleta datas reais de pagamento/recebimento via Movimentos Financeiros.
     Retorna {nCodTitulo: data_pagamento_real (YYYY-MM-DD)}.
@@ -642,6 +651,7 @@ def coletar_lancamentos(
             "cliente_nome": cli_map.get(cli_id, ""),
             "conta_corrente_id": r.get("id_conta_corrente"),
             "is_faturamento_direto": is_fd,
+            "modalidade": "FD" if is_fd else "SK",
             "sync_timestamp": sync_ts,
             "sync_date": sync_date,
         })
@@ -658,8 +668,9 @@ def coletar_lancamentos(
         cli_id = r.get("codigo_cliente_fornecedor")
         num_doc = r.get("numero_documento", "") or ""
 
-        # ⚡ KOTI-SPECIFIC: Faturamento Direto — saída: numero_documento contém "FD"
-        is_fd = "fd" in num_doc.lower()
+        # ⚡ KOTI-SPECIFIC: Faturamento Direto — saída: NF ou documento contém "FD"
+        num_nf = r.get("numero_documento_fiscal", "") or ""
+        is_fd = "fd" in num_doc.lower() or "fd" in num_nf.lower()
 
         cat_grupo = ".".join(cat_cod.split(".")[:2]) if cat_cod else None
 
@@ -682,10 +693,14 @@ def coletar_lancamentos(
             "cliente_nome": cli_map.get(cli_id, ""),
             "conta_corrente_id": r.get("id_conta_corrente"),
             "is_faturamento_direto": is_fd,
+            "modalidade": "FD" if is_fd else "SK",
             "sync_timestamp": sync_ts,
             "sync_date": sync_date,
         })
+    fd_saida = sum(1 for l in lancamentos if l["tipo"] == "saida" and l["modalidade"] == "FD")
+    fd_entrada = sum(1 for l in lancamentos if l["tipo"] == "entrada" and l["modalidade"] == "FD")
     print(f"  ✅ {len(cp_raw) - ignorados_cp} pagar ({ignorados_cp} ignorados)")
+    print(f"  📊 Modalidade FD: {fd_entrada} entradas, {fd_saida} saídas")
     print(f"  📊 data_pagamento: {match_mf} via MF (real), {match_fallback} fallback (previsão)")
 
     return lancamentos
@@ -943,8 +958,8 @@ def main() -> None:
                      "data_pagamento", "data_previsao", "numero_documento",
                      "categoria_codigo", "categoria_nome", "categoria_grupo",
                      "projeto_id", "projeto_nome", "cliente_id", "cliente_nome",
-                     "conta_corrente_id", "is_faturamento_direto", "sync_timestamp", "sync_date"]
-        lanc_compare = ["valor", "status", "data_vencimento", "data_pagamento", "data_previsao",
+                     "conta_corrente_id", "is_faturamento_direto", "modalidade", "sync_timestamp", "sync_date"]
+        lanc_compare = ["valor", "status", "data_vencimento", "data_pagamento", "data_previsao", "modalidade",
                         "categoria_codigo", "categoria_nome",
                         "projeto_id", "projeto_nome", "cliente_nome"]
         lanc_stats = merge_to_bq(client, "lancamentos", lancamentos, "id", lanc_compare, lanc_cols)

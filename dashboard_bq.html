@@ -632,7 +632,7 @@ function renderVisaoGeral(d){
   dadosFiltrados.lancamentos.forEach(l=>{
     const m=toYM(l.data);if(!m)return;
     if(!porMesFD[m])porMesFD[m]={ent_fd:0,ent_sk:0,sai_fd:0,sai_sk:0};
-    const fd=l.is_fd;
+    const fd=l.modalidade==='FD';
     if(l.tipo==='entrada'){if(fd)porMesFD[m].ent_fd+=l.valor;else porMesFD[m].ent_sk+=l.valor}
     else{if(fd)porMesFD[m].sai_fd+=l.valor;else porMesFD[m].sai_sk+=l.valor}
   });

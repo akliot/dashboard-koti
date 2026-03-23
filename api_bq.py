@@ -111,6 +111,7 @@ def build_json() -> dict:
             "projeto_nome": r.get("projeto_nome", "Sem projeto") or "Sem projeto",
             "cliente_nome": r.get("cliente_nome", "") or "",
             "is_fd": bool(r.get("is_faturamento_direto")),
+            "modalidade": r.get("modalidade") or ("FD" if r.get("is_faturamento_direto") else "SK"),
         })
 
     # ---- Categorias (mapa código→nome) ----
