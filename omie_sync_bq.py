@@ -526,6 +526,7 @@ def construir_mapa_clientes_bulk() -> tuple[dict[int, str], list[dict]]:
     return cli_map, registros
 
 
+
 def coletar_lancamentos(
     cat_map: dict[str, str],
     proj_map: dict[int, str],
@@ -549,13 +550,12 @@ def coletar_lancamentos(
 
     def _extract_data_pagamento(r: dict) -> str | None:
         """Extrai data de pagamento/recebimento.
-        A API Omie não expõe o campo real de pagamento (recebimento/pagamento = None).
-        Usa data_previsao como melhor aproximação (dia útil previsto).
-        Fallback: info.dAlt (data de alteração, menos precisa)."""
+        A API Omie não expõe a data real (campo recebimento/pagamento = None).
+        Usa data_previsao como melhor aproximação (~77% do valor real).
+        nCodLancRelac do extrato não bate com codigo_lancamento_omie — match inviável."""
         status = (r.get("status_titulo", "") or "").upper()
         if status not in ("PAGO", "RECEBIDO", "LIQUIDADO"):
             return None
-        # Prioridade: data_previsao > info.dAlt
         d_prev = parse_date(r.get("data_previsao", ""))
         if d_prev:
             return d_prev
