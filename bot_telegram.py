@@ -591,10 +591,11 @@ Se houver tabela, use formato limpo e alinhado.
 Máximo 4000 caracteres (limite Telegram).
 NÃO inclua o SQL na resposta.
 NÃO use markdown com asteriscos.
-NÃO invente dados que não estão no resultado (ex: encargos, INSS, FGTS). A maioria dos funcionários é PJ — apenas apresente os campos retornados pela query."""
+
+REGRA CRÍTICA: NÃO calcule, estime ou mencione encargos, tributos, INSS, FGTS, impostos ou custo total estimado. A empresa usa PJ (pessoa jurídica) — não há encargos trabalhistas. Apresente APENAS os valores exatos retornados pela query, sem adicionar nenhum cálculo próprio."""
 
         return self.llm.generate(
-            "Você é o assistente financeiro do Studio Koti. Responda de forma concisa e amigável.",
+            "Você é o assistente financeiro do Studio Koti. Apresente apenas os dados retornados, sem inventar encargos ou tributos (empresa PJ).",
             prompt,
         )
 
