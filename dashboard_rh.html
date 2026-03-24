@@ -279,7 +279,7 @@ function render(D){
       datalabels:{display:true,anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
   ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{tooltip:T},
     scales:{y:{min:Math.min.apply(null,ct)*0.85,max:Math.max.apply(null,ct)*1.15,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},
-      y1:{position:'right',min:Math.min.apply(null,cpf)*0.85,max:Math.max.apply(null,cpf)*1.15,ticks:{callback:function(v){return 'R$'+v}},grid:{display:false}},x:{grid:{display:false}}}}});
+      y1:{position:'right',min:Math.min.apply(null,cpf)*0.45,max:Math.max.apply(null,cpf)*1.15,ticks:{callback:function(v){return 'R$'+v}},grid:{display:false}},x:{grid:{display:false}}}}});
 
   // Insight 1
   document.getElementById('ins1').innerHTML='<strong>CFO:</strong> Custo '+(varFevJan>0?'subiu':'caiu')+' '+Math.abs(varFevJan).toFixed(1)+'% Jan→Fev ('+fBRL(ct[0])+'→'+fBRL(ct[1])+'). <span class="hl">'+mNomes[mesRefN]+' parcial '+fBRL(custoAnd)+' — '+(custoAnd>custoReal/nReal?'maior':'menor')+' mês.</span>';
