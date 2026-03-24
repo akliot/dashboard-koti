@@ -159,3 +159,23 @@ SELECT * EXCEPT(rn) FROM (
   FROM `studio_koti.historico_saldos`
 )
 WHERE rn = 1;
+
+
+-- 10. Folha de funcionários (dados individuais — acesso restrito exec)
+CREATE TABLE IF NOT EXISTS `studio_koti.folha_funcionarios` (
+  nome                  STRING      NOT NULL OPTIONS(description="Nome do funcionário"),
+  departamento          STRING      OPTIONS(description="Departamento/área"),
+  cargo                 STRING      OPTIONS(description="Cargo atual"),
+  data_admissao         DATE        OPTIONS(description="Data de admissão"),
+  idade                 INT64       OPTIONS(description="Idade em anos"),
+  tempo_casa_meses      FLOAT64     OPTIONS(description="Tempo de casa em meses"),
+  salario               FLOAT64     OPTIONS(description="Salário base"),
+  comissao              FLOAT64     OPTIONS(description="Comissão do mês"),
+  bonus                 FLOAT64     OPTIONS(description="Bônus do mês"),
+  rescisao              FLOAT64     OPTIONS(description="Rescisão do mês"),
+  beneficios            FLOAT64     OPTIONS(description="Caju + VT + Estac + Clínica + Gympass"),
+  custo_total           FLOAT64     OPTIONS(description="Custo total (salário + encargos + benefícios)"),
+  mes_referencia        STRING      NOT NULL OPTIONS(description="Mês no formato 2026-01"),
+  status                STRING      OPTIONS(description="realizado, andamento ou projecao")
+)
+OPTIONS(description="Dados individuais da folha de pagamento — acesso RESTRITO à diretoria. Sem CPF/CNPJ/dados bancários.");

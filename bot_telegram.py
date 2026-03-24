@@ -39,6 +39,13 @@ BRT = timezone(timedelta(hours=-3))
 _auth_ids = os.environ.get("AUTHORIZED_CHAT_IDS", "")
 AUTHORIZED_CHAT_IDS = set(int(x.strip()) for x in _auth_ids.split(",") if x.strip()) if _auth_ids else set()
 
+# Diretoria — acesso a folha_funcionarios e saldos_bancarios
+_admin_id = os.environ.get("ADMIN_CHAT_ID", "")
+EXEC_CHAT_IDS = {int(_admin_id)} if _admin_id else set()
+_exec_ids = os.environ.get("EXEC_CHAT_IDS", "")
+if _exec_ids:
+    EXEC_CHAT_IDS |= set(int(x.strip()) for x in _exec_ids.split(",") if x.strip())
+
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     level=logging.INFO,
@@ -54,8 +61,8 @@ MAX_HISTORY = 5
 # SCHEMA CONTEXT (descrição das tabelas para o LLM)
 # ============================================================
 
-def get_schema_context() -> str:
-    return f"""Tabelas no dataset `{GCP_PROJECT_ID}.{BQ_DATASET}`:
+def get_schema_context(is_exec: bool = False) -> str:
+    base = f"""Tabelas no dataset `{GCP_PROJECT_ID}.{BQ_DATASET}`:
 
 1. lancamentos: id INT64, tipo STRING (entrada/saida), valor FLOAT64, status STRING (PAGO/RECEBIDO/A VENCER/ATRASADO/VENCE HOJE/CANCELADO), data_vencimento DATE, data_emissao DATE, data_pagamento DATE (data real do pagamento/recebimento, NULL se pendente), data_previsao DATE (data prevista de pagamento — dia útil real, para pendentes), numero_documento STRING, categoria_codigo STRING, categoria_nome STRING, categoria_grupo STRING, projeto_id INT64, projeto_nome STRING, cliente_id INT64, cliente_nome STRING, is_faturamento_direto BOOL
 
@@ -71,7 +78,27 @@ def get_schema_context() -> str:
 
 7. orcamento_dre: label STRING, section STRING, level INT64, mes STRING, valor_real FLOAT64, valor_bp FLOAT64, variacao_pct FLOAT64, mes_com_real BOOL
 
-8. sync_log: sync_id STRING, status STRING, started_at TIMESTAMP, finished_at TIMESTAMP, duration_seconds INT64
+8. sync_log: sync_id STRING, status STRING, started_at TIMESTAMP, finished_at TIMESTAMP, duration_seconds INT64"""
+
+    if is_exec:
+        base += f"""
+
+9. folha_funcionarios: nome STRING, departamento STRING, cargo STRING, data_admissao DATE, idade INT64, tempo_casa_meses FLOAT64, salario FLOAT64, comissao FLOAT64, bonus FLOAT64, rescisao FLOAT64, beneficios FLOAT64 (Caju+VT+Estac+Clínica+Gympass), custo_total FLOAT64, mes_referencia STRING (2026-01 etc), status STRING (realizado/andamento/projecao)
+
+Exemplos de queries para folha_funcionarios:
+- "quanto ganha X" → SELECT nome, cargo, departamento, salario, beneficios, custo_total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(nome) LIKE '%x%' AND mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento'))
+- "custo do departamento X" → SELECT departamento, COUNT(*) as qtd, ROUND(SUM(custo_total),2) as custo, ROUND(AVG(salario),2) as sal_medio FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(departamento) LIKE '%x%' AND mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento')) GROUP BY departamento
+- "maiores salários" → SELECT nome, cargo, departamento, salario FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento')) ORDER BY salario DESC LIMIT 10"""
+    else:
+        base += """
+
+RESTRIÇÕES DE ACESSO:
+- NUNCA consultar a tabela folha_funcionarios — dados de folha de pagamento são restritos à diretoria
+- NUNCA consultar a tabela saldos_bancarios — saldos bancários são restritos à diretoria
+- Se o usuário pedir informações de folha, salários, funcionários ou saldos bancários, responda: "⛔ Acesso restrito à diretoria."
+- Foque apenas em: lancamentos, categorias, projetos, clientes, vendas_pedidos, orcamento_dre"""
+
+    base += f"""
 
 Notas:
 - tipo 'entrada' = receita, 'saida' = despesa
@@ -79,6 +106,7 @@ Notas:
 - A data de hoje é {date.today().isoformat()}
 - Sempre usar backticks para referências de tabela: `{GCP_PROJECT_ID}.{BQ_DATASET}.nome_tabela`
 """
+    return base
 
 
 # ============================================================
@@ -148,7 +176,8 @@ class FinancialAssistant:
     def __init__(self, llm: LLMProvider, bq_client: bigquery.Client):
         self.llm = llm
         self.bq = bq_client
-        self.schema_context = get_schema_context()
+        self._is_exec = False  # set per-request by handle_message
+        self.schema_context = get_schema_context(is_exec=False)
 
     # Palavras genéricas do domínio financeiro — NÃO são nomes de empresa
     _STOPWORDS = {
@@ -196,6 +225,11 @@ class FinancialAssistant:
 
             # 2. Validar SQL (safety)
             if not self.is_safe_sql(sql):
+                # Checar se é restrição de acesso (não-exec tentando folha/saldos)
+                if not self._is_exec:
+                    sql_lower = sql.lower()
+                    if "folha_funcionarios" in sql_lower or "saldos_bancarios" in sql_lower:
+                        return "⛔ Acesso restrito à diretoria. Dados de folha e saldos bancários não estão disponíveis para este chat."
                 return "⚠️ Só posso executar consultas de leitura (SELECT)."
 
             # 3. Executar no BQ
@@ -383,7 +417,7 @@ REGRAS DE BUSCA DE NOMES (IMPORTANTE):
         return sql
 
     def is_safe_sql(self, sql: str) -> bool:
-        """Valida que o SQL é somente leitura."""
+        """Valida que o SQL é somente leitura e respeita nível de acesso."""
         sql_upper = sql.upper().strip()
         if not sql_upper.startswith("SELECT"):
             return False
@@ -394,6 +428,13 @@ REGRAS DE BUSCA DE NOMES (IMPORTANTE):
                 return False
         if BQ_DATASET not in sql:
             return False
+        # Tabelas restritas — só exec pode consultar
+        if not self._is_exec:
+            restricted = ["folha_funcionarios", "saldos_bancarios"]
+            sql_lower = sql.lower()
+            for tbl in restricted:
+                if tbl in sql_lower:
+                    return False
         return True
 
     def execute_query(self, sql: str) -> list[dict]:
@@ -680,7 +721,12 @@ async def handle_message(update, context):
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     text = update.message.text
-    log.info(f"[chat={chat_id}] Pergunta: {text}")
+    is_exec = chat_id in EXEC_CHAT_IDS
+    log.info(f"[chat={chat_id}] Pergunta: {text} (exec={is_exec})")
+
+    # Atualizar contexto de schema conforme nível de acesso
+    assistant._is_exec = is_exec
+    assistant.schema_context = get_schema_context(is_exec=is_exec)
 
     # Buscar histórico de conversa
     history = chat_history.get(chat_id, [])

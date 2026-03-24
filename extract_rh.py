@@ -175,10 +175,152 @@ def extract_demografico(wb, areas_list):
     return demografico, hc_por_area, per_capita
 
 
+import re
+from datetime import datetime as _dt
+
+# Colunas da planilha mensal (dados individuais)
+# Cols 25-29 (Banco, Código, Pix, Agência, Conta) NUNCA incluídos — LGPD
+COL_NOME = 2
+COL_DEPT = 3
+COL_CARGO = 4
+COL_ADMISSAO = 5
+COL_IDADE = 7
+COL_TEMPO_CASA = 8
+COL_SALARIO = 9
+COL_COMISSAO = 12
+COL_BONUS = 13
+COL_RESCISAO = 14
+COL_CAJU = 15
+COL_VT = 16
+COL_ESTAC = 19
+COL_CLINICA = 20
+COL_GYMPASS = 21
+COL_CUSTO_TOTAL = 24
+
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "dashboard-koti-omie")
+BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
+
+
+def extract_funcionarios(wb, status_meses):
+    """Extrai dados individuais de cada aba mensal para upload ao BigQuery.
+
+    NÃO inclui: CPF, CNPJ, dados bancários (Pix, Agência, Conta).
+    """
+    rows = []
+    for i, aba_nome in enumerate(MESES_NOMES):
+        mes_key = f"2026-{i+1:02d}"
+        if aba_nome not in wb.sheetnames:
+            continue
+
+        ws = wb[aba_nome]
+        status = status_meses.get(mes_key, "projecao")
+
+        for row in range(4, ws.max_row + 1):
+            nome = ws.cell(row=row, column=COL_NOME).value
+            if not nome or not isinstance(nome, str):
+                continue
+            if nome.strip().upper() in ("TOTAIS", "TOTAL"):
+                continue
+
+            sal = ws.cell(row=row, column=COL_SALARIO).value
+            if not isinstance(sal, (int, float)) or sal <= 0:
+                continue
+
+            def _num(col):
+                v = ws.cell(row=row, column=col).value
+                return round(float(v), 2) if isinstance(v, (int, float)) else 0.0
+
+            admissao = ws.cell(row=row, column=COL_ADMISSAO).value
+            data_adm = None
+            if isinstance(admissao, _dt):
+                data_adm = admissao.strftime("%Y-%m-%d")
+
+            benef = _num(COL_CAJU) + _num(COL_VT) + _num(COL_ESTAC) + _num(COL_CLINICA) + _num(COL_GYMPASS)
+
+            rows.append({
+                "nome": nome.strip(),
+                "departamento": (ws.cell(row=row, column=COL_DEPT).value or "").strip(),
+                "cargo": (ws.cell(row=row, column=COL_CARGO).value or "").strip(),
+                "data_admissao": data_adm,
+                "idade": int(_num(COL_IDADE)) if _num(COL_IDADE) > 0 else None,
+                "tempo_casa_meses": _num(COL_TEMPO_CASA),
+                "salario": _num(COL_SALARIO),
+                "comissao": _num(COL_COMISSAO),
+                "bonus": _num(COL_BONUS),
+                "rescisao": _num(COL_RESCISAO),
+                "beneficios": round(benef, 2),
+                "custo_total": _num(COL_CUSTO_TOTAL),
+                "mes_referencia": mes_key,
+                "status": status,
+            })
+
+    return rows
+
+
+def upload_to_bq(rows):
+    """Faz upload da folha para BigQuery (WRITE_TRUNCATE — full replace)."""
+    try:
+        from google.cloud import bigquery
+    except ImportError:
+        print("  ⚠ google-cloud-bigquery não instalado — pulando upload BQ")
+        return False
+
+    table_id = f"{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios"
+    client = bigquery.Client(project=GCP_PROJECT_ID)
+
+    job_config = bigquery.LoadJobConfig(
+        write_disposition="WRITE_TRUNCATE",
+        schema=[
+            bigquery.SchemaField("nome", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("departamento", "STRING"),
+            bigquery.SchemaField("cargo", "STRING"),
+            bigquery.SchemaField("data_admissao", "DATE"),
+            bigquery.SchemaField("idade", "INT64"),
+            bigquery.SchemaField("tempo_casa_meses", "FLOAT64"),
+            bigquery.SchemaField("salario", "FLOAT64"),
+            bigquery.SchemaField("comissao", "FLOAT64"),
+            bigquery.SchemaField("bonus", "FLOAT64"),
+            bigquery.SchemaField("rescisao", "FLOAT64"),
+            bigquery.SchemaField("beneficios", "FLOAT64"),
+            bigquery.SchemaField("custo_total", "FLOAT64"),
+            bigquery.SchemaField("mes_referencia", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("status", "STRING"),
+        ],
+    )
+
+    job = client.load_table_from_json(rows, table_id, job_config=job_config)
+    job.result()  # aguarda
+    print(f"  ✅ BigQuery: {job.output_rows} linhas em {table_id}")
+    return True
+
+
+# Classificação de nível hierárquico por regex no nome do cargo
+NIVEL_RULES = [
+    (re.compile(r"gerente", re.IGNORECASE), "Gerência"),
+    (re.compile(r"coordenador", re.IGNORECASE), "Coordenação"),
+    (re.compile(r"analista|arquiteto|comprador|orçamentista|controller|fiscal", re.IGNORECASE), "Analista/Especialista"),
+    (re.compile(r"assistente|auxiliar|almoxarife", re.IGNORECASE), "Assistente/Operacional"),
+]
+
+NIVEL_ORDER = ["Gerência", "Coordenação", "Analista/Especialista", "Assistente/Operacional"]
+
+
+def _classify_nivel(cargo):
+    for pattern, nivel in NIVEL_RULES:
+        if pattern.search(cargo):
+            return nivel
+    return "Analista/Especialista"  # fallback
+
+
 def extract_faixa_salarial(wb):
-    """Extrai faixa salarial AGREGADA por cargo — SEM nomes individuais (LGPD)."""
+    """Extrai faixa salarial AGREGADA — SEM nomes individuais (LGPD).
+
+    Retorna: faixa_por_cargo, faixa_por_nivel, faixa_por_area
+    """
     # Usar última aba mensal com dados
     cargos: dict[str, list[float]] = {}
+    area_salarios: dict[str, list[float]] = {}
+
     for aba_nome in reversed(MESES_NOMES):
         if aba_nome not in wb.sheetnames:
             continue
@@ -187,28 +329,93 @@ def extract_faixa_salarial(wb):
         for row in range(4, ws.max_row + 1):
             cargo = ws.cell(row=row, column=4).value
             sal = ws.cell(row=row, column=9).value
+            dept = ws.cell(row=row, column=3).value
             if not cargo or not isinstance(sal, (int, float)) or sal <= 0:
                 continue
             found = True
-            if cargo not in cargos:
-                cargos[cargo] = []
-            cargos[cargo].append(float(sal))
+            cargos.setdefault(cargo, []).append(float(sal))
+            if dept:
+                area_salarios.setdefault(dept, []).append(float(sal))
         if found:
             break
 
-    faixa = {}
-    for cargo, vals in cargos.items():
-        faixa[cargo] = {
+    def _stats(vals):
+        return {
             "min": round(min(vals), 2),
             "media": round(sum(vals) / len(vals), 2),
             "max": round(max(vals), 2),
             "qtd": len(vals),
         }
-    return faixa
+
+    # Faixa por cargo (legado)
+    faixa = {cargo: _stats(vals) for cargo, vals in cargos.items()}
+
+    # Faixa por nível hierárquico
+    nivel_salarios: dict[str, list[float]] = {}
+    for cargo, vals in cargos.items():
+        nivel = _classify_nivel(cargo)
+        nivel_salarios.setdefault(nivel, []).extend(vals)
+    faixa_nivel = {}
+    for nivel in NIVEL_ORDER:
+        if nivel in nivel_salarios:
+            faixa_nivel[nivel] = _stats(nivel_salarios[nivel])
+
+    # Faixa por área
+    faixa_area = {area: _stats(vals) for area, vals in area_salarios.items()}
+
+    return faixa, faixa_nivel, faixa_area
+
+
+def project_forward(data_by_month, is_zero_fn=None):
+    """Preenche meses zerados com o último mês não-zero anterior.
+
+    Preenche "buracos": se Jun tem dados, Jul-Nov são zero e Dez tem dados,
+    Jul-Nov recebem cópia de Jun.
+    """
+    if not data_by_month:
+        return data_by_month
+
+    if is_zero_fn is None:
+        def is_zero_fn(d):
+            if isinstance(d, dict):
+                return d.get("total", sum(d.values())) == 0
+            return d == 0
+
+    import copy
+    meses_ord = sorted(data_by_month.keys())
+    last_nonzero = None
+
+    for mes in meses_ord:
+        if is_zero_fn(data_by_month[mes]):
+            if last_nonzero is not None:
+                data_by_month[mes] = copy.deepcopy(data_by_month[last_nonzero])
+        else:
+            last_nonzero = mes
+
+    return data_by_month
+
+
+def project_forward_missing(data_by_month, all_months):
+    """Preenche meses ausentes (não presentes no dict) com o último mês existente."""
+    if not data_by_month:
+        return data_by_month
+
+    import copy
+    meses_ord = sorted(all_months)
+    last_good = None
+
+    for mes in meses_ord:
+        if mes in data_by_month:
+            last_good = mes
+        elif last_good is not None:
+            data_by_month[mes] = copy.deepcopy(data_by_month[last_good])
+
+    return data_by_month
 
 
 def main():
-    filepath = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    filepath = args[0] if args else DEFAULT_PATH
 
     if not os.path.exists(filepath):
         print(f"⚠ Planilha não encontrada: {filepath}")
@@ -221,7 +428,7 @@ def main():
     status_meses, mes_ref = detect_status(wb)
     custo_mensal, hc, custo_por_area, areas_list = extract_resumo(wb)
     demografico, hc_por_area, per_capita = extract_demografico(wb, areas_list)
-    faixa_salarial = extract_faixa_salarial(wb)
+    faixa_salarial, faixa_por_nivel, faixa_por_area = extract_faixa_salarial(wb)
 
     # Composição de custo YTD (meses realizados + andamento)
     composicao_ytd = defaultdict(float)
@@ -247,6 +454,25 @@ def main():
             fc["total"] = read_val(ws_fc, 13, col)
             fluxo_caixa[mes_key] = fc
 
+    # --- Projeção: preencher meses vazios com último mês com dados ---
+    all_months = sorted(MESES_COLS.keys())
+
+    project_forward(custo_mensal)
+    project_forward(custo_por_area,
+                    is_zero_fn=lambda d: isinstance(d, dict) and sum(d.values()) == 0)
+    project_forward(fluxo_caixa)
+
+    # demografico, hc_por_area, per_capita só existem para meses com aba na planilha
+    project_forward_missing(demografico, all_months)
+    project_forward_missing(hc_por_area, all_months)
+    project_forward_missing(per_capita, all_months)
+
+    n_projected = sum(1 for m in all_months
+                      if status_meses.get(m) == "projecao"
+                      and custo_mensal.get(m, {}).get("total", 0) > 0)
+    if n_projected:
+        print(f"  📈 {n_projected} meses projetados (último dado real replicado)")
+
     # Headcount histórico (hardcoded 2024-2025, 2026 do RESUMO)
     hc_2026 = [hc.get(f"2026-{m:02d}", {}).get("final", 0) for m in range(1, 13)]
     historico_hc = {
@@ -268,6 +494,8 @@ def main():
         "fluxo_caixa": fluxo_caixa,
         "historico_hc": historico_hc,
         "faixa_salarial": faixa_salarial,
+        "faixa_por_nivel": faixa_por_nivel,
+        "faixa_por_area": faixa_por_area,
     }
 
     output = os.path.join(SCRIPT_DIR, "rh_data.json")
@@ -277,7 +505,19 @@ def main():
     print(f"  ✅ {len(custo_mensal)} meses extraídos")
     print(f"  ✅ {len(areas_list)} áreas: {', '.join(areas_list)}")
     print(f"  ✅ Salvo em: {output} ({os.path.getsize(output) / 1024:.1f} KB)")
-    print(f"  🔒 Sem dados pessoais (LGPD)")
+    print(f"  🔒 Sem dados pessoais no JSON (LGPD)")
+
+    # Upload dados individuais para BigQuery (tabela restrita)
+    if "--no-bq" not in sys.argv:
+        funcionarios = extract_funcionarios(wb, status_meses)
+        if funcionarios:
+            print(f"  📤 Enviando {len(funcionarios)} registros para BigQuery...")
+            try:
+                upload_to_bq(funcionarios)
+            except Exception as e:
+                print(f"  ⚠ Erro no upload BQ: {e}")
+    else:
+        print(f"  ⏭ Upload BQ pulado (--no-bq)")
 
 
 if __name__ == "__main__":
