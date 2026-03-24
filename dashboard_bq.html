@@ -204,6 +204,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div class="chart-card"><h3>Variação de Caixa</h3><div class="chart-container"><canvas id="chartVariacaoCaixa"></canvas></div></div>
       </div>
       <div class="chart-row">
+        <div class="chart-card"><h3>PMR / PMP Mensal (dias)</h3><div class="chart-container"><canvas id="chartPmrPmp"></canvas></div></div>
         <div class="chart-card"><h3>Saldo Acumulado</h3><div class="chart-container"><canvas id="chartSaldoAcum"></canvas></div></div>
       </div>
       <div class="chart-row">
@@ -507,7 +508,7 @@ function compute(){
   const avPag=sai.filter(l=>['A VENCER','VENCE HOJE'].includes(l.status)).reduce((s,l)=>s+l.valor,0);
   const porMes={};L.forEach(l=>{const m=toYM(l.data);if(!m)return;if(!porMes[m])porMes[m]={entrada:0,saida:0};porMes[m][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
   const porCat={};L.forEach(l=>{const k=l.categoria||'N/I';if(!porCat[k])porCat[k]={nome:l.categoria_nome||k,entrada:0,saida:0};porCat[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
-  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0,ent_sk:0,ent_fd:0,sai_sk:0,sai_fd:0};const fd=l.is_fd;if(l.tipo==='entrada'){porProj[k].entrada+=l.valor;if(fd)porProj[k].ent_fd+=l.valor;else porProj[k].ent_sk+=l.valor}else{porProj[k].saida+=l.valor;if(fd)porProj[k].sai_fd+=l.valor;else porProj[k].sai_sk+=l.valor}});
   const porCliente={};L.filter(l=>l.tipo==='entrada'&&l.cliente_nome).forEach(l=>{const k=l.cliente_nome;porCliente[k]=(porCliente[k]||0)+l.valor});
   const gruposDesp={},gruposRec={};
   L.forEach(l=>{const g=getGrupo(l.categoria);if(!g)return;const gn=dadosFiltrados.categorias?.[g]||g;if(l.tipo==='saida'){gruposDesp[g]=gruposDesp[g]||{nome:gn,valor:0};gruposDesp[g].valor+=l.valor}else{gruposRec[g]=gruposRec[g]||{nome:gn,valor:0};gruposRec[g].valor+=l.valor}});
@@ -539,7 +540,7 @@ function computeCompetencia(){
   const ent=L.filter(l=>l.tipo==='entrada'),sai=L.filter(l=>l.tipo==='saida');
   const tE=ent.reduce((s,l)=>s+l.valor,0),tS=sai.reduce((s,l)=>s+l.valor,0);
   const porMes={};L.forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;if(!porMes[m])porMes[m]={entrada:0,saida:0};porMes[m][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
-  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  const porProj={};L.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0,ent_sk:0,ent_fd:0,sai_sk:0,sai_fd:0};const fd=l.is_fd;if(l.tipo==='entrada'){porProj[k].entrada+=l.valor;if(fd)porProj[k].ent_fd+=l.valor;else porProj[k].ent_sk+=l.valor}else{porProj[k].saida+=l.valor;if(fd)porProj[k].sai_fd+=l.valor;else porProj[k].sai_sk+=l.valor}});
   const porCliente={};L.filter(l=>l.tipo==='entrada'&&l.cliente_nome).forEach(l=>{const k=l.cliente_nome;porCliente[k]=(porCliente[k]||0)+l.valor});
   // Financeiro detalhado
   const finGrupos={};const finMesAll={};
@@ -740,6 +741,29 @@ function renderVisaoGeral(d){
     datasets:[{label:'Resultado',data:varCaixa,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,
       pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
   },options:cOpts('currency')});
+
+  // PMR / PMP mensal
+  const pmrPmpMes={};
+  dadosFiltrados.lancamentos.filter(l=>l.data_pagamento&&l.data_emissao&&['PAGO','RECEBIDO'].includes(l.status)).forEach(l=>{
+    const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao);
+    if(!pag||!emi)return;
+    const dias=Math.round((pag-emi)/86400000);
+    if(dias<0||dias>180)return;
+    const m=toYM(l.data_pagamento);if(!m)return;
+    if(!pmrPmpMes[m])pmrPmpMes[m]={pmrSum:0,pmrN:0,pmpSum:0,pmpN:0};
+    if(l.tipo==='entrada'){pmrPmpMes[m].pmrSum+=dias;pmrPmpMes[m].pmrN++}
+    else{pmrPmpMes[m].pmpSum+=dias;pmrPmpMes[m].pmpN++}
+  });
+  const pmrMeses=Object.keys(pmrPmpMes).sort();
+  const pmrData=pmrMeses.map(m=>pmrPmpMes[m].pmrN?Math.round(pmrPmpMes[m].pmrSum/pmrPmpMes[m].pmrN*10)/10:null);
+  const pmpData=pmrMeses.map(m=>pmrPmpMes[m].pmpN?Math.round(pmrPmpMes[m].pmpSum/pmrPmpMes[m].pmpN*10)/10:null);
+  charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
+    labels:pmrMeses.map(mesNome),
+    datasets:[
+      {label:'PMR (Recebimento)',data:pmrData,borderColor:'#3b82f6',backgroundColor:'#3b82f622',tension:.3,pointRadius:4,spanGaps:true},
+      {label:'PMP (Pagamento)',data:pmpData,borderColor:'#ef4444',backgroundColor:'#ef444422',tension:.3,pointRadius:4,spanGaps:true}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
 
   // Saldo Bancário Real — usa historico_conciliacao (mensal)
   const projFiltro=document.getElementById('filterProjeto').value;
@@ -1193,7 +1217,7 @@ function renderClientes(){
 function renderProjetos(dc){
   // Projetos usa regime de COMPETÊNCIA (data_vencimento, sem atrasados)
   const porProj=dc?dc.porProj:{};
-  if(!dc){dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0};porProj[k][l.tipo==='entrada'?'entrada':'saida']+=l.valor});}
+  if(!dc){dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0,ent_sk:0,ent_fd:0,sai_sk:0,sai_fd:0};const fd=l.is_fd;if(l.tipo==='entrada'){porProj[k].entrada+=l.valor;if(fd)porProj[k].ent_fd+=l.valor;else porProj[k].ent_sk+=l.valor}else{porProj[k].saida+=l.valor;if(fd)porProj[k].sai_fd+=l.valor;else porProj[k].sai_sk+=l.valor}});}
   const projs=Object.entries(porProj);
   const tR=projs.reduce((s,e)=>s+e[1].entrada,0),tD=projs.reduce((s,e)=>s+e[1].saida,0);
   document.getElementById('kpi-projetos').innerHTML=`
@@ -1217,10 +1241,10 @@ function filtrarProjetos(){
 }
 
 function renderProjetoTabela(data){
-  let h='<table><thead><tr><th>Projeto</th><th style="text-align:right">Receita</th><th style="text-align:right">Despesa</th><th style="text-align:right">Resultado</th><th style="text-align:right">Margem</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Projeto</th><th style="text-align:right">Receita SK</th><th style="text-align:right">Receita FD</th><th style="text-align:right">Despesas SK</th><th style="text-align:right">Despesas FD</th><th style="text-align:right">Resultado</th><th style="text-align:right">Margem</th></tr></thead><tbody>';
   data.forEach(p=>{
-    const r=p.entrada-p.saida,mg=p.entrada>0?(r/p.entrada*100).toFixed(1):p.saida>0?'-100':'0';
-    h+=`<tr><td>${p.nome}</td><td style="text-align:right" class="valor-entrada">${p.entrada?fmt(p.entrada):'-'}</td><td style="text-align:right" class="valor-saida">${p.saida?fmt(p.saida):'-'}</td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}"><strong>${fmt(r)}</strong></td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}">${mg}%</td></tr>`;
+    const recTotal=p.entrada,r=p.entrada-p.saida,mg=recTotal>0?(r/recTotal*100).toFixed(1):p.saida>0?'-100':'0';
+    h+=`<tr><td>${p.nome}</td><td style="text-align:right" class="valor-entrada">${p.ent_sk?fmt(p.ent_sk):'-'}</td><td style="text-align:right" class="valor-entrada">${p.ent_fd?fmt(p.ent_fd):'-'}</td><td style="text-align:right" class="valor-saida">${p.sai_sk?fmt(p.sai_sk):'-'}</td><td style="text-align:right" class="valor-saida">${p.sai_fd?fmt(p.sai_fd):'-'}</td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}"><strong>${fmt(r)}</strong></td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}">${mg}%</td></tr>`;
   });
   h+=`</tbody></table>`;
   if(!data.length) h='<p style="text-align:center;color:var(--muted);padding:24px">Nenhum projeto encontrado</p>';
