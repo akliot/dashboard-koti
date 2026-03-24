@@ -1615,11 +1615,29 @@ function renderRH(){
   const wfVol=hcYTD.reduce((s,h)=>s+(h.saida_vol||0),0);
   const wfInv=hcYTD.reduce((s,h)=>s+(h.saida_inv||0),0);
   const wfFin=hcYTD[hcYTD.length-1]?.final||0;
+  // Waterfall: barras flutuantes (base invisível + valor visível)
+  // HC Inicial [base=0, val=wfIni] → +Adm [base=wfIni, val=wfAdm] → −Vol [base=wfIni+wfAdm-wfVol, val=wfVol] → ...
+  const wfAfterAdm=wfIni+wfAdm;
+  const wfAfterVol=wfAfterAdm-wfVol;
+  const wfAfterInv=wfAfterVol-wfInv;
+  // Bases (transparentes) e valores (visíveis)
+  const wfBases=[0, wfIni, wfAfterVol, wfAfterInv, 0];
+  const wfVals=[wfIni, wfAdm, wfVol, wfInv, wfFin];
+  const wfColors=['#3b82f6','#22c55e','#ef4444','#ef444488','#3b82f6'];
+  const wfLabelsArr=['HC Inicial',`+${wfAdm} Admissões`,`−${wfVol} Voluntárias`,`−${wfInv} Involuntárias`,`HC Final: ${wfFin}`];
   if(charts.rhWF)charts.rhWF.destroy();
   charts.rhWF=new Chart(document.getElementById('chartRhWF'),{type:'bar',data:{
-    labels:['HC Inicial','+Admissões','−Voluntárias','−Involuntárias','HC Final'],
-    datasets:[{data:[wfIni,wfAdm,wfVol,wfInv,wfFin],backgroundColor:['#3b82f6','#22c55e','#ef4444','#ef444488','#3b82f6'],borderRadius:4}]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#fff',font:{size:12,weight:'bold'}}}}});
+    labels:wfLabelsArr,
+    datasets:[
+      {label:'Base',data:wfBases,backgroundColor:'transparent',borderWidth:0,
+        datalabels:{display:false}},
+      {label:'Valor',data:wfVals,backgroundColor:wfColors,borderRadius:4,
+        datalabels:{display:true,color:'#fff',font:{size:14,weight:'bold'},anchor:'center'}}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},
+            y:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'},min:0}},
+    plugins:{legend:{display:false}}}});
 
   // 9. Projeção 3 cenários
   const custoMedio=mesesYTD.length?custoYTD/mesesYTD.length:0;
