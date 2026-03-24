@@ -687,7 +687,7 @@ function renderVisaoGeral(d){
       if(!pag||!emi)return;
       const real=Math.round((pag-emi)/(86400000));
       const contr=venc?Math.round((venc-emi)/(86400000)):real;
-      if(real>=0&&real<=180){
+      if(real>=0&&real<=120){
         const v=l.valor;
         somaReal+=real*v;somaContr+=contr*v;somaValor+=v;n++;
       }
@@ -734,21 +734,22 @@ function renderVisaoGeral(d){
       pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
   },options:cOpts('currency')});
 
-  // PMR / PMP mensal (usa todos os lançamentos, não apenas filtrados)
+  // PMR / PMP mensal PONDERADO POR VALOR (usa todos os lançamentos)
   const pmrPmpMes={};
   dadosOriginal.lancamentos.filter(l=>l.data_pagamento&&l.data_emissao&&['PAGO','RECEBIDO'].includes(l.status)).forEach(l=>{
     const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao);
     if(!pag||!emi)return;
     const dias=Math.round((pag-emi)/86400000);
-    if(dias<-30||dias>365)return;
+    if(dias<0||dias>120)return;
     const m=toYM(l.data_pagamento);if(!m)return;
-    if(!pmrPmpMes[m])pmrPmpMes[m]={pmrSum:0,pmrN:0,pmpSum:0,pmpN:0};
-    if(l.tipo==='entrada'){pmrPmpMes[m].pmrSum+=dias;pmrPmpMes[m].pmrN++}
-    else{pmrPmpMes[m].pmpSum+=dias;pmrPmpMes[m].pmpN++}
+    const v=l.valor||0;
+    if(!pmrPmpMes[m])pmrPmpMes[m]={pmrDiasVal:0,pmrVal:0,pmpDiasVal:0,pmpVal:0};
+    if(l.tipo==='entrada'){pmrPmpMes[m].pmrDiasVal+=dias*v;pmrPmpMes[m].pmrVal+=v}
+    else{pmrPmpMes[m].pmpDiasVal+=dias*v;pmrPmpMes[m].pmpVal+=v}
   });
   const pmrMeses=Object.keys(pmrPmpMes).sort();
-  const pmrData=pmrMeses.map(m=>pmrPmpMes[m].pmrN?Math.round(pmrPmpMes[m].pmrSum/pmrPmpMes[m].pmrN*10)/10:null);
-  const pmpData=pmrMeses.map(m=>pmrPmpMes[m].pmpN?Math.round(pmrPmpMes[m].pmpSum/pmrPmpMes[m].pmpN*10)/10:null);
+  const pmrData=pmrMeses.map(m=>pmrPmpMes[m].pmrVal>0?Math.round(pmrPmpMes[m].pmrDiasVal/pmrPmpMes[m].pmrVal*10)/10:null);
+  const pmpData=pmrMeses.map(m=>pmrPmpMes[m].pmpVal>0?Math.round(pmrPmpMes[m].pmpDiasVal/pmrPmpMes[m].pmpVal*10)/10:null);
   charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
     labels:pmrMeses.map(mesNome),
     datasets:[
