@@ -859,5 +859,127 @@
       35,
       35
     ]
+  },
+  "faixa_salarial": {
+    "Arquiteto": {
+      "min": 4200.0,
+      "media": 5783.33,
+      "max": 6500.0,
+      "qtd": 6
+    },
+    "Gerente de Arquitetura e Obras": {
+      "min": 12000.0,
+      "media": 12000.0,
+      "max": 12000.0,
+      "qtd": 1
+    },
+    "Arquiteto obra": {
+      "min": 6000.0,
+      "media": 6000.0,
+      "max": 6000.0,
+      "qtd": 4
+    },
+    "Coordenadora de Obras": {
+      "min": 7000.0,
+      "media": 7000.0,
+      "max": 7000.0,
+      "qtd": 2
+    },
+    "Gerente de Processos e Pós Venda": {
+      "min": 12000.0,
+      "media": 12000.0,
+      "max": 12000.0,
+      "qtd": 1
+    },
+    "Coordenadora de Marketing": {
+      "min": 12000.0,
+      "media": 12000.0,
+      "max": 12000.0,
+      "qtd": 1
+    },
+    "Analista Comercial": {
+      "min": 4500.0,
+      "media": 5500.0,
+      "max": 6500.0,
+      "qtd": 2
+    },
+    "Coordenadora Comercial": {
+      "min": 5000.0,
+      "media": 5000.0,
+      "max": 5000.0,
+      "qtd": 1
+    },
+    "Analista de Atendimento": {
+      "min": 5000.0,
+      "media": 5000.0,
+      "max": 5000.0,
+      "qtd": 1
+    },
+    "Gerente de Compras e Logistica": {
+      "min": 10000.0,
+      "media": 10000.0,
+      "max": 10000.0,
+      "qtd": 1
+    },
+    "Comprador": {
+      "min": 6900.0,
+      "media": 6900.0,
+      "max": 6900.0,
+      "qtd": 1
+    },
+    "Almoxarife": {
+      "min": 4000.0,
+      "media": 4000.0,
+      "max": 4000.0,
+      "qtd": 1
+    },
+    "Gerente Financeira": {
+      "min": 10000.0,
+      "media": 10000.0,
+      "max": 10000.0,
+      "qtd": 1
+    },
+    "Controller": {
+      "min": 10000.0,
+      "media": 10000.0,
+      "max": 10000.0,
+      "qtd": 1
+    },
+    "Analista Fiscal": {
+      "min": 6500.0,
+      "media": 6500.0,
+      "max": 6500.0,
+      "qtd": 1
+    },
+    "Assistente Administrativo": {
+      "min": 4200.0,
+      "media": 4200.0,
+      "max": 4200.0,
+      "qtd": 1
+    },
+    "Coordenadora de Orçamentos": {
+      "min": 7000.0,
+      "media": 7000.0,
+      "max": 7000.0,
+      "qtd": 1
+    },
+    "Orçamentista": {
+      "min": 5500.0,
+      "media": 5500.0,
+      "max": 5500.0,
+      "qtd": 1
+    },
+    "Auxiliar de Limpeza": {
+      "min": 1962.02,
+      "media": 1962.02,
+      "max": 1962.02,
+      "qtd": 2
+    },
+    "Gerente de Recursos Humanos": {
+      "min": 15000.0,
+      "media": 15000.0,
+      "max": 15000.0,
+      "qtd": 1
+    }
   }
 }

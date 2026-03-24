@@ -202,6 +202,51 @@ function render(D){
   // Fluxo de caixa table
   html+='<div class="row r1"><div class="card" style="padding:16px 22px"><div class="card-h" style="margin-bottom:10px"><div class="card-t">Fluxo de Caixa RH (R$ mil)</div></div><div class="tw"><table id="tblFluxo"></table></div></div></div>';
 
+  // === ANALYTICS AVANÇADO ===
+  html+='<div class="sec">Analytics Avançado</div>';
+
+  // 11. Demográfico — KPIs + gráfico
+  var demo=D.demografico[mesRef]||{};
+  var idadeMedia=demo.idade_media||0;
+  var tcMedio=demo.tempo_casa_medio||0;
+  var idadePorArea=demo.idade_por_area||{};
+  var tcPorArea=demo.tempo_casa_por_area||{};
+  var demoAreas=Object.keys(idadePorArea).sort();
+
+  html+='<div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px">';
+  html+='<div class="kpi"><div class="kpi-l">Idade Média</div><div class="kpi-v" style="color:var(--blue)">'+idadeMedia.toFixed(1)+' anos</div><div class="kpi-s">Média da equipe em '+mNomes[mesRefN]+'/26</div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Tempo Médio de Casa</div><div class="kpi-v" style="color:var(--green)">'+tcMedio.toFixed(1)+' meses</div><div class="kpi-s">Média da equipe em '+mNomes[mesRefN]+'/26</div></div>';
+  html+='</div>';
+
+  html+='<div class="row r2">';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Demográfico por Área</div><div class="bdg">'+mNomes[mesRefN]+'/26</div></div><div class="cc" style="height:320px"><canvas id="cDemo"></canvas></div><div class="ins" id="insDemo"></div></div>';
+
+  // 12. Faixa salarial
+  html+='<div class="card"><div class="card-h"><div class="card-t">Faixa Salarial por Cargo</div><div class="bdg bdg-g">LGPD-safe</div></div><div class="cc" style="height:320px"><canvas id="cFaixa"></canvas></div><div class="ins" id="insFaixa"></div></div>';
+  html+='</div>';
+
+  // 14. Alert cards dinâmicos
+  var alertPos=[],alertMon=[],alertAcao=[];
+  var turnMesAtual=D.hc[mesRef]?.turnover||0;
+  if(turnMesAtual===0)alertPos.push('Turnover zerado em '+mNomes[mesRefN]);
+  if(varFevJan<0)alertPos.push('Custo reduziu '+Math.abs(varFevJan).toFixed(1)+'% vs mês anterior');
+  if(hcAtual>=hcInicio)alertPos.push('HC cresceu de '+hcInicio+' para '+hcAtual+' (+'+(hcAtual-hcInicio)+')');
+
+  var mesMaisCaro=mesesYTD.reduce(function(a,m){var t=D.custo_mensal[m].total;return t>a[1]?[m,t]:a},['',0]);
+  alertMon.push(mNomes[parseInt(mesMaisCaro[0].split('-')[1])]+' é o mês mais caro: '+fBRL(mesMaisCaro[1]));
+  if(rescReal>20000)alertMon.push('Rescisões YTD: '+fBRL(rescReal)+' — acima de R$ 20K');
+
+  var mediaGeral=pcV.length?pcV.reduce(function(a,b){return a+b},0)/pcV.length:0;
+  pcS.forEach(function(e){if(e[1]>mediaGeral*1.5)alertAcao.push(e[0]+' com per capita 50%+ acima da média ('+fBRL(e[1])+')')});
+  if(comData[mesesYTD.length-1]===0&&mesesYTD.length>1)alertAcao.push('Comissões comerciais zeradas — validar se intencional');
+
+  html+='<div class="row r1" style="margin-top:14px"><div class="card" style="padding:16px 22px">';
+  html+='<div class="card-h" style="margin-bottom:10px"><div class="card-t">Alertas & Pontos de Decisão</div></div>';
+  if(alertPos.length)html+='<div style="background:var(--green-d);border:1px solid rgba(61,220,151,.2);border-radius:8px;padding:12px 16px;margin-bottom:10px;font-size:12px;color:var(--t2);line-height:1.6"><strong style="color:var(--green)">🟢 Positivo:</strong> '+alertPos.join(' · ')+'</div>';
+  if(alertMon.length)html+='<div style="background:var(--amber-d);border:1px solid rgba(255,181,71,.2);border-radius:8px;padding:12px 16px;margin-bottom:10px;font-size:12px;color:var(--t2);line-height:1.6"><strong style="color:var(--amber)">🟡 Monitorar:</strong> '+alertMon.join(' · ')+'</div>';
+  if(alertAcao.length)html+='<div style="background:var(--red-d);border:1px solid rgba(255,107,107,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.6"><strong style="color:var(--red)">🔴 Ação Necessária:</strong> '+alertAcao.join(' · ')+'</div>';
+  html+='</div></div>';
+
   html+='<div class="foot">Studio Koti — Painel Executivo RH · Realizado: '+realLabel+' · '+(andLabel?'Em andamento: '+andLabel+' · ':'')+'Projeção: '+projLabelStr+'</div>';
 
   document.getElementById('appMain').innerHTML=html;
@@ -380,6 +425,45 @@ function render(D){
   });
   tbody+='<td>'+(acumT/1000).toFixed(1)+'</td></tr></tbody>';
   fcTbl.innerHTML=thd+tbody;
+
+  // === 11. DEMOGRÁFICO ===
+  var demoA=Object.keys(idadePorArea).sort();
+  new Chart(document.getElementById('cDemo'),{type:'bar',data:{
+    labels:demoA,
+    datasets:[
+      {label:'Idade média (anos)',data:demoA.map(function(a){return idadePorArea[a]||0}),backgroundColor:'rgba(74,144,255,.6)',borderRadius:4},
+      {label:'Tempo de casa (meses)',data:demoA.map(function(a){return tcPorArea[a]||0}),backgroundColor:'rgba(61,220,151,.6)',borderRadius:4}
+    ]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T,datalabels:{display:true,anchor:'end',align:'end',offset:2,font:dfs,color:'#EAF0FA',formatter:function(v){return Math.round(v)}}},
+    scales:{x:{grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:10}},grid:{display:false}}}}});
+
+  var areaMaxTC=demoA.reduce(function(a,d){return(tcPorArea[d]||0)>(tcPorArea[a]||0)?d:a},demoA[0]);
+  var areaMinIdade=demoA.reduce(function(a,d){return(idadePorArea[d]||99)<(idadePorArea[a]||99)?d:a},demoA[0]);
+  document.getElementById('insDemo').innerHTML='<strong>People:</strong> <span class="hl">'+areaMaxTC+'</span> tem maior tempo de casa ('+Math.round(tcPorArea[areaMaxTC]||0)+' meses). '+areaMinIdade+' é a área mais jovem ('+Math.round(idadePorArea[areaMinIdade]||0)+' anos).';
+
+  // === 12. FAIXA SALARIAL ===
+  var fs=D.faixa_salarial||{};
+  var fsCargos=Object.entries(fs).filter(function(e){return e[1].min>0}).sort(function(a,b){return b[1].media-a[1].media});
+  var fsLabels=fsCargos.map(function(e){return e[0]+' ('+e[1].qtd+')'});
+  var fsMin=fsCargos.map(function(e){return e[1].min});
+  var fsMax=fsCargos.map(function(e){return e[1].max});
+  var fsMedia=fsCargos.map(function(e){return e[1].media});
+  var fsRange=fsCargos.map(function(e){return[e[1].min,e[1].max]});
+  var mediaGeralSal=fsMedia.reduce(function(a,b){return a+b},0)/fsMedia.length;
+
+  new Chart(document.getElementById('cFaixa'),{type:'bar',data:{
+    labels:fsLabels,
+    datasets:[
+      {label:'Faixa (mín–máx)',data:fsRange,backgroundColor:'rgba(74,144,255,.35)',borderColor:'rgba(74,144,255,.6)',borderWidth:1,borderRadius:3,borderSkipped:false},
+      {label:'Média',data:fsMedia,type:'line',borderColor:'#FFB547',pointBackgroundColor:'#FFB547',pointRadius:4,borderWidth:0,fill:false,
+        datalabels:{display:true,anchor:'end',align:'right',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
+    ]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T},
+    scales:{x:{ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:9}},grid:{display:false}}}}});
+
+  var cargoMaiorFaixa=fsCargos.reduce(function(a,e){return(e[1].max-e[1].min)>(a[1].max-a[1].min)?e:a},fsCargos[0]);
+  document.getElementById('insFaixa').innerHTML='<strong>RH:</strong> Maior faixa: <span class="hl">'+cargoMaiorFaixa[0]+'</span> (R$'+(cargoMaiorFaixa[1].min/1000).toFixed(1)+'K–R$'+(cargoMaiorFaixa[1].max/1000).toFixed(1)+'K). Média geral: R$'+(mediaGeralSal/1000).toFixed(1)+'K.';
 }
 
 loadAndRender();

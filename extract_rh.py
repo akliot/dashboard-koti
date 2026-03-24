@@ -175,6 +175,38 @@ def extract_demografico(wb, areas_list):
     return demografico, hc_por_area, per_capita
 
 
+def extract_faixa_salarial(wb):
+    """Extrai faixa salarial AGREGADA por cargo — SEM nomes individuais (LGPD)."""
+    # Usar última aba mensal com dados
+    cargos: dict[str, list[float]] = {}
+    for aba_nome in reversed(MESES_NOMES):
+        if aba_nome not in wb.sheetnames:
+            continue
+        ws = wb[aba_nome]
+        found = False
+        for row in range(4, ws.max_row + 1):
+            cargo = ws.cell(row=row, column=4).value
+            sal = ws.cell(row=row, column=9).value
+            if not cargo or not isinstance(sal, (int, float)) or sal <= 0:
+                continue
+            found = True
+            if cargo not in cargos:
+                cargos[cargo] = []
+            cargos[cargo].append(float(sal))
+        if found:
+            break
+
+    faixa = {}
+    for cargo, vals in cargos.items():
+        faixa[cargo] = {
+            "min": round(min(vals), 2),
+            "media": round(sum(vals) / len(vals), 2),
+            "max": round(max(vals), 2),
+            "qtd": len(vals),
+        }
+    return faixa
+
+
 def main():
     filepath = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH
 
@@ -189,6 +221,7 @@ def main():
     status_meses, mes_ref = detect_status(wb)
     custo_mensal, hc, custo_por_area, areas_list = extract_resumo(wb)
     demografico, hc_por_area, per_capita = extract_demografico(wb, areas_list)
+    faixa_salarial = extract_faixa_salarial(wb)
 
     # Composição de custo YTD (meses realizados + andamento)
     composicao_ytd = defaultdict(float)
@@ -234,6 +267,7 @@ def main():
         "composicao_custo_ytd": composicao_ytd,
         "fluxo_caixa": fluxo_caixa,
         "historico_hc": historico_hc,
+        "faixa_salarial": faixa_salarial,
     }
 
     output = os.path.join(SCRIPT_DIR, "rh_data.json")
