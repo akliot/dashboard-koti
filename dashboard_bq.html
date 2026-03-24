@@ -360,16 +360,29 @@ tr:hover td{background:rgba(59,130,246,.05)}
     <div class="page" id="page-rh">
       <div class="kpi-row" id="kpi-rh"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Custo Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div></div>
+        <div class="chart-card"><h3>Custo Total Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div></div>
         <div class="chart-card"><h3>Composição de Custo YTD</h3><div class="chart-container"><canvas id="chartRhComp"></canvas></div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Custo por Área (acumulado)</h3><div class="chart-container" style="height:320px"><canvas id="chartRhArea"></canvas></div></div>
+        <div class="chart-card"><h3>Desembolso Mensal por Natureza (Caixa)</h3><div class="chart-container"><canvas id="chartRhFluxo"></canvas></div></div>
+        <div class="chart-card"><h3>Rescisões & Comissões</h3><div class="chart-container"><canvas id="chartRhResc"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Custo por Área (acumulado YTD)</h3><div class="chart-container" style="height:320px"><canvas id="chartRhArea"></canvas></div></div>
         <div class="chart-card"><h3>Per Capita por Área</h3><div class="chart-container" style="height:320px"><canvas id="chartRhPerCapita"></canvas></div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card" style="grid-column:1/-1"><h3>HC por Departamento</h3><div class="proj-table" id="rhHcTable"></div></div>
+        <div class="chart-card"><h3>Headcount Histórico 2024–2026</h3><div class="chart-container"><canvas id="chartRhHist"></canvas></div></div>
+        <div class="chart-card"><h3>Ponte de HC (Waterfall YTD)</h3><div class="chart-container"><canvas id="chartRhWF"></canvas></div></div>
       </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Projeção Anual — 3 Cenários</h3><div class="chart-container"><canvas id="chartRhProj"></canvas></div></div>
+        <div class="chart-card"><h3>HC por Departamento</h3><div class="chart-container" style="height:320px"><canvas id="chartRhHCDept"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1"><h3>HC por Departamento × Mês</h3><div class="proj-table" id="rhHcTable"></div></div>
+      </div>
+      <div id="rhInsights" style="margin-top:12px"></div>
     </div>
 
   </div>
@@ -1543,78 +1556,117 @@ function renderRH(){
     <div class="kpi-card"><div class="kpi-label">Custo/Funcionário</div><div class="kpi-value purple">${fmt(custoPerCapita)}</div><div class="kpi-sub">por mês (média)</div></div>
     <div class="kpi-card"><div class="kpi-label">Turnover YTD</div><div class="kpi-value yellow">${(turnoverYTD*100).toFixed(1)}%</div><div class="kpi-sub">${mesesYTD.length} meses</div></div>`;
 
-  // Custo Mensal Stacked Bar
   const rubricas=['salarios','beneficios','rescisao','comissao','impostos','softwares','treinamentos','bonus','decimo_terceiro'];
   const rubLabels=['Salários','Benefícios','Rescisão','Comissão','Impostos','Softwares','Treinamentos','Bônus','13º'];
   const rubCores=['#3b82f6','#22c55e','#ef4444','#f97316','#eab308','#a855f7','#06b6d4','#ec4899','#14b8a6'];
-  const datasets=rubricas.map((r,i)=>({
-    label:rubLabels[i],
-    data:meses.map(m=>d.custo_mensal[m]?.[r]||0),
-    backgroundColor:rubCores[i]+'99',
-    borderColor:rubCores[i],
-    borderWidth:1
-  })).filter(ds=>ds.data.some(v=>v>0));
+  const mesLabelsRH=meses.map(m=>{const s=st[m];return(s==='realizado'?'✅':s==='andamento'?'🟡':'⬜')+' '+mesNome(m)});
 
+  // 1. Custo Mensal Stacked
+  const ds1=rubricas.map((r,i)=>({label:rubLabels[i],data:meses.map(m=>d.custo_mensal[m]?.[r]||0),backgroundColor:rubCores[i]+'99',borderColor:rubCores[i],borderWidth:1})).filter(ds=>ds.data.some(v=>v>0));
   if(charts.rhCusto)charts.rhCusto.destroy();
-  charts.rhCusto=new Chart(document.getElementById('chartRhCusto'),{type:'bar',data:{
-    labels:meses.map(m=>{const s=st[m];const icon=s==='realizado'?'✅':s==='andamento'?'🟡':'⬜';return icon+' '+mesNome(m)}),
-    datasets
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:9}}},datalabels:dlNone}}});
+  charts.rhCusto=new Chart(document.getElementById('chartRhCusto'),{type:'bar',data:{labels:mesLabelsRH,datasets:ds1},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:9}}},datalabels:dlNone}}});
 
-  // Composição YTD Donut
-  const comp=d.composicao_custo_ytd;
-  const compLabels=Object.keys(comp);
-  const compData=Object.values(comp);
+  // 2. Composição YTD Donut
+  const comp=d.composicao_custo_ytd;const compL=Object.keys(comp);const compD=Object.values(comp);
   if(charts.rhComp)charts.rhComp.destroy();
-  charts.rhComp=new Chart(document.getElementById('chartRhComp'),{type:'doughnut',data:{
-    labels:compLabels,datasets:[{data:compData,backgroundColor:rubCores.slice(0,compLabels.length).map(c=>c+'99')}]
-  },options:dOpts});
+  charts.rhComp=new Chart(document.getElementById('chartRhComp'),{type:'doughnut',data:{labels:compL,datasets:[{data:compD,backgroundColor:rubCores.slice(0,compL.length).map(c=>c+'99')}]},options:dOpts});
 
-  // Custo por Área (acumulado YTD)
-  const areaCusto={};
-  mesesYTD.forEach(m=>{const a=d.custo_por_area[m]||{};Object.entries(a).forEach(([k,v])=>{areaCusto[k]=(areaCusto[k]||0)+v})});
+  // 3. Desembolso Mensal por Natureza (Caixa)
+  const fc=d.fluxo_caixa||{};
+  const fcRub=['salarios','caju','vale_transporte','inss_fgts','clinica','gympass','estacionamento','rescisao','comissao'];
+  const fcLab=['Salários','Caju','VT','INSS/FGTS','Clínica','Gympass','Estac.','Rescisão','Comissão'];
+  const fcCor=['#3b82f6','#22c55e','#06b6d4','#eab308','#ec4899','#a855f7','#94a3b8','#ef4444','#f97316'];
+  const dsFC=fcRub.map((r,i)=>({label:fcLab[i],data:meses.map(m=>fc[m]?.[r]||0),backgroundColor:fcCor[i]+'99',borderColor:fcCor[i],borderWidth:1})).filter(ds=>ds.data.some(v=>v>0));
+  if(charts.rhFlux)charts.rhFlux.destroy();
+  charts.rhFlux=new Chart(document.getElementById('chartRhFluxo'),{type:'bar',data:{labels:mesLabelsRH,datasets:dsFC},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:9}}},datalabels:dlNone}}});
+
+  // 4. Rescisões & Comissões
+  if(charts.rhResc)charts.rhResc.destroy();
+  charts.rhResc=new Chart(document.getElementById('chartRhResc'),{type:'bar',data:{labels:mesLabelsRH,datasets:[
+    {label:'Rescisão',data:meses.map(m=>d.custo_mensal[m]?.rescisao||0),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1},
+    {label:'Comissão',data:meses.map(m=>d.custo_mensal[m]?.comissao||0),backgroundColor:'#f9731688',borderColor:'#f97316',borderWidth:1}
+  ]},options:cOpts('currency')});
+
+  // 5. Custo por Área
+  const areaCusto={};mesesYTD.forEach(m=>{const a=d.custo_por_area[m]||{};Object.entries(a).forEach(([k,v])=>{areaCusto[k]=(areaCusto[k]||0)+v})});
   const areasSorted=Object.entries(areaCusto).sort((a,b)=>b[1]-a[1]);
   if(charts.rhArea)charts.rhArea.destroy();
-  charts.rhArea=new Chart(document.getElementById('chartRhArea'),{type:'bar',data:{
-    labels:areasSorted.map(a=>a[0]),datasets:[{data:areasSorted.map(a=>a[1]),backgroundColor:cores}]
-  },options:hBarOpts()});
+  charts.rhArea=new Chart(document.getElementById('chartRhArea'),{type:'bar',data:{labels:areasSorted.map(a=>a[0]),datasets:[{data:areasSorted.map(a=>a[1]),backgroundColor:cores}]},options:hBarOpts()});
 
-  // Per Capita por Área (mês corrente)
-  const pc=d.per_capita_area[mesRef]||{};
-  const pcSorted=Object.entries(pc).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
-  const pcMedia=pcSorted.length?pcSorted.reduce((s,e)=>s+e[1],0)/pcSorted.length:0;
+  // 6. Per Capita
+  const pc=d.per_capita_area[mesRef]||{};const pcS=Object.entries(pc).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
+  const pcM=pcS.length?pcS.reduce((s,e)=>s+e[1],0)/pcS.length:0;
   if(charts.rhPC)charts.rhPC.destroy();
-  charts.rhPC=new Chart(document.getElementById('chartRhPerCapita'),{type:'bar',data:{
-    labels:pcSorted.map(a=>a[0]),
-    datasets:[{label:'Per Capita',data:pcSorted.map(a=>a[1]),backgroundColor:cores},{label:'Média',data:pcSorted.map(()=>pcMedia),type:'line',borderColor:'#eab308',borderDash:[5,5],pointRadius:0,borderWidth:2}]
-  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
+  charts.rhPC=new Chart(document.getElementById('chartRhPerCapita'),{type:'bar',data:{labels:pcS.map(a=>a[0]),datasets:[{label:'Per Capita',data:pcS.map(a=>a[1]),backgroundColor:cores},{label:'Média',data:pcS.map(()=>pcM),type:'line',borderColor:'#eab308',borderDash:[5,5],pointRadius:0,borderWidth:2}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
 
-  // HC por Departamento × Mês (tabela)
+  // 7. HC Histórico 2024-2026
+  const hist=d.historico_hc||{};const ml=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if(charts.rhHist)charts.rhHist.destroy();
+  charts.rhHist=new Chart(document.getElementById('chartRhHist'),{type:'line',data:{labels:ml,datasets:[
+    {label:'2024',data:hist['2024']||[],borderColor:'#5C6B85',borderDash:[5,5],pointRadius:3,tension:.35,borderWidth:1.5,fill:false},
+    {label:'2025',data:hist['2025']||[],borderColor:'#a855f7',pointRadius:3,tension:.35,borderWidth:2,fill:false},
+    {label:'2026',data:hist['2026']||[],borderColor:'#3b82f6',pointRadius:4,tension:.35,borderWidth:2.5,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:dlNone}}});
+
+  // 8. Ponte HC Waterfall
+  const hcYTD=mesesYTD.map(m=>d.hc[m]||{});
+  const wfIni=hcYTD[0]?.inicio||0;
+  const wfAdm=hcYTD.reduce((s,h)=>s+(h.admissoes||0),0);
+  const wfVol=hcYTD.reduce((s,h)=>s+(h.saida_vol||0),0);
+  const wfInv=hcYTD.reduce((s,h)=>s+(h.saida_inv||0),0);
+  const wfFin=hcYTD[hcYTD.length-1]?.final||0;
+  if(charts.rhWF)charts.rhWF.destroy();
+  charts.rhWF=new Chart(document.getElementById('chartRhWF'),{type:'bar',data:{
+    labels:['HC Inicial','+Admissões','−Voluntárias','−Involuntárias','HC Final'],
+    datasets:[{data:[wfIni,wfAdm,wfVol,wfInv,wfFin],backgroundColor:['#3b82f6','#22c55e','#ef4444','#ef444488','#3b82f6'],borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#fff',font:{size:12,weight:'bold'}}}}});
+
+  // 9. Projeção 3 cenários
+  const custoMedio=mesesYTD.length?custoYTD/mesesYTD.length:0;
+  const projBase=meses.map(()=>Math.round(custoMedio));
+  const projExp=meses.map(()=>Math.round(custoMedio+16000));
+  const projRed=meses.map((m,i)=>i<mesesYTD.length?Math.round(d.custo_mensal[m]?.total||0):Math.round(custoMedio-23000+(i===mesesYTD.length?30000:0)));
+  if(charts.rhProj)charts.rhProj.destroy();
+  charts.rhProj=new Chart(document.getElementById('chartRhProj'),{type:'line',data:{labels:mesLabelsRH,datasets:[
+    {label:'Base (manter)',data:projBase,borderColor:'#3b82f6',borderWidth:2,tension:.3,fill:false,pointRadius:2},
+    {label:'Expansão (+2 HC)',data:projExp,borderColor:'#22c55e',borderWidth:1.5,borderDash:[5,5],tension:.3,fill:false,pointRadius:2},
+    {label:'Redução (−3 HC)',data:projRed,borderColor:'#ef4444',borderWidth:1.5,borderDash:[5,5],tension:.3,fill:false,pointRadius:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
+
+  // 10. HC por Departamento (grouped bar — meses realizados)
   const hcArea=d.hc_por_area||{};
   const depts=[...new Set(Object.values(hcArea).flatMap(m=>Object.keys(m)))].sort();
+  const hcDeptDS=mesesYTD.map((m,i)=>({label:mesNome(m),data:depts.map(dept=>hcArea[m]?.[dept]||0),backgroundColor:cores[i%cores.length]+'88',borderColor:cores[i%cores.length],borderWidth:1}));
+  if(charts.rhHCDept)charts.rhHCDept.destroy();
+  charts.rhHCDept=new Chart(document.getElementById('chartRhHCDept'),{type:'bar',data:{labels:depts,datasets:hcDeptDS},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:9}}},datalabels:dlNone}}});
+
+  // Tabela HC × Mês
   let h='<table style="font-size:12px"><thead><tr><th>Departamento</th>';
-  meses.forEach(m=>{
-    const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.15)':s==='andamento'?'rgba(234,179,8,.15)':'';
-    h+=`<th style="text-align:center;background:${bg};font-size:10px">${mesNome(m)}</th>`;
-  });
+  meses.forEach(m=>{const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.15)':s==='andamento'?'rgba(234,179,8,.15)':'';h+=`<th style="text-align:center;background:${bg};font-size:10px">${mesNome(m)}</th>`});
   h+='</tr></thead><tbody>';
-  depts.forEach(dept=>{
-    h+=`<tr><td style="white-space:nowrap">${dept}</td>`;
-    meses.forEach(m=>{
-      const v=hcArea[m]?.[dept]||0;
-      const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.05)':s==='andamento'?'rgba(234,179,8,.05)':'';
-      h+=`<td style="text-align:center;background:${bg}">${v||'-'}</td>`;
-    });
-    h+='</tr>';
-  });
-  // Total row
+  depts.forEach(dept=>{h+=`<tr><td style="white-space:nowrap">${dept}</td>`;meses.forEach(m=>{const v=hcArea[m]?.[dept]||0;const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.05)':s==='andamento'?'rgba(234,179,8,.05)':'';h+=`<td style="text-align:center;background:${bg}">${v||'-'}</td>`});h+='</tr>'});
   h+='<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td>';
-  meses.forEach(m=>{
-    const total=d.hc[m]?.final||0;
-    h+=`<td style="text-align:center">${total}</td>`;
-  });
+  meses.forEach(m=>{h+=`<td style="text-align:center">${d.hc[m]?.final||0}</td>`});
   h+='</tr></tbody></table>';
   document.getElementById('rhHcTable').innerHTML=h;
+
+  // Insights automáticos
+  const custos=mesesYTD.map(m=>({m,t:d.custo_mensal[m]?.total||0}));
+  const mesMaisCaro=custos.reduce((a,b)=>b.t>a.t?b:a,{m:'',t:0});
+  const areaTop=areasSorted[0]||['',0];
+  const pcTop=pcS[0]||['',0];
+  const varMes=custos.length>1?((custos[custos.length-1].t/custos[custos.length-2].t-1)*100):0;
+  document.getElementById('rhInsights').innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Insights</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.8">
+        📊 Mês mais caro: <strong>${mesNome(mesMaisCaro.m)}</strong> (${fmt(mesMaisCaro.t)})<br>
+        📈 Variação último mês: <strong style="color:${varMes>0?'var(--red)':'var(--green)'}">${varMes>0?'+':''}${varMes.toFixed(1)}%</strong><br>
+        🏢 Área com maior custo: <strong>${areaTop[0]}</strong> (${fmt(areaTop[1])} YTD)<br>
+        💰 Maior per capita: <strong>${pcTop[0]}</strong> (${fmt(pcTop[1])}/mês)<br>
+        🔄 Turnover YTD: <strong>${(turnoverYTD*100).toFixed(1)}%</strong> (${mesesYTD.length} meses)
+      </div>
+    </div>`;
 }
 
 const PASS_HASH='b4f4c73433abb7aa1c26729be0fade444d6c4476bf22f5e8480eeb2be0fdc6f1';
