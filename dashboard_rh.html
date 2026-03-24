@@ -225,7 +225,12 @@ function render(D){
   html+='<div class="card"><div class="card-h"><div class="card-t">Faixa Salarial por Cargo</div><div class="bdg bdg-g">LGPD-safe</div></div><div class="cc" style="height:320px"><canvas id="cFaixa"></canvas></div><div class="ins" id="insFaixa"></div></div>';
   html+='</div>';
 
-  // 14. Alert cards dinâmicos
+  // 14. Alert cards dinâmicos (pré-calcular pcS/pcV/comData aqui)
+  var _pc=D.per_capita_area[mesRef]||{};
+  var _pcS=Object.entries(_pc).filter(function(e){return e[1]>0}).sort(function(a,b){return b[1]-a[1]});
+  var _pcV=_pcS.map(function(e){return Math.round(e[1])});
+  var _comData=meses.map(function(m){return D.custo_mensal[m].comissao||0});
+
   var alertPos=[],alertMon=[],alertAcao=[];
   var turnMesAtual=D.hc[mesRef]?.turnover||0;
   if(turnMesAtual===0)alertPos.push('Turnover zerado em '+mNomes[mesRefN]);
@@ -236,9 +241,9 @@ function render(D){
   alertMon.push(mNomes[parseInt(mesMaisCaro[0].split('-')[1])]+' é o mês mais caro: '+fBRL(mesMaisCaro[1]));
   if(rescReal>20000)alertMon.push('Rescisões YTD: '+fBRL(rescReal)+' — acima de R$ 20K');
 
-  var mediaGeral=pcV.length?pcV.reduce(function(a,b){return a+b},0)/pcV.length:0;
-  pcS.forEach(function(e){if(e[1]>mediaGeral*1.5)alertAcao.push(e[0]+' com per capita 50%+ acima da média ('+fBRL(e[1])+')')});
-  if(comData[mesesYTD.length-1]===0&&mesesYTD.length>1)alertAcao.push('Comissões comerciais zeradas — validar se intencional');
+  var _mediaGeral=_pcV.length?_pcV.reduce(function(a,b){return a+b},0)/_pcV.length:0;
+  _pcS.forEach(function(e){if(e[1]>_mediaGeral*1.5)alertAcao.push(e[0]+' com per capita 50%+ acima da média ('+fBRL(e[1])+')')});
+  if(_comData[mesesYTD.length-1]===0&&mesesYTD.length>1)alertAcao.push('Comissões comerciais zeradas — validar se intencional');
 
   html+='<div class="row r1" style="margin-top:14px"><div class="card" style="padding:16px 22px">';
   html+='<div class="card-h" style="margin-bottom:10px"><div class="card-t">Alertas & Pontos de Decisão</div></div>';
