@@ -198,6 +198,30 @@ def main():
                 composicao_ytd[label] += custo_mensal.get(mes_key, {}).get(key, 0)
     composicao_ytd = {k: round(v, 2) for k, v in composicao_ytd.items() if v > 0}
 
+    # Fluxo de caixa (aba FLUXO DE CAIXA)
+    fluxo_caixa = {}
+    if "FLUXO DE CAIXA" in wb.sheetnames:
+        ws_fc = wb["FLUXO DE CAIXA"]
+        fc_rubricas = [
+            (4, "salarios"), (5, "caju"), (6, "vale_transporte"),
+            (7, "inss_fgts"), (8, "clinica"), (9, "gympass"),
+            (10, "estacionamento"), (11, "rescisao"), (12, "comissao"),
+        ]
+        for mes_key, col in MESES_COLS.items():
+            fc = {}
+            for row, key in fc_rubricas:
+                fc[key] = read_val(ws_fc, row, col)
+            fc["total"] = read_val(ws_fc, 13, col)
+            fluxo_caixa[mes_key] = fc
+
+    # Headcount histórico (hardcoded 2024-2025, 2026 do RESUMO)
+    hc_2026 = [hc.get(f"2026-{m:02d}", {}).get("final", 0) for m in range(1, 13)]
+    historico_hc = {
+        "2024": [26, 29, 33, 32, 29, 32, 35, 36, 35, 34, 35, 34],
+        "2025": [30, 34, 37, 37, 41, 42, 43, 43, 34, 34, 33, 32],
+        "2026": hc_2026,
+    }
+
     result = {
         "mes_referencia": mes_ref,
         "status_meses": status_meses,
@@ -208,6 +232,8 @@ def main():
         "per_capita_area": per_capita,
         "demografico": demografico,
         "composicao_custo_ytd": composicao_ytd,
+        "fluxo_caixa": fluxo_caixa,
+        "historico_hc": historico_hc,
     }
 
     output = os.path.join(SCRIPT_DIR, "rh_data.json")
