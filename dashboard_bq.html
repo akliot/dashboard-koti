@@ -266,10 +266,10 @@ tr:hover td{background:rgba(59,130,246,.05)}
       <div class="kpi-row" id="kpi-concilFD"></div>
       <div class="chart-row">
         <div class="chart-card" style="flex:3"><h3>Conciliação Faturamento Direto</h3>
-          <div class="chart-container" style="height:400px"><canvas id="chartConcilFD"></canvas></div>
+          <div class="chart-container" id="concilFDContainer"><canvas id="chartConcilFD"></canvas></div>
         </div>
         <div class="chart-card" style="flex:2"><h3>Saldo FD por Projeto</h3>
-          <div class="chart-container" style="height:400px"><canvas id="chartSaldoFD"></canvas></div>
+          <div class="chart-container" id="saldoFDContainer"><canvas id="chartSaldoFD"></canvas></div>
         </div>
       </div>
       <div id="concilFDInfo" style="color:var(--muted);font-size:13px;padding:8px 16px"></div>
@@ -820,16 +820,19 @@ function renderConciliacao(){
     return;
   }
   const top=desbalanceados.slice(0,20);
-  const labels=top.map(p=>p.nome.length>35?p.nome.substring(0,32)+'...':p.nome);
+  const labels=top.map(p=>p.nome.length>25?p.nome.substring(0,25)+'...':p.nome);
+  const chartH=Math.max(300,top.length*40);
+  document.getElementById('concilFDContainer').style.height=chartH+'px';
+  document.getElementById('saldoFDContainer').style.height=chartH+'px';
   charts.concilFD=new Chart(document.getElementById('chartConcilFD'),{type:'bar',
     data:{labels,datasets:[
       {label:'Receita FD',data:top.map(p=>p.rec_fd),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1},
       {label:'Despesa FD',data:top.map(p=>p.desp_fd),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
     ]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
-      plugins:{legend:{labels:{color:'#94a3b8'}},
-        datalabels:{display:true,anchor:'end',align:'end',color:'#94a3b8',font:{size:9},formatter:v=>v>0?fmtK(v):''},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:20}},
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}},
+      plugins:{legend:{position:'top',labels:{color:'#94a3b8'}},
+        datalabels:{display:false},
         tooltip:{callbacks:{label:ctx=>{const p=top[ctx.dataIndex];const saldo=p.rec_fd-p.desp_fd;return`${ctx.dataset.label}: ${fmt(ctx.raw)} · Saldo: ${fmt(saldo)}`}}}
       }
     }
@@ -840,11 +843,11 @@ function renderConciliacao(){
   const saldoBorders=saldos.map(v=>v>=0?'#22c55e':'#ef4444');
   charts.saldoFD=new Chart(document.getElementById('chartSaldoFD'),{type:'bar',
     data:{labels,datasets:[{label:'Saldo FD',data:saldos,backgroundColor:saldoColors,borderColor:saldoBorders,borderWidth:1}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:10,right:10}},
-      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{display:false},grid:{display:false}}},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:20}},
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}},
       plugins:{legend:{display:false},
-        datalabels:{display:true,anchor:'center',align:'center',color:'#fff',font:{size:9,weight:'bold'},formatter:(v,ctx)=>{const n=top[ctx.dataIndex].nome;const short=n.length>20?n.substring(0,18)+'..':n;return short+' '+fmtK(v)}},
-        tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}
+        datalabels:{display:false},
+        tooltip:{callbacks:{label:ctx=>'Saldo: '+fmt(ctx.raw)}}
       }
     }
   });
