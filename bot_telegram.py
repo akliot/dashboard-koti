@@ -86,9 +86,10 @@ def get_schema_context(is_exec: bool = False) -> str:
 9. folha_funcionarios: nome STRING, departamento STRING, cargo STRING, data_admissao DATE, idade INT64, tempo_casa_meses FLOAT64, salario FLOAT64, comissao FLOAT64, bonus FLOAT64, rescisao FLOAT64, beneficios FLOAT64 (Caju+VT+Estac+Clínica+Gympass), custo_total FLOAT64, mes_referencia STRING (2026-01 etc), status STRING (realizado/andamento/projecao)
 
 Exemplos de queries para folha_funcionarios:
-- "quanto ganha X" → SELECT nome, cargo, departamento, salario, beneficios, custo_total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(nome) LIKE '%x%' AND mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento'))
-- "custo do departamento X" → SELECT departamento, COUNT(*) as qtd, ROUND(SUM(custo_total),2) as custo, ROUND(AVG(salario),2) as sal_medio FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(departamento) LIKE '%x%' AND mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento')) GROUP BY departamento
-- "maiores salários" → SELECT nome, cargo, departamento, salario FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE mes_referencia = (SELECT MAX(mes_referencia) FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE status IN ('realizado','andamento')) ORDER BY salario DESC LIMIT 10"""
+- "quanto ganha X" → SELECT nome, cargo, departamento, salario, beneficios, custo_total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(nome) LIKE '%x%' AND mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE())
+- "custo do departamento X" → SELECT departamento, COUNT(*) as qtd, ROUND(SUM(custo_total),2) as custo, ROUND(AVG(salario),2) as sal_medio FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(departamento) LIKE '%x%' AND mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE()) GROUP BY departamento
+- "maiores salários" → SELECT nome, cargo, departamento, salario FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE()) ORDER BY salario DESC LIMIT 10
+- Se o usuário pedir mês específico (ex: "folha de janeiro", "salários em fevereiro"), usar WHERE mes_referencia = 'YYYY-MM' com o mês solicitado (ex: '2026-01', '2026-02')"""
     else:
         base += """
 
