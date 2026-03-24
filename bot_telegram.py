@@ -590,7 +590,8 @@ Valores monetários em R$ com separador de milhar (ponto) e decimal (vírgula).
 Se houver tabela, use formato limpo e alinhado.
 Máximo 4000 caracteres (limite Telegram).
 NÃO inclua o SQL na resposta.
-NÃO use markdown com asteriscos."""
+NÃO use markdown com asteriscos.
+NÃO invente dados que não estão no resultado (ex: encargos, INSS, FGTS). A maioria dos funcionários é PJ — apenas apresente os campos retornados pela query."""
 
         return self.llm.generate(
             "Você é o assistente financeiro do Studio Koti. Responda de forma concisa e amigável.",
