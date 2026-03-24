@@ -624,20 +624,23 @@ function renderVisaoGeral(d){
     <div class="kpi-card"><div class="kpi-label">Total Saídas (período)</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">${d.sai.length} lançamentos</div></div>
     <div class="kpi-card"><div class="kpi-label">Previsão (Saldo+Receber-Pagar)</div><div class="kpi-value cyan">${fmt(saldoTotal+d.abRec-d.abPag)}</div></div>`;
 
-  // PMR e PMP
+  // PMR e PMP — média ponderada pelo valor
   const calcPrazo=(lancs,tipo,statusF)=>{
-    const prazos=[];const contratuais=[];
+    let somaReal=0,somaContr=0,somaValor=0;let n=0;
     lancs.filter(l=>l.tipo===tipo&&l.status===statusF&&l.data_pagamento&&l.data_emissao).forEach(l=>{
       const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao),venc=parseDate(l.data_vencimento);
       if(!pag||!emi)return;
       const real=Math.round((pag-emi)/(86400000));
       const contr=venc?Math.round((venc-emi)/(86400000)):real;
-      if(real>=0&&real<=180){prazos.push(real);contratuais.push(contr)}
+      if(real>=0&&real<=180){
+        const v=l.valor;
+        somaReal+=real*v;somaContr+=contr*v;somaValor+=v;n++;
+      }
     });
-    if(!prazos.length)return null;
-    const media=Math.round(prazos.reduce((a,b)=>a+b,0)/prazos.length);
-    const mediaC=Math.round(contratuais.reduce((a,b)=>a+b,0)/contratuais.length);
-    return{real:media,contratual:mediaC,diff:media-mediaC,n:prazos.length};
+    if(!n||!somaValor)return null;
+    const media=Math.round(somaReal/somaValor);
+    const mediaC=Math.round(somaContr/somaValor);
+    return{real:media,contratual:mediaC,diff:media-mediaC,n};
   };
   const pmr=calcPrazo(dadosFiltrados.lancamentos,'entrada','RECEBIDO');
   const pmp=calcPrazo(dadosFiltrados.lancamentos,'saida','PAGO');
