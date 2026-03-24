@@ -356,35 +356,9 @@ tr:hover td{background:rgba(59,130,246,.05)}
       </div>
     </div>
 
-    <!-- RH -->
+    <!-- RH (iframe para dashboard separado com visual premium) -->
     <div class="page" id="page-rh">
-      <div class="kpi-row" id="kpi-rh"></div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Custo Total Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div><div id="insRhCusto" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-        <div class="chart-card"><h3>Composição de Custo YTD</h3><div class="chart-container"><canvas id="chartRhComp"></canvas></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Desembolso Mensal por Natureza (Caixa)</h3><div class="chart-container"><canvas id="chartRhFluxo"></canvas></div></div>
-        <div class="chart-card"><h3>Rescisões & Comissões</h3><div class="chart-container"><canvas id="chartRhResc"></canvas></div><div id="insRhResc" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Custo por Área (acumulado YTD)</h3><div class="chart-container" style="height:320px"><canvas id="chartRhArea"></canvas></div></div>
-        <div class="chart-card"><h3>Per Capita por Área</h3><div class="chart-container" style="height:320px"><canvas id="chartRhPerCapita"></canvas></div><div id="insRhPC" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Headcount Histórico 2024–2026</h3><div class="chart-container"><canvas id="chartRhHist"></canvas></div><div id="insRhHist" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-        <div class="chart-card"><h3>Ponte de HC (Waterfall YTD)</h3><div class="chart-container"><canvas id="chartRhWF"></canvas></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card" style="grid-column:1/-1"><h3>Projeção Anual — 3 Cenários</h3><div class="chart-container"><canvas id="chartRhProj"></canvas></div><div id="insRhProj" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>HC por Departamento</h3><div class="chart-container" style="height:320px"><canvas id="chartRhHCDept"></canvas></div><div id="insRhHCDept" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card" style="grid-column:1/-1"><h3>HC por Departamento × Mês</h3><div class="proj-table" id="rhHcTable"></div></div>
-      </div>
-      <div id="rhInsights" style="margin-top:12px"></div>
+      <iframe src="dashboard_rh.html" style="width:100%;height:calc(100vh - 120px);border:none;border-radius:8px;"></iframe>
     </div>
 
   </div>
@@ -1527,18 +1501,13 @@ async function decryptFile(url,password){
 
 // ============ LOGIN ============
 // Dashboard BQ — login + fetch da API BigQuery
-// ============ RH ============
-let rhData=null;
+// ============ RH (via iframe — dashboard_rh.html separado) ============
+function renderRH(){} // stub — renderização é no iframe
+function loadRhData(){return Promise.resolve();} // stub
 
-function loadRhData(){
-  return fetch('rh_data.json').then(r=>r.ok?r.json():null).then(d=>{rhData=d}).catch(()=>{rhData=null});
-}
-
-function renderRH(){
-  if(!rhData){
-    document.getElementById('kpi-rh').innerHTML='<p style="color:var(--muted);padding:20px">Dados de RH não disponíveis. Rode: python extract_rh.py</p>';
-    return;
-  }
+function _renderRH_legacy(){
+  // LEGACY — mantido para não quebrar JS. RH agora é via iframe.
+  if(!rhData){return};
   const d=rhData;
   const meses=Object.keys(d.custo_mensal).sort();
   const mesRef=d.mes_referencia;

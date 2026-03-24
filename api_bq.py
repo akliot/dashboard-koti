@@ -414,6 +414,19 @@ if __name__ == "__main__":
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({"error": str(e)}).encode())
+            elif self.path.endswith(".html") and self.path != "/":
+                # Servir arquivos HTML estáticos (dashboard_rh.html)
+                file_path = os.path.join(SCRIPT_DIR, self.path.lstrip("/"))
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        body = f.read().encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(body)
+                except FileNotFoundError:
+                    self.send_response(404)
+                    self.end_headers()
             elif self.path.endswith(".json") and not self.path.startswith("/api"):
                 # Servir arquivos JSON estáticos (rh_data.json, etc.)
                 file_path = os.path.join(SCRIPT_DIR, self.path.lstrip("/"))

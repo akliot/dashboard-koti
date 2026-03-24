@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard RH Executivo — Studio Koti 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090D16;--s1:#0F1420;--s2:#161C2E;--s3:#1E2640;--bdr:#252E45;--t1:#EAF0FA;--t2:#94A3BE;--t3:#5C6B85;--t4:#3D4A62;--blue:#4A90FF;--blue-d:rgba(74,144,255,.12);--green:#3DDC97;--green-d:rgba(61,220,151,.12);--red:#FF6B6B;--red-d:rgba(255,107,107,.12);--amber:#FFB547;--amber-d:rgba(255,181,71,.12);--purple:#A78BFA;--teal:#2DD4BF;--pink:#F472B6;--orange:#FB923C}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 36px;background:var(--s1);border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff}
+.topbar h1{font-size:15px;font-weight:600}.topbar h1 span{color:var(--t3);font-weight:400;margin-left:6px}
+.topbar-right{font-size:12px;color:var(--t3);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:p 2s ease infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+.main{max-width:1480px;margin:0 auto;padding:28px 36px 50px}
+.legend-bar{display:flex;gap:20px;margin-bottom:20px;padding:10px 16px;background:var(--s2);border:1px solid var(--bdr);border-radius:10px;font-size:12px;color:var(--t2);align-items:center;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.legend-dot.real{background:var(--blue)}
+.legend-dot.andamento{background:var(--amber);background:repeating-linear-gradient(45deg,var(--amber),var(--amber) 2px,rgba(255,181,71,.4) 2px,rgba(255,181,71,.4) 4px)}
+.legend-dot.proj{background:var(--t4);border:1.5px dashed var(--t3)}
+.alert{background:var(--s2);border:1px solid var(--bdr);border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;font-size:13px;color:var(--t2);line-height:1.55}
+.alert-i{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex-shrink:0}
+.alert strong{color:var(--t1)}.alert .hl{color:var(--amber);font-weight:600}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s}
+.kpi:hover{border-color:var(--blue)}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi:nth-child(1)::after{background:var(--blue)}.kpi:nth-child(2)::after{background:var(--green)}.kpi:nth-child(3)::after{background:var(--purple)}.kpi:nth-child(4)::after{background:var(--amber)}.kpi:nth-child(5)::after{background:var(--red)}.kpi:nth-child(6)::after{background:var(--teal)}.kpi:nth-child(7)::after{background:var(--pink)}.kpi:nth-child(8)::after{background:var(--orange)}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);margin-bottom:8px}
+.kpi-v{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;letter-spacing:-.5px;margin-bottom:5px}
+.kpi-s{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.5}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500}
+.tg{background:var(--green-d);color:var(--green)}.tr{background:var(--red-d);color:var(--red)}.tn{background:var(--amber-d);color:var(--amber)}.tb{background:var(--blue-d);color:var(--blue)}
+.sec{font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin:28px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px}
+.sec::before{content:'';width:3px;height:13px;border-radius:2px;background:var(--blue)}
+.row{display:grid;gap:14px;margin-bottom:14px}.r2{grid-template-columns:1fr 1fr}.r3{grid-template-columns:2fr 1fr}.r1{grid-template-columns:1fr}
+.card{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:20px 22px;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.card-t{font-size:13px;font-weight:600}
+.bdg{font-size:10px;padding:3px 9px;border-radius:5px;font-weight:500;background:var(--blue-d);color:var(--blue)}.bdg-g{background:var(--green-d);color:var(--green)}
+.cc{position:relative;width:100%}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;color:var(--t4);border-bottom:1px solid var(--bdr);white-space:nowrap}
+th:not(:first-child){text-align:right}
+td{padding:8px 10px;border-bottom:1px solid rgba(37,46,69,.4);color:var(--t2);font-family:'JetBrains Mono',monospace;font-size:11px}
+td:first-child{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--t1)}
+td:not(:first-child){text-align:right}
+tr:last-child td{border-bottom:none;font-weight:600;color:var(--t1)}
+tr:hover td{background:rgba(74,144,255,.03)}
+.bar-cell{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.bar-bg{width:70px;height:5px;background:var(--s3);border-radius:3px;overflow:hidden}
+.bar-f{height:100%;border-radius:3px}
+.proj-cell{color:var(--t4) !important;font-style:italic}
+.ins{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--t2);line-height:1.65}
+.ins strong{color:var(--t1)}.ins .hl{color:var(--amber);font-weight:600}
+.foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--bdr);font-size:11px;color:var(--t4);text-align:center}
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.r2,.r3{grid-template-columns:1fr}}
+@media(max-width:600px){.kpi-grid{grid-template-columns:1fr}.main{padding:16px 12px}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-left"><div class="logo">SK</div><h1>Painel Executivo RH<span>— Studio Koti 2026</span></h1></div><div class="topbar-right"><div class="dot"></div>Base: Março/2026</div></div>
+<div class="main">
+<div class="legend-bar"><span style="font-weight:600;color:var(--t1);margin-right:4px">Legenda:</span><div class="legend-item"><div class="legend-dot real"></div>Realizado (Jan–Fev)</div><div class="legend-item"><div class="legend-dot andamento"></div>Em andamento (Mar)</div><div class="legend-item"><div class="legend-dot proj"></div>Projetado (Abr–Dez)</div></div>
+<div class="alert"><div class="alert-i" style="background:var(--amber-d);color:var(--amber)">!</div><div><strong>Atenção board:</strong> Apenas Jan e Fev são dados fechados. Mar está em andamento. De Abr em diante são projeções. <span class="hl">KPIs refletem apenas o realizado (2 meses)</span> — projeção anual usa média realizada x 12.</div></div>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-l">Desembolso Realizado</div><div class="kpi-v" style="color:var(--blue)">R$ 535K</div><div class="kpi-s">Jan + Fev fechados <span class="tag tb">2 meses</span></div></div>
+  <div class="kpi"><div class="kpi-l">Mar em Andamento</div><div class="kpi-v" style="color:var(--amber)">R$ 287K</div><div class="kpi-s">Parcial — pode variar até fechamento</div></div>
+  <div class="kpi"><div class="kpi-l">Projeção Anual</div><div class="kpi-v" style="color:var(--purple)">R$ 3,21M</div><div class="kpi-s">Média realizada x 12 <span class="tag tn">R$ 267K/mês</span></div></div>
+  <div class="kpi"><div class="kpi-l">Headcount Atual</div><div class="kpi-v" style="color:var(--green)">35</div><div class="kpi-s">Mar/26 · era 32 em Jan <span class="tag tg">+3</span></div></div>
+</div>
+<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi"><div class="kpi-l">Custo/Func. (Realizado)</div><div class="kpi-v" style="color:var(--teal)">R$ 7.978</div><div class="kpi-s">Média Jan–Fev <span class="tag tr">+4,5% Fev vs Jan</span></div></div>
+  <div class="kpi"><div class="kpi-l">Turnover Realizado</div><div class="kpi-v" style="color:var(--red)">8,8%</div><div class="kpi-s">3 saídas em 2 meses (1 vol + 2 inv)</div></div>
+  <div class="kpi"><div class="kpi-l">Rescisões Realizadas</div><div class="kpi-v" style="color:var(--pink)">R$ 24,1K</div><div class="kpi-s">Jan: 10,3K + Fev: 13,8K</div></div>
+  <div class="kpi"><div class="kpi-l">Admissões Realizadas</div><div class="kpi-v" style="color:var(--orange)">5</div><div class="kpi-s">Jan: 3 · Fev: 2 · Mar: 1 (andamento)</div></div>
+</div>
+<div class="sec">Visão Financeira — Evolução de Custos</div>
+<div class="row r3">
+  <div class="card"><div class="card-h"><div class="card-t">Custo total mensal + custo per capita</div></div><div class="cc" style="height:310px"><canvas id="c1"></canvas></div><div class="ins"><strong>CFO:</strong> Custo subiu 7,7% Jan→Fev (R$ 257K→277K). <span class="hl">Mar parcial R$ 287K — maior mês, com R$ 17,8K de rescisão.</span></div></div>
+  <div class="card"><div class="card-h"><div class="card-t">Composição — onde vai o dinheiro</div><div class="bdg">YTD Real</div></div><div class="cc" style="height:310px"><canvas id="c2"></canvas></div></div>
+</div>
+<div class="row r2">
+  <div class="card"><div class="card-h"><div class="card-t">Desembolso mensal por natureza</div></div><div class="cc" style="height:300px"><canvas id="cFlux"></canvas></div></div>
+  <div class="card"><div class="card-h"><div class="card-t">Rescisões & comissões — impacto caixa</div></div><div class="cc" style="height:300px"><canvas id="cResc"></canvas></div><div class="ins"><strong>CEO:</strong> R$ 24K rescisões realizadas + R$ 17,8K Mar. Comissões cessaram. <span class="hl">Sem variável no Comercial = risco.</span></div></div>
+</div>
+<div class="sec">Distribuição por Área</div>
+<div class="row r2">
+  <div class="card"><div class="card-h"><div class="card-t">Custo mensal por área</div></div><div class="cc" style="height:340px"><canvas id="c3"></canvas></div></div>
+  <div class="card"><div class="card-h"><div class="card-t">Ranking áreas — custo acumulado</div></div><div class="tw"><table><thead><tr><th>Área</th><th>HC</th><th>Acum.</th><th>Per Capita</th><th>%</th><th style="min-width:80px"></th></tr></thead><tbody id="tbl1"></tbody></table></div></div>
+</div>
+<div class="row r2">
+  <div class="card"><div class="card-h"><div class="card-t">Custo per capita por área (Fev)</div></div><div class="cc" style="height:300px"><canvas id="cPC"></canvas></div><div class="ins"><strong>CFO:</strong> <span class="hl">Arquitetura R$ 12,7K/func</span> em Fev (rescisão). Compras/Log. R$ 8K em linha.</div></div>
+  <div class="card"><div class="card-h"><div class="card-t">HC por departamento — Jan a Mar</div></div><div class="cc" style="height:300px"><canvas id="cHCd"></canvas></div><div class="ins"><strong>CEO:</strong> Obra +1 (Fev). Arquitetura +1 (Mar). <span class="hl">Mar é o 1o mês na composição target.</span></div></div>
+</div>
+<div class="sec">People Analytics</div>
+<div class="row r2">
+  <div class="card"><div class="card-h"><div class="card-t">Headcount histórico — 2024 a 2026</div><div class="bdg bdg-g">3 anos</div></div><div class="cc" style="height:280px"><canvas id="c4"></canvas></div><div class="ins"><strong>Board:</strong> 2025: pico 43 Jul→32 Dez (−25%). 2026 recuperou +3 em 2 meses. <span class="hl">Cautela no S2.</span></div></div>
+  <div class="card"><div class="card-h"><div class="card-t">Ponte de headcount — Jan → Mar</div><div class="bdg">Waterfall</div></div><div class="cc" style="height:280px"><canvas id="cWF"></canvas></div></div>
+</div>
+<div class="sec">Projeção & Cenários</div>
+<div class="row r1">
+  <div class="card"><div class="card-h"><div class="card-t">Projeção anual — 3 cenários</div></div><div class="cc" style="height:310px"><canvas id="cProj"></canvas></div><div class="ins"><strong>Board:</strong> <strong style="color:var(--blue)">35 HC</strong> → R$ 3,21M · <strong style="color:var(--amber)">37 HC</strong> → R$ 3,40M · <strong style="color:var(--red)">32 HC</strong> → R$ 2,93M. <span class="hl">Apenas 2 meses fechados — revisitar mensalmente.</span></div></div>
+</div>
+<div class="row r1">
+  <div class="card" style="padding:16px 22px"><div class="card-h" style="margin-bottom:10px"><div class="card-t">Fluxo de Caixa RH (R$ mil)</div></div>
+    <div class="tw"><table><thead><tr><th>Rubrica</th><th style="color:var(--blue)">Jan &#10003;</th><th style="color:var(--blue)">Fev &#10003;</th><th style="color:var(--amber)">Mar ~</th><th class="proj-cell">Abr</th><th class="proj-cell">Mai</th><th class="proj-cell">Jun</th><th>Acum.</th></tr></thead>
+      <tbody>
+        <tr><td>Salários</td><td>183,3</td><td>218,7</td><td style="color:var(--amber)">217,7</td><td class="proj-cell">220,7</td><td class="proj-cell">219,2</td><td class="proj-cell">212,7</td><td>1.272,4</td></tr>
+        <tr><td>Cartão Caju</td><td>30,2</td><td>28,4</td><td style="color:var(--amber)">34,4</td><td class="proj-cell">31,5</td><td class="proj-cell">31,5</td><td class="proj-cell">32,1</td><td>188,1</td></tr>
+        <tr><td>INSS / FGTS</td><td>2,8</td><td>2,9</td><td style="color:var(--amber)">2,9</td><td class="proj-cell">2,9</td><td class="proj-cell">2,9</td><td class="proj-cell">2,9</td><td>17,3</td></tr>
+        <tr><td>Estacionamento</td><td>1,8</td><td>1,8</td><td style="color:var(--amber)">2,5</td><td class="proj-cell">2,5</td><td class="proj-cell">2,5</td><td class="proj-cell">2,3</td><td>13,4</td></tr>
+        <tr><td>Outros Benef.</td><td>1,1</td><td>1,1</td><td style="color:var(--amber)">1,2</td><td class="proj-cell">1,1</td><td class="proj-cell">1,1</td><td class="proj-cell">1,2</td><td>6,8</td></tr>
+        <tr><td>Rescisão</td><td>10,3</td><td>13,8</td><td style="color:var(--amber)">17,8</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td>41,9</td></tr>
+        <tr><td>Comissão</td><td>6,2</td><td>3,4</td><td style="color:var(--amber)">4,0</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td>13,6</td></tr>
+        <tr><td>TOTAL</td><td>235,6</td><td>270,0</td><td style="color:var(--amber)">280,6</td><td class="proj-cell">258,8</td><td class="proj-cell">257,3</td><td class="proj-cell">251,2</td><td>1.553,5</td></tr>
+      </tbody></table></div></div>
+</div>
+<div class="foot">Studio Koti — Painel Executivo RH &middot; Realizado: Jan–Fev &middot; Em andamento: Mar &middot; Projeção: Abr–Dez</div>
+</div>
+
+<script>
+// REGISTER PLUGIN — THIS IS THE KEY LINE
+Chart.register(ChartDataLabels);
+
+Chart.defaults.color='#5C6B85';
+Chart.defaults.borderColor='rgba(37,46,69,.4)';
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.plugins.legend.labels.usePointStyle=true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth=8;
+Chart.defaults.plugins.legend.labels.padding=14;
+// Disable globally, enable per-dataset
+Chart.defaults.plugins.datalabels.display=false;
+
+var T={backgroundColor:'#161C2E',borderColor:'#252E45',borderWidth:1,padding:12};
+var fK=function(v){return v>=1000?Math.round(v/1000)+'K':v>0?String(Math.round(v)):''};
+var fKd=function(v){return v>=1000?(v/1000).toFixed(1)+'K':v>0?String(Math.round(v)):''};
+var df={family:"'JetBrains Mono',monospace",size:10,weight:'500'};
+var dfs={family:"'JetBrains Mono',monospace",size:9,weight:'500'};
+
+var M7=['Jan','Fev','Mar','Abr','Mai','Jun','Jul'];
+var M12=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+var ct=[257485,277223,286556,264739,263244,256841,256841];
+var cpf=[7803,8154,8187,7564,7521,7338,7338];
+var rC='rgba(74,144,255,.85)',aC='rgba(255,181,71,.7)',pC='rgba(74,144,255,.18)';
+var bC=[rC,rC,'rgba(74,144,255,.45)',pC,pC,pC,pC];
+
+// Stack total plugin (custom, not datalabels)
+var STP={id:'stp',afterDatasetsDraw:function(ch){if(!ch.config.options._stp)return;var ctx=ch.ctx;ctx.save();ctx.font="500 10px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillStyle='#EAF0FA';var last=ch.getDatasetMeta(ch.data.datasets.length-1);last.data.forEach(function(bar,i){var t=0;ch.data.datasets.forEach(function(ds){t+=(ds.data[i]||0)});if(t>0)ctx.fillText(fK(Math.round(t)),bar.x,bar.y-8)});ctx.restore()}};
+
+// === 1. CUSTO TOTAL + PER CAPITA ===
+new Chart(document.getElementById('c1'),{type:'bar',data:{labels:M7,datasets:[
+  {label:'Custo total',data:ct,backgroundColor:bC,borderRadius:5,yAxisID:'y',order:2,
+    borderWidth:ct.map(function(_,i){return i===2?2:0}),borderColor:ct.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),
+    datalabels:{display:true,anchor:'end',align:'end',offset:2,font:df,formatter:fK,
+      color:function(c){var i=c.dataIndex;return i<2?'#EAF0FA':i===2?'rgba(74,144,255,.7)':'#5C6B85'}}},
+  {label:'Custo/func',data:cpf,type:'line',borderColor:'#FFB547',backgroundColor:'rgba(255,181,71,.06)',
+    pointBackgroundColor:cpf.map(function(_,i){return i<=2?'#FFB547':'rgba(255,181,71,.4)'}),
+    pointRadius:5,tension:.35,borderWidth:2.5,fill:true,yAxisID:'y1',order:1,
+    segment:{borderDash:function(c){return c.p0DataIndex>=2?[5,4]:undefined},borderColor:function(c){return c.p0DataIndex>=2?'rgba(255,181,71,.4)':'#FFB547'}},
+    datalabels:{display:true,anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,
+      formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
+]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{tooltip:T},
+  scales:{y:{min:200000,max:320000,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},
+    y1:{position:'right',min:6500,max:9000,ticks:{callback:function(v){return 'R$'+v}},grid:{display:false}},x:{grid:{display:false}}}}});
+
+// === 2. COMPOSIÇÃO ===
+var sR=199341+218724,bR=32842+31005,wR=5848+7228,rR=10267+13800,iR=2987+3066,cRR=6200+3400,tR=sR+bR+wR+rR+iR+cRR;
+var cD=[sR,bR,wR,rR,iR,cRR].map(function(v){return Math.round(v/tR*1000)/10});
+new Chart(document.getElementById('c2'),{type:'doughnut',data:{labels:['Salário base','Benefícios','Softwares','Rescisão','Impostos','Comissão'],datasets:[{
+  data:cD,backgroundColor:['#4A90FF','#3DDC97','#A78BFA','#FF6B6B','#FFB547','#FB923C'],borderColor:'#0F1420',borderWidth:3,
+  datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>=3},anchor:'center',align:'center',color:'#fff',
+    font:{family:"'JetBrains Mono',monospace",size:11,weight:'500'},formatter:function(v){return v.toFixed(1)+'%'}}}]},
+options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{font:{size:11},padding:10}},tooltip:T}}});
+
+// === 3. DESEMBOLSO — total no topo + labels dentro de cada stack ===
+var salM=[183341,218724,217707,220724,219224,212724];
+var benM=[33038,30210,35665,34165,34170,35422];
+var resM=[10267,13800,17833,0,0,0];
+var comM=[6200,3400,4000,0,0,0];
+var mC=function(r,a1,a2,a3){return [0,1,2,3,4,5].map(function(i){return i<2?'rgba('+r+','+a1+')':i===2?'rgba('+r+','+a2+')':'rgba('+r+','+a3+')'})};
+var dlInside={anchor:'center',align:'center',color:'rgba(255,255,255,.85)',font:dfs,
+  formatter:function(v){return v>=1000?fKd(v):''},display:function(c){return c.dataset.data[c.dataIndex]>=5000}};
+new Chart(document.getElementById('cFlux'),{type:'bar',plugins:[STP],data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun'],datasets:[
+  {label:'Salários',data:salM,backgroundColor:mC('74,144,255','.75','.45','.15'),borderRadius:4,borderWidth:salM.map(function(_,i){return i===2?1.5:0}),borderColor:salM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
+  {label:'Benefícios',data:benM,backgroundColor:mC('61,220,151','.6','.35','.12'),borderRadius:4,borderWidth:benM.map(function(_,i){return i===2?1.5:0}),borderColor:benM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
+  {label:'Rescisão',data:resM,backgroundColor:mC('255,107,107','.7','.4','.12'),borderRadius:4,borderWidth:resM.map(function(_,i){return i===2?1.5:0}),borderColor:resM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
+  {label:'Comissão',data:comM,backgroundColor:mC('167,139,250','.7','.4','.12'),borderRadius:4,borderWidth:comM.map(function(_,i){return i===2?1.5:0}),borderColor:comM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside}
+]},options:{_stp:true,responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},
+  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+// === 4. RESCISÕES ===
+new Chart(document.getElementById('cResc'),{type:'bar',data:{labels:M7,datasets:[
+  {label:'Rescisão',data:[10267,13800,17833,0,0,0,0],backgroundColor:['rgba(255,107,107,.75)','rgba(255,107,107,.75)','rgba(255,107,107,.4)',pC,pC,pC,pC],borderRadius:5,borderWidth:[0,0,2,0,0,0,0],borderColor:['transparent','transparent','rgba(255,181,71,.6)','transparent','transparent','transparent','transparent'],borderDash:[5,3],
+    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#FF6B6B',font:df,formatter:fKd}},
+  {label:'Comissão',data:[6200,3400,4000,0,0,0,0],backgroundColor:['rgba(167,139,250,.75)','rgba(167,139,250,.75)','rgba(167,139,250,.4)',pC,pC,pC,pC],borderRadius:5,borderWidth:[0,0,2,0,0,0,0],borderColor:['transparent','transparent','rgba(255,181,71,.6)','transparent','transparent','transparent','transparent'],borderDash:[5,3],
+    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#A78BFA',font:df,formatter:fKd}}
+]},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},
+  scales:{x:{grid:{display:false}},y:{ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+// === 5. ÁREAS STACKED ===
+var areas=['Arquitetura','Obra','Comercial','Financeiro','Compras/Log.','Orçamentos','RH','Limpeza','Diretoria'];
+var aCol=['#4A90FF','#3DDC97','#A78BFA','#FFB547','#FB923C','#F472B6','#2DD4BF','#94A3BE','#FF6B6B'];
+var aD=[[61384,76391,62849,65370,63872,56216,56216],[43979,44200,45079,44539,44540,44810,44810],[50347,54600,56079,51539,51540,51810,51810],[34680,34713,35266,34906,34907,35087,35087],[23484,24058,42618,24514,24515,24650,24650],[14782,14687,15013,14833,14833,14923,14923],[16231,16183,16371,16281,16282,16327,16327],[8251,8119,8545,8290,8291,8418,8418],[4346,4272,4736,4466,4466,4601,4601]];
+new Chart(document.getElementById('c3'),{type:'bar',plugins:[STP],data:{labels:M7,
+  datasets:areas.map(function(a,i){return{label:a,data:aD[i],backgroundColor:aD[i].map(function(_,mi){return mi<2?aCol[i]+'CC':mi===2?aCol[i]+'66':aCol[i]+'25'})}})
+},options:{_stp:true,responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}},tooltip:T},
+  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+// TABLE
+var td1=[{n:'Arquitetura',hc:7,c:137776,p:25.8,cl:'#4A90FF'},{n:'Comercial',hc:6,c:104947,p:19.6,cl:'#A78BFA'},{n:'Obra',hc:7,c:88179,p:16.5,cl:'#3DDC97'},{n:'Financeiro',hc:4,c:69393,p:13.0,cl:'#FFB547'},{n:'Compras/Log.',hc:3,c:47542,p:8.9,cl:'#FB923C'},{n:'RH',hc:1,c:32414,p:6.1,cl:'#2DD4BF'},{n:'Orçamentos',hc:2,c:29469,p:5.5,cl:'#F472B6'},{n:'Limpeza',hc:2,c:16370,p:3.1,cl:'#94A3BE'},{n:'Diretoria',hc:3,c:8618,p:1.6,cl:'#FF6B6B'}];
+var mx=Math.max.apply(null,td1.map(function(d){return d.p}));var tb=document.getElementById('tbl1');
+td1.forEach(function(d){var tr=document.createElement('tr');var pc=Math.round(d.c/d.hc/2);tr.innerHTML='<td>'+d.n+'</td><td style="font-family:JetBrains Mono,monospace">'+d.hc+'</td><td>'+Math.round(d.c/1000)+'K</td><td>R$ '+pc.toLocaleString('pt-BR')+'</td><td>'+d.p.toFixed(1)+'%</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-f" style="width:'+Math.round(d.p/mx*100)+'%;background:'+d.cl+'"></div></div></div></td>';tb.appendChild(tr)});
+var tot=document.createElement('tr');tot.innerHTML='<td>TOTAL</td><td style="font-family:JetBrains Mono,monospace">35</td><td>535K</td><td>\u2014</td><td>100%</td><td></td>';tb.appendChild(tot);
+
+// === 6. PER CAPITA HORIZONTAL ===
+var pcA=['Arquitetura','Comercial','Financeiro','Compras/Log.','Orçamentos','Obra','Limpeza','Diretoria'];
+var pcV=[12732,9100,8678,8019,7343,6314,4060,1424];
+var pcCC=pcV.map(function(v){return v>10000?'rgba(255,107,107,.7)':v>7500?'rgba(255,181,71,.7)':'rgba(61,220,151,.7)'});
+new Chart(document.getElementById('cPC'),{type:'bar',data:{labels:pcA,datasets:[{data:pcV,backgroundColor:pcCC,borderRadius:4,barPercentage:.55,
+  datalabels:{display:true,anchor:'end',align:'end',offset:4,font:dfs,
+    color:function(c){var v=pcV[c.dataIndex];return v>10000?'#FF6B6B':v>7500?'#FFB547':'#3DDC97'},
+    formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}]},
+options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},
+  scales:{x:{max:18000,ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{grid:{display:false}}}}});
+
+// === 7. HC DEPT ===
+var dpts=['Arquitetura','Obra','Comercial','Financeiro','Compras/Log.','Orçamentos','Limpeza','RH','Diretoria'];
+var dHC=[[6,6,7],[6,7,7],[6,6,6],[4,4,4],[3,3,3],[2,2,2],[2,2,2],[1,1,1],[3,3,3]];
+new Chart(document.getElementById('cHCd'),{type:'bar',plugins:[STP],data:{labels:['Jan','Fev','Mar'],
+  datasets:dpts.map(function(d,i){return{label:d,data:dHC[i],backgroundColor:['AA','AA','55'].map(function(a){return aCol[i]+a})}})
+},options:{_stp:true,responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:5}},tooltip:T},
+  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+// === 8. HEADCOUNT HISTÓRICO ===
+new Chart(document.getElementById('c4'),{type:'line',data:{labels:M12,datasets:[
+  {label:'2024',data:[26,29,33,32,29,32,35,36,35,34,35,34],borderColor:'#5C6B85',borderDash:[5,5],pointRadius:3,tension:.35,borderWidth:1.5,backgroundColor:'transparent',
+    datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}},
+  {label:'2025',data:[30,34,37,37,41,42,43,43,34,34,33,32],borderColor:'#A78BFA',pointRadius:3,tension:.35,borderWidth:2,backgroundColor:'transparent',
+    datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,color:'#A78BFA',font:dfs}},
+  {label:'2026 Real',data:[33,34,null,null,null,null,null,null,null,null,null,null],borderColor:'#4A90FF',pointRadius:5,pointBackgroundColor:'#4A90FF',tension:.35,borderWidth:2.5,backgroundColor:'transparent',spanGaps:false,
+    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]!==null},anchor:'end',align:'top',offset:6,color:'#4A90FF',font:df}},
+  {label:'2026 ~',data:[null,34,35,null,null,null,null,null,null,null,null,null],borderColor:'#FFB547',pointRadius:5,pointBackgroundColor:'#FFB547',pointStyle:'triangle',tension:.35,borderWidth:2,borderDash:[4,3],backgroundColor:'transparent',spanGaps:false,
+    datalabels:{display:function(c){return c.dataIndex===2},anchor:'end',align:'top',offset:6,color:'#FFB547',font:df}},
+  {label:'2026 Proj.',data:[null,null,35,35,35,35,35,35,35,35,35,35],borderColor:'rgba(74,144,255,.3)',pointRadius:3,pointBackgroundColor:'rgba(74,144,255,.3)',tension:.35,borderWidth:1.5,borderDash:[5,5],backgroundColor:'rgba(74,144,255,.03)',fill:true,spanGaps:false,
+    datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}}
+]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{tooltip:T},scales:{y:{min:20,max:48,grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+
+// === 9. WATERFALL ===
+var wD=[[0,32],[32,37],[36,37],[34,36],[33,34],[0,35]],wV=[32,5,-1,-2,1,35];
+var wL=[['HC início','Jan'],'Admissões',['Saída','voluntária'],['Saída','involuntária'],['Admissão','Mar ~'],['HC atual','Mar']];
+var wCC=['rgba(74,144,255,.85)','rgba(61,220,151,.75)','rgba(255,181,71,.75)','rgba(255,107,107,.75)','rgba(255,181,71,.5)','rgba(74,144,255,.85)'];
+var wConn={id:'wfc',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;ctx.save();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(148,163,190,.3)';for(var i=0;i<m.data.length-1;i++){var c=m.data[i],n=m.data[i+1],cy=(i===0||i===m.data.length-2)?c.y:wV[i]>0?c.y:c.y+c.height;ctx.beginPath();ctx.moveTo(c.x+c.width/2,cy);ctx.lineTo(n.x-n.width/2,cy);ctx.stroke()}ctx.restore()}};
+var wLbl={id:'wfl',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;ctx.save();ctx.textAlign='center';ctx.font="500 13px 'JetBrains Mono',monospace";m.data.forEach(function(b,i){var isT=i===0||i===5;ctx.fillStyle=isT?'#4A90FF':wV[i]>0?'#3DDC97':'#FF6B6B';if(i===4)ctx.fillStyle='#FFB547';ctx.fillText((wV[i]>0&&!isT?'+':'')+wV[i],b.x,b.y-8)});ctx.restore()}};
+new Chart(document.getElementById('cWF'),{type:'bar',data:{labels:wL,datasets:[{data:wD,backgroundColor:wCC,borderRadius:5,borderSkipped:false,barPercentage:.5,categoryPercentage:.7}]},plugins:[wConn,wLbl],options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},scales:{y:{min:0,max:42,ticks:{stepSize:5},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+
+// === 10. PROJEÇÃO ===
+var avg=267354;
+var pB=M12.map(function(_,i){return i<2?ct[i]:i===2?ct[2]:avg});
+var p37=M12.map(function(_,i){return i<3?pB[i]:Math.round(avg*37/35)});
+var p32=M12.map(function(_,i){return i<3?pB[i]:Math.round(avg*32/35)+5000});
+new Chart(document.getElementById('cProj'),{type:'line',data:{labels:M12,datasets:[
+  {label:'Base 35HC \u2192 R$3,21M',data:pB,borderColor:'#4A90FF',backgroundColor:'rgba(74,144,255,.05)',
+    pointRadius:M12.map(function(_,i){return i<3?5:3}),
+    pointBackgroundColor:M12.map(function(_,i){return i<2?'#4A90FF':i===2?'#FFB547':'rgba(74,144,255,.4)'}),
+    tension:.3,borderWidth:2.5,fill:true,
+    segment:{borderDash:function(c){return c.p0DataIndex>=2?[5,5]:undefined},borderColor:function(c){return c.p0DataIndex>=2?'rgba(74,144,255,.4)':'#4A90FF'}},
+    datalabels:{display:function(c){return [0,1,2,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,font:dfs,
+      color:function(c){var i=c.dataIndex;return i<2?'#4A90FF':i===2?'#FFB547':'#94A3BE'},formatter:function(v){return fK(Math.round(v))}}},
+  {label:'37HC \u2192 R$3,40M',data:p37,borderColor:'#FFB547',pointRadius:M12.map(function(_,i){return i<3?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],backgroundColor:'transparent',
+    datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return fK(Math.round(v))}}},
+  {label:'32HC \u2192 R$2,93M',data:p32,borderColor:'#FF6B6B',pointRadius:M12.map(function(_,i){return i<3?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],backgroundColor:'transparent',
+    datalabels:{display:function(c){return c.dataIndex===11},anchor:'start',align:'bottom',offset:4,color:'#FF6B6B',font:dfs,formatter:function(v){return fK(Math.round(v))}}}
+]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}},tooltip:T},
+  scales:{y:{min:200000,max:320000,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+</script>
+</body>
+</html>
