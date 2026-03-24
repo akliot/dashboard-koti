@@ -841,10 +841,11 @@ function renderConciliacao(){
   const saldos=top.map(p=>p.rec_fd-p.desp_fd);
   const saldoColors=saldos.map(v=>v>=0?'#22c55e88':'#ef444488');
   const saldoBorders=saldos.map(v=>v>=0?'#22c55e':'#ef4444');
+  const maxAbsVal=Math.max(...saldos.map(v=>Math.abs(v)),1);
   charts.saldoFD=new Chart(document.getElementById('chartSaldoFD'),{type:'bar',
     data:{labels,datasets:[{label:'Saldo FD',data:saldos,backgroundColor:saldoColors,borderColor:saldoBorders,borderWidth:1}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{afterFit:function(s){s.width=250},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){const l=this.getLabelForValue(v);return l.length>30?l.substring(0,27)+'...':l}},grid:{display:false}}},
+      scales:{x:{suggestedMin:-maxAbsVal*1.5,suggestedMax:maxAbsVal*1.5,ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{afterFit:function(s){s.width=250},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){const l=this.getLabelForValue(v);return l.length>30?l.substring(0,27)+'...':l}},grid:{display:false}}},
       plugins:{legend:{display:false},
         datalabels:{display:true,anchor:'end',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',offset:4,font:{size:9,weight:'bold'},color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',formatter:v=>fmtK(v)},
         tooltip:{callbacks:{label:ctx=>'Saldo: '+fmt(ctx.raw)}}
