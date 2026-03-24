@@ -62,75 +62,19 @@ tr:hover td{background:rgba(74,144,255,.03)}
 .ins{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--t2);line-height:1.65}
 .ins strong{color:var(--t1)}.ins .hl{color:var(--amber);font-weight:600}
 .foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--bdr);font-size:11px;color:var(--t4);text-align:center}
+.loading{display:flex;justify-content:center;align-items:center;min-height:60vh;color:var(--t3);font-size:14px}
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.r2,.r3{grid-template-columns:1fr}}
 @media(max-width:600px){.kpi-grid{grid-template-columns:1fr}.main{padding:16px 12px}}
 </style>
 </head>
 <body>
-<div class="topbar"><div class="topbar-left"><div class="logo">SK</div><h1>Painel Executivo RH<span>— Studio Koti 2026</span></h1></div><div class="topbar-right"><div class="dot"></div>Base: Março/2026</div></div>
-<div class="main">
-<div class="legend-bar"><span style="font-weight:600;color:var(--t1);margin-right:4px">Legenda:</span><div class="legend-item"><div class="legend-dot real"></div>Realizado (Jan–Fev)</div><div class="legend-item"><div class="legend-dot andamento"></div>Em andamento (Mar)</div><div class="legend-item"><div class="legend-dot proj"></div>Projetado (Abr–Dez)</div></div>
-<div class="alert"><div class="alert-i" style="background:var(--amber-d);color:var(--amber)">!</div><div><strong>Atenção board:</strong> Apenas Jan e Fev são dados fechados. Mar está em andamento. De Abr em diante são projeções. <span class="hl">KPIs refletem apenas o realizado (2 meses)</span> — projeção anual usa média realizada x 12.</div></div>
-<div class="kpi-grid">
-  <div class="kpi"><div class="kpi-l">Desembolso Realizado</div><div class="kpi-v" style="color:var(--blue)">R$ 535K</div><div class="kpi-s">Jan + Fev fechados <span class="tag tb">2 meses</span></div></div>
-  <div class="kpi"><div class="kpi-l">Mar em Andamento</div><div class="kpi-v" style="color:var(--amber)">R$ 287K</div><div class="kpi-s">Parcial — pode variar até fechamento</div></div>
-  <div class="kpi"><div class="kpi-l">Projeção Anual</div><div class="kpi-v" style="color:var(--purple)">R$ 3,21M</div><div class="kpi-s">Média realizada x 12 <span class="tag tn">R$ 267K/mês</span></div></div>
-  <div class="kpi"><div class="kpi-l">Headcount Atual</div><div class="kpi-v" style="color:var(--green)">35</div><div class="kpi-s">Mar/26 · era 32 em Jan <span class="tag tg">+3</span></div></div>
-</div>
-<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-  <div class="kpi"><div class="kpi-l">Custo/Func. (Realizado)</div><div class="kpi-v" style="color:var(--teal)">R$ 7.978</div><div class="kpi-s">Média Jan–Fev <span class="tag tr">+4,5% Fev vs Jan</span></div></div>
-  <div class="kpi"><div class="kpi-l">Turnover Realizado</div><div class="kpi-v" style="color:var(--red)">8,8%</div><div class="kpi-s">3 saídas em 2 meses (1 vol + 2 inv)</div></div>
-  <div class="kpi"><div class="kpi-l">Rescisões Realizadas</div><div class="kpi-v" style="color:var(--pink)">R$ 24,1K</div><div class="kpi-s">Jan: 10,3K + Fev: 13,8K</div></div>
-  <div class="kpi"><div class="kpi-l">Admissões Realizadas</div><div class="kpi-v" style="color:var(--orange)">5</div><div class="kpi-s">Jan: 3 · Fev: 2 · Mar: 1 (andamento)</div></div>
-</div>
-<div class="sec">Visão Financeira — Evolução de Custos</div>
-<div class="row r3">
-  <div class="card"><div class="card-h"><div class="card-t">Custo total mensal + custo per capita</div></div><div class="cc" style="height:310px"><canvas id="c1"></canvas></div><div class="ins"><strong>CFO:</strong> Custo subiu 7,7% Jan→Fev (R$ 257K→277K). <span class="hl">Mar parcial R$ 287K — maior mês, com R$ 17,8K de rescisão.</span></div></div>
-  <div class="card"><div class="card-h"><div class="card-t">Composição — onde vai o dinheiro</div><div class="bdg">YTD Real</div></div><div class="cc" style="height:310px"><canvas id="c2"></canvas></div></div>
-</div>
-<div class="row r2">
-  <div class="card"><div class="card-h"><div class="card-t">Desembolso mensal por natureza</div></div><div class="cc" style="height:300px"><canvas id="cFlux"></canvas></div></div>
-  <div class="card"><div class="card-h"><div class="card-t">Rescisões & comissões — impacto caixa</div></div><div class="cc" style="height:300px"><canvas id="cResc"></canvas></div><div class="ins"><strong>CEO:</strong> R$ 24K rescisões realizadas + R$ 17,8K Mar. Comissões cessaram. <span class="hl">Sem variável no Comercial = risco.</span></div></div>
-</div>
-<div class="sec">Distribuição por Área</div>
-<div class="row r2">
-  <div class="card"><div class="card-h"><div class="card-t">Custo mensal por área</div></div><div class="cc" style="height:340px"><canvas id="c3"></canvas></div></div>
-  <div class="card"><div class="card-h"><div class="card-t">Ranking áreas — custo acumulado</div></div><div class="tw"><table><thead><tr><th>Área</th><th>HC</th><th>Acum.</th><th>Per Capita</th><th>%</th><th style="min-width:80px"></th></tr></thead><tbody id="tbl1"></tbody></table></div></div>
-</div>
-<div class="row r2">
-  <div class="card"><div class="card-h"><div class="card-t">Custo per capita por área (Fev)</div></div><div class="cc" style="height:300px"><canvas id="cPC"></canvas></div><div class="ins"><strong>CFO:</strong> <span class="hl">Arquitetura R$ 12,7K/func</span> em Fev (rescisão). Compras/Log. R$ 8K em linha.</div></div>
-  <div class="card"><div class="card-h"><div class="card-t">HC por departamento — Jan a Mar</div></div><div class="cc" style="height:300px"><canvas id="cHCd"></canvas></div><div class="ins"><strong>CEO:</strong> Obra +1 (Fev). Arquitetura +1 (Mar). <span class="hl">Mar é o 1o mês na composição target.</span></div></div>
-</div>
-<div class="sec">People Analytics</div>
-<div class="row r2">
-  <div class="card"><div class="card-h"><div class="card-t">Headcount histórico — 2024 a 2026</div><div class="bdg bdg-g">3 anos</div></div><div class="cc" style="height:280px"><canvas id="c4"></canvas></div><div class="ins"><strong>Board:</strong> 2025: pico 43 Jul→32 Dez (−25%). 2026 recuperou +3 em 2 meses. <span class="hl">Cautela no S2.</span></div></div>
-  <div class="card"><div class="card-h"><div class="card-t">Ponte de headcount — Jan → Mar</div><div class="bdg">Waterfall</div></div><div class="cc" style="height:280px"><canvas id="cWF"></canvas></div></div>
-</div>
-<div class="sec">Projeção & Cenários</div>
-<div class="row r1">
-  <div class="card"><div class="card-h"><div class="card-t">Projeção anual — 3 cenários</div></div><div class="cc" style="height:310px"><canvas id="cProj"></canvas></div><div class="ins"><strong>Board:</strong> <strong style="color:var(--blue)">35 HC</strong> → R$ 3,21M · <strong style="color:var(--amber)">37 HC</strong> → R$ 3,40M · <strong style="color:var(--red)">32 HC</strong> → R$ 2,93M. <span class="hl">Apenas 2 meses fechados — revisitar mensalmente.</span></div></div>
-</div>
-<div class="row r1">
-  <div class="card" style="padding:16px 22px"><div class="card-h" style="margin-bottom:10px"><div class="card-t">Fluxo de Caixa RH (R$ mil)</div></div>
-    <div class="tw"><table><thead><tr><th>Rubrica</th><th style="color:var(--blue)">Jan &#10003;</th><th style="color:var(--blue)">Fev &#10003;</th><th style="color:var(--amber)">Mar ~</th><th class="proj-cell">Abr</th><th class="proj-cell">Mai</th><th class="proj-cell">Jun</th><th>Acum.</th></tr></thead>
-      <tbody>
-        <tr><td>Salários</td><td>183,3</td><td>218,7</td><td style="color:var(--amber)">217,7</td><td class="proj-cell">220,7</td><td class="proj-cell">219,2</td><td class="proj-cell">212,7</td><td>1.272,4</td></tr>
-        <tr><td>Cartão Caju</td><td>30,2</td><td>28,4</td><td style="color:var(--amber)">34,4</td><td class="proj-cell">31,5</td><td class="proj-cell">31,5</td><td class="proj-cell">32,1</td><td>188,1</td></tr>
-        <tr><td>INSS / FGTS</td><td>2,8</td><td>2,9</td><td style="color:var(--amber)">2,9</td><td class="proj-cell">2,9</td><td class="proj-cell">2,9</td><td class="proj-cell">2,9</td><td>17,3</td></tr>
-        <tr><td>Estacionamento</td><td>1,8</td><td>1,8</td><td style="color:var(--amber)">2,5</td><td class="proj-cell">2,5</td><td class="proj-cell">2,5</td><td class="proj-cell">2,3</td><td>13,4</td></tr>
-        <tr><td>Outros Benef.</td><td>1,1</td><td>1,1</td><td style="color:var(--amber)">1,2</td><td class="proj-cell">1,1</td><td class="proj-cell">1,1</td><td class="proj-cell">1,2</td><td>6,8</td></tr>
-        <tr><td>Rescisão</td><td>10,3</td><td>13,8</td><td style="color:var(--amber)">17,8</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td>41,9</td></tr>
-        <tr><td>Comissão</td><td>6,2</td><td>3,4</td><td style="color:var(--amber)">4,0</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td class="proj-cell">—</td><td>13,6</td></tr>
-        <tr><td>TOTAL</td><td>235,6</td><td>270,0</td><td style="color:var(--amber)">280,6</td><td class="proj-cell">258,8</td><td class="proj-cell">257,3</td><td class="proj-cell">251,2</td><td>1.553,5</td></tr>
-      </tbody></table></div></div>
-</div>
-<div class="foot">Studio Koti — Painel Executivo RH &middot; Realizado: Jan–Fev &middot; Em andamento: Mar &middot; Projeção: Abr–Dez</div>
+<div class="topbar"><div class="topbar-left"><div class="logo">SK</div><h1>Painel Executivo RH<span>— Studio Koti 2026</span></h1></div><div class="topbar-right"><div class="dot"></div><span id="topBase">Carregando...</span></div></div>
+<div class="main" id="appMain">
+  <div class="loading" id="loadingRH">Carregando dados RH...</div>
 </div>
 
 <script>
-// REGISTER PLUGIN — THIS IS THE KEY LINE
 Chart.register(ChartDataLabels);
-
 Chart.defaults.color='#5C6B85';
 Chart.defaults.borderColor='rgba(37,46,69,.4)';
 Chart.defaults.font.family="'DM Sans',sans-serif";
@@ -138,154 +82,307 @@ Chart.defaults.font.size=11;
 Chart.defaults.plugins.legend.labels.usePointStyle=true;
 Chart.defaults.plugins.legend.labels.pointStyleWidth=8;
 Chart.defaults.plugins.legend.labels.padding=14;
-// Disable globally, enable per-dataset
 Chart.defaults.plugins.datalabels.display=false;
 
 var T={backgroundColor:'#161C2E',borderColor:'#252E45',borderWidth:1,padding:12};
-var fK=function(v){return v>=1000?Math.round(v/1000)+'K':v>0?String(Math.round(v)):''};
+var fK=function(v){return v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?Math.round(v/1000)+'K':v>0?String(Math.round(v)):''};
 var fKd=function(v){return v>=1000?(v/1000).toFixed(1)+'K':v>0?String(Math.round(v)):''};
+var fBRL=function(v){return 'R$ '+(v>=1e6?(v/1e6).toFixed(2)+'M':v>=1000?Math.round(v/1000)+'K':Math.round(v))};
 var df={family:"'JetBrains Mono',monospace",size:10,weight:'500'};
 var dfs={family:"'JetBrains Mono',monospace",size:9,weight:'500'};
-
-var M7=['Jan','Fev','Mar','Abr','Mai','Jun','Jul'];
 var M12=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-var ct=[257485,277223,286556,264739,263244,256841,256841];
-var cpf=[7803,8154,8187,7564,7521,7338,7338];
-var rC='rgba(74,144,255,.85)',aC='rgba(255,181,71,.7)',pC='rgba(74,144,255,.18)';
-var bC=[rC,rC,'rgba(74,144,255,.45)',pC,pC,pC,pC];
+var mNomes={1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'};
 
-// Stack total plugin (custom, not datalabels)
+// Stack total plugin
 var STP={id:'stp',afterDatasetsDraw:function(ch){if(!ch.config.options._stp)return;var ctx=ch.ctx;ctx.save();ctx.font="500 10px 'JetBrains Mono',monospace";ctx.textAlign='center';ctx.fillStyle='#EAF0FA';var last=ch.getDatasetMeta(ch.data.datasets.length-1);last.data.forEach(function(bar,i){var t=0;ch.data.datasets.forEach(function(ds){t+=(ds.data[i]||0)});if(t>0)ctx.fillText(fK(Math.round(t)),bar.x,bar.y-8)});ctx.restore()}};
 
-// === 1. CUSTO TOTAL + PER CAPITA ===
-new Chart(document.getElementById('c1'),{type:'bar',data:{labels:M7,datasets:[
-  {label:'Custo total',data:ct,backgroundColor:bC,borderRadius:5,yAxisID:'y',order:2,
-    borderWidth:ct.map(function(_,i){return i===2?2:0}),borderColor:ct.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),
-    datalabels:{display:true,anchor:'end',align:'end',offset:2,font:df,formatter:fK,
-      color:function(c){var i=c.dataIndex;return i<2?'#EAF0FA':i===2?'rgba(74,144,255,.7)':'#5C6B85'}}},
-  {label:'Custo/func',data:cpf,type:'line',borderColor:'#FFB547',backgroundColor:'rgba(255,181,71,.06)',
-    pointBackgroundColor:cpf.map(function(_,i){return i<=2?'#FFB547':'rgba(255,181,71,.4)'}),
-    pointRadius:5,tension:.35,borderWidth:2.5,fill:true,yAxisID:'y1',order:1,
-    segment:{borderDash:function(c){return c.p0DataIndex>=2?[5,4]:undefined},borderColor:function(c){return c.p0DataIndex>=2?'rgba(255,181,71,.4)':'#FFB547'}},
-    datalabels:{display:true,anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,
-      formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
-]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
-  plugins:{tooltip:T},
-  scales:{y:{min:200000,max:320000,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},
-    y1:{position:'right',min:6500,max:9000,ticks:{callback:function(v){return 'R$'+v}},grid:{display:false}},x:{grid:{display:false}}}}});
+// Waterfall connectors
+var wConn={id:'wfc',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;if(!m.data.length)return;ctx.save();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(148,163,190,.3)';for(var i=0;i<m.data.length-1;i++){var c=m.data[i],n=m.data[i+1];ctx.beginPath();ctx.moveTo(c.x+c.width/2,c.y);ctx.lineTo(n.x-n.width/2,c.y);ctx.stroke()}ctx.restore()}};
+var wLbl={id:'wfl',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;if(!m.data.length||!ch.config.options._wfvals)return;ctx.save();ctx.textAlign='center';ctx.font="500 13px 'JetBrains Mono',monospace";var wV=ch.config.options._wfvals;m.data.forEach(function(b,i){var isT=i===0||i===m.data.length-1;ctx.fillStyle=isT?'#4A90FF':wV[i]>0?'#3DDC97':'#FF6B6B';ctx.fillText((wV[i]>0&&!isT?'+':'')+wV[i],b.x,b.y-8)});ctx.restore()}};
 
-// === 2. COMPOSIÇÃO ===
-var sR=199341+218724,bR=32842+31005,wR=5848+7228,rR=10267+13800,iR=2987+3066,cRR=6200+3400,tR=sR+bR+wR+rR+iR+cRR;
-var cD=[sR,bR,wR,rR,iR,cRR].map(function(v){return Math.round(v/tR*1000)/10});
-new Chart(document.getElementById('c2'),{type:'doughnut',data:{labels:['Salário base','Benefícios','Softwares','Rescisão','Impostos','Comissão'],datasets:[{
-  data:cD,backgroundColor:['#4A90FF','#3DDC97','#A78BFA','#FF6B6B','#FFB547','#FB923C'],borderColor:'#0F1420',borderWidth:3,
-  datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>=3},anchor:'center',align:'center',color:'#fff',
-    font:{family:"'JetBrains Mono',monospace",size:11,weight:'500'},formatter:function(v){return v.toFixed(1)+'%'}}}]},
-options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{font:{size:11},padding:10}},tooltip:T}}});
+async function loadAndRender(){
+  try{
+    var resp=await fetch('rh_data.json');
+    if(!resp.ok)throw new Error('rh_data.json não encontrado');
+    var D=await resp.json();
+    render(D);
+  }catch(e){
+    document.getElementById('loadingRH').innerHTML='<div style="text-align:center"><h2 style="color:var(--t2)">Dados RH não disponíveis</h2><p style="color:var(--t3);margin-top:8px">Rode: python extract_rh.py</p></div>';
+  }
+}
 
-// === 3. DESEMBOLSO — total no topo + labels dentro de cada stack ===
-var salM=[183341,218724,217707,220724,219224,212724];
-var benM=[33038,30210,35665,34165,34170,35422];
-var resM=[10267,13800,17833,0,0,0];
-var comM=[6200,3400,4000,0,0,0];
-var mC=function(r,a1,a2,a3){return [0,1,2,3,4,5].map(function(i){return i<2?'rgba('+r+','+a1+')':i===2?'rgba('+r+','+a2+')':'rgba('+r+','+a3+')'})};
-var dlInside={anchor:'center',align:'center',color:'rgba(255,255,255,.85)',font:dfs,
-  formatter:function(v){return v>=1000?fKd(v):''},display:function(c){return c.dataset.data[c.dataIndex]>=5000}};
-new Chart(document.getElementById('cFlux'),{type:'bar',plugins:[STP],data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun'],datasets:[
-  {label:'Salários',data:salM,backgroundColor:mC('74,144,255','.75','.45','.15'),borderRadius:4,borderWidth:salM.map(function(_,i){return i===2?1.5:0}),borderColor:salM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
-  {label:'Benefícios',data:benM,backgroundColor:mC('61,220,151','.6','.35','.12'),borderRadius:4,borderWidth:benM.map(function(_,i){return i===2?1.5:0}),borderColor:benM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
-  {label:'Rescisão',data:resM,backgroundColor:mC('255,107,107','.7','.4','.12'),borderRadius:4,borderWidth:resM.map(function(_,i){return i===2?1.5:0}),borderColor:resM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside},
-  {label:'Comissão',data:comM,backgroundColor:mC('167,139,250','.7','.4','.12'),borderRadius:4,borderWidth:comM.map(function(_,i){return i===2?1.5:0}),borderColor:comM.map(function(_,i){return i===2?'rgba(255,181,71,.7)':'transparent'}),datalabels:dlInside}
-]},options:{_stp:true,responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
-  plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},
-  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+function render(D){
+  var st=D.status_meses,meses=Object.keys(D.custo_mensal).sort();
+  var mesRef=D.mes_referencia,mesRefN=parseInt(mesRef.split('-')[1]);
+  var mesesReal=meses.filter(function(m){return st[m]==='realizado'});
+  var mesesAnd=meses.filter(function(m){return st[m]==='andamento'});
+  var mesesYTD=meses.filter(function(m){return st[m]==='realizado'||st[m]==='andamento'});
+  var nReal=mesesReal.length;
 
-// === 4. RESCISÕES ===
-new Chart(document.getElementById('cResc'),{type:'bar',data:{labels:M7,datasets:[
-  {label:'Rescisão',data:[10267,13800,17833,0,0,0,0],backgroundColor:['rgba(255,107,107,.75)','rgba(255,107,107,.75)','rgba(255,107,107,.4)',pC,pC,pC,pC],borderRadius:5,borderWidth:[0,0,2,0,0,0,0],borderColor:['transparent','transparent','rgba(255,181,71,.6)','transparent','transparent','transparent','transparent'],borderDash:[5,3],
-    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#FF6B6B',font:df,formatter:fKd}},
-  {label:'Comissão',data:[6200,3400,4000,0,0,0,0],backgroundColor:['rgba(167,139,250,.75)','rgba(167,139,250,.75)','rgba(167,139,250,.4)',pC,pC,pC,pC],borderRadius:5,borderWidth:[0,0,2,0,0,0,0],borderColor:['transparent','transparent','rgba(255,181,71,.6)','transparent','transparent','transparent','transparent'],borderDash:[5,3],
-    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#A78BFA',font:df,formatter:fKd}}
-]},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},
-  scales:{x:{grid:{display:false}},y:{ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+  // Custo realizado (só meses fechados)
+  var custoReal=mesesReal.reduce(function(s,m){return s+(D.custo_mensal[m].total||0)},0);
+  var custoAnd=mesesAnd.reduce(function(s,m){return s+(D.custo_mensal[m].total||0)},0);
+  var custoYTD=custoReal+custoAnd;
+  var mediaReal=nReal?custoReal/nReal:0;
+  var projAnual=mediaReal*12;
+  var hcAtual=D.hc[mesRef]?D.hc[mesRef].final:0;
+  var hcInicio=D.hc[mesesReal[0]]?D.hc[mesesReal[0]].inicio:0;
+  var custoFunc=nReal&&hcAtual?custoReal/(hcAtual*nReal):0;
 
-// === 5. ÁREAS STACKED ===
-var areas=['Arquitetura','Obra','Comercial','Financeiro','Compras/Log.','Orçamentos','RH','Limpeza','Diretoria'];
-var aCol=['#4A90FF','#3DDC97','#A78BFA','#FFB547','#FB923C','#F472B6','#2DD4BF','#94A3BE','#FF6B6B'];
-var aD=[[61384,76391,62849,65370,63872,56216,56216],[43979,44200,45079,44539,44540,44810,44810],[50347,54600,56079,51539,51540,51810,51810],[34680,34713,35266,34906,34907,35087,35087],[23484,24058,42618,24514,24515,24650,24650],[14782,14687,15013,14833,14833,14923,14923],[16231,16183,16371,16281,16282,16327,16327],[8251,8119,8545,8290,8291,8418,8418],[4346,4272,4736,4466,4466,4601,4601]];
-new Chart(document.getElementById('c3'),{type:'bar',plugins:[STP],data:{labels:M7,
-  datasets:areas.map(function(a,i){return{label:a,data:aD[i],backgroundColor:aD[i].map(function(_,mi){return mi<2?aCol[i]+'CC':mi===2?aCol[i]+'66':aCol[i]+'25'})}})
-},options:{_stp:true,responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
-  plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}},tooltip:T},
-  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+  // Turnover, rescisões, admissões
+  var turnReal=mesesReal.reduce(function(s,m){return s+(D.hc[m].turnover||0)},0);
+  var saidaVol=mesesYTD.reduce(function(s,m){return s+(D.hc[m].saida_vol||0)},0);
+  var saidaInv=mesesYTD.reduce(function(s,m){return s+(D.hc[m].saida_inv||0)},0);
+  var rescReal=mesesReal.reduce(function(s,m){return s+(D.custo_mensal[m].rescisao||0)},0);
+  var admTotal=mesesYTD.reduce(function(s,m){return s+(D.hc[m].admissoes||0)},0);
+  var varFevJan=nReal>=2?((D.custo_mensal[mesesReal[1]].total/D.custo_mensal[mesesReal[0]].total-1)*100):0;
 
-// TABLE
-var td1=[{n:'Arquitetura',hc:7,c:137776,p:25.8,cl:'#4A90FF'},{n:'Comercial',hc:6,c:104947,p:19.6,cl:'#A78BFA'},{n:'Obra',hc:7,c:88179,p:16.5,cl:'#3DDC97'},{n:'Financeiro',hc:4,c:69393,p:13.0,cl:'#FFB547'},{n:'Compras/Log.',hc:3,c:47542,p:8.9,cl:'#FB923C'},{n:'RH',hc:1,c:32414,p:6.1,cl:'#2DD4BF'},{n:'Orçamentos',hc:2,c:29469,p:5.5,cl:'#F472B6'},{n:'Limpeza',hc:2,c:16370,p:3.1,cl:'#94A3BE'},{n:'Diretoria',hc:3,c:8618,p:1.6,cl:'#FF6B6B'}];
-var mx=Math.max.apply(null,td1.map(function(d){return d.p}));var tb=document.getElementById('tbl1');
-td1.forEach(function(d){var tr=document.createElement('tr');var pc=Math.round(d.c/d.hc/2);tr.innerHTML='<td>'+d.n+'</td><td style="font-family:JetBrains Mono,monospace">'+d.hc+'</td><td>'+Math.round(d.c/1000)+'K</td><td>R$ '+pc.toLocaleString('pt-BR')+'</td><td>'+d.p.toFixed(1)+'%</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-f" style="width:'+Math.round(d.p/mx*100)+'%;background:'+d.cl+'"></div></div></div></td>';tb.appendChild(tr)});
-var tot=document.createElement('tr');tot.innerHTML='<td>TOTAL</td><td style="font-family:JetBrains Mono,monospace">35</td><td>535K</td><td>\u2014</td><td>100%</td><td></td>';tb.appendChild(tot);
+  // Legenda dinâmica
+  var realLabel=mesesReal.map(function(m){return mNomes[parseInt(m.split('-')[1])]}).join('–');
+  var andLabel=mesesAnd.map(function(m){return mNomes[parseInt(m.split('-')[1])]}).join('');
+  var projLabel=meses.filter(function(m){return st[m]==='projecao'}).map(function(m){return mNomes[parseInt(m.split('-')[1])]});
+  var projLabelStr=projLabel.length?projLabel[0]+'–'+projLabel[projLabel.length-1]:'';
 
-// === 6. PER CAPITA HORIZONTAL ===
-var pcA=['Arquitetura','Comercial','Financeiro','Compras/Log.','Orçamentos','Obra','Limpeza','Diretoria'];
-var pcV=[12732,9100,8678,8019,7343,6314,4060,1424];
-var pcCC=pcV.map(function(v){return v>10000?'rgba(255,107,107,.7)':v>7500?'rgba(255,181,71,.7)':'rgba(61,220,151,.7)'});
-new Chart(document.getElementById('cPC'),{type:'bar',data:{labels:pcA,datasets:[{data:pcV,backgroundColor:pcCC,borderRadius:4,barPercentage:.55,
-  datalabels:{display:true,anchor:'end',align:'end',offset:4,font:dfs,
-    color:function(c){var v=pcV[c.dataIndex];return v>10000?'#FF6B6B':v>7500?'#FFB547':'#3DDC97'},
-    formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}]},
-options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},
-  scales:{x:{max:18000,ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{grid:{display:false}}}}});
+  document.getElementById('topBase').textContent='Base: '+mNomes[mesRefN]+'/2026';
 
-// === 7. HC DEPT ===
-var dpts=['Arquitetura','Obra','Comercial','Financeiro','Compras/Log.','Orçamentos','Limpeza','RH','Diretoria'];
-var dHC=[[6,6,7],[6,7,7],[6,6,6],[4,4,4],[3,3,3],[2,2,2],[2,2,2],[1,1,1],[3,3,3]];
-new Chart(document.getElementById('cHCd'),{type:'bar',plugins:[STP],data:{labels:['Jan','Fev','Mar'],
-  datasets:dpts.map(function(d,i){return{label:d,data:dHC[i],backgroundColor:['AA','AA','55'].map(function(a){return aCol[i]+a})}})
-},options:{_stp:true,responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:5}},tooltip:T},
-  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(37,46,69,.3)'}}}}});
+  // Admissões por mês
+  var admPorMes=mesesYTD.map(function(m){var n=parseInt(m.split('-')[1]);return mNomes[n]+': '+D.hc[m].admissoes});
 
-// === 8. HEADCOUNT HISTÓRICO ===
-new Chart(document.getElementById('c4'),{type:'line',data:{labels:M12,datasets:[
-  {label:'2024',data:[26,29,33,32,29,32,35,36,35,34,35,34],borderColor:'#5C6B85',borderDash:[5,5],pointRadius:3,tension:.35,borderWidth:1.5,backgroundColor:'transparent',
-    datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}},
-  {label:'2025',data:[30,34,37,37,41,42,43,43,34,34,33,32],borderColor:'#A78BFA',pointRadius:3,tension:.35,borderWidth:2,backgroundColor:'transparent',
-    datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,color:'#A78BFA',font:dfs}},
-  {label:'2026 Real',data:[33,34,null,null,null,null,null,null,null,null,null,null],borderColor:'#4A90FF',pointRadius:5,pointBackgroundColor:'#4A90FF',tension:.35,borderWidth:2.5,backgroundColor:'transparent',spanGaps:false,
-    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]!==null},anchor:'end',align:'top',offset:6,color:'#4A90FF',font:df}},
-  {label:'2026 ~',data:[null,34,35,null,null,null,null,null,null,null,null,null],borderColor:'#FFB547',pointRadius:5,pointBackgroundColor:'#FFB547',pointStyle:'triangle',tension:.35,borderWidth:2,borderDash:[4,3],backgroundColor:'transparent',spanGaps:false,
-    datalabels:{display:function(c){return c.dataIndex===2},anchor:'end',align:'top',offset:6,color:'#FFB547',font:df}},
-  {label:'2026 Proj.',data:[null,null,35,35,35,35,35,35,35,35,35,35],borderColor:'rgba(74,144,255,.3)',pointRadius:3,pointBackgroundColor:'rgba(74,144,255,.3)',tension:.35,borderWidth:1.5,borderDash:[5,5],backgroundColor:'rgba(74,144,255,.03)',fill:true,spanGaps:false,
-    datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}}
-]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{tooltip:T},scales:{y:{min:20,max:48,grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+  // Render HTML
+  var html='';
+  // Legend
+  html+='<div class="legend-bar"><span style="font-weight:600;color:var(--t1);margin-right:4px">Legenda:</span>';
+  html+='<div class="legend-item"><div class="legend-dot real"></div>Realizado ('+realLabel+')</div>';
+  if(andLabel)html+='<div class="legend-item"><div class="legend-dot andamento"></div>Em andamento ('+andLabel+')</div>';
+  html+='<div class="legend-item"><div class="legend-dot proj"></div>Projetado ('+projLabelStr+')</div></div>';
 
-// === 9. WATERFALL ===
-var wD=[[0,32],[32,37],[36,37],[34,36],[33,34],[0,35]],wV=[32,5,-1,-2,1,35];
-var wL=[['HC início','Jan'],'Admissões',['Saída','voluntária'],['Saída','involuntária'],['Admissão','Mar ~'],['HC atual','Mar']];
-var wCC=['rgba(74,144,255,.85)','rgba(61,220,151,.75)','rgba(255,181,71,.75)','rgba(255,107,107,.75)','rgba(255,181,71,.5)','rgba(74,144,255,.85)'];
-var wConn={id:'wfc',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;ctx.save();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(148,163,190,.3)';for(var i=0;i<m.data.length-1;i++){var c=m.data[i],n=m.data[i+1],cy=(i===0||i===m.data.length-2)?c.y:wV[i]>0?c.y:c.y+c.height;ctx.beginPath();ctx.moveTo(c.x+c.width/2,cy);ctx.lineTo(n.x-n.width/2,cy);ctx.stroke()}ctx.restore()}};
-var wLbl={id:'wfl',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;ctx.save();ctx.textAlign='center';ctx.font="500 13px 'JetBrains Mono',monospace";m.data.forEach(function(b,i){var isT=i===0||i===5;ctx.fillStyle=isT?'#4A90FF':wV[i]>0?'#3DDC97':'#FF6B6B';if(i===4)ctx.fillStyle='#FFB547';ctx.fillText((wV[i]>0&&!isT?'+':'')+wV[i],b.x,b.y-8)});ctx.restore()}};
-new Chart(document.getElementById('cWF'),{type:'bar',data:{labels:wL,datasets:[{data:wD,backgroundColor:wCC,borderRadius:5,borderSkipped:false,barPercentage:.5,categoryPercentage:.7}]},plugins:[wConn,wLbl],options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},scales:{y:{min:0,max:42,ticks:{stepSize:5},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+  // Alert
+  html+='<div class="alert"><div class="alert-i" style="background:var(--amber-d);color:var(--amber)">!</div><div><strong>Atenção board:</strong> Apenas '+realLabel+' são dados fechados.'+
+    (andLabel?' '+andLabel+' está em andamento.':'')+' De '+projLabel[0]+' em diante são projeções. <span class="hl">KPIs refletem apenas o realizado ('+nReal+' meses)</span> — projeção anual usa média realizada x 12.</div></div>';
 
-// === 10. PROJEÇÃO ===
-var avg=267354;
-var pB=M12.map(function(_,i){return i<2?ct[i]:i===2?ct[2]:avg});
-var p37=M12.map(function(_,i){return i<3?pB[i]:Math.round(avg*37/35)});
-var p32=M12.map(function(_,i){return i<3?pB[i]:Math.round(avg*32/35)+5000});
-new Chart(document.getElementById('cProj'),{type:'line',data:{labels:M12,datasets:[
-  {label:'Base 35HC \u2192 R$3,21M',data:pB,borderColor:'#4A90FF',backgroundColor:'rgba(74,144,255,.05)',
-    pointRadius:M12.map(function(_,i){return i<3?5:3}),
-    pointBackgroundColor:M12.map(function(_,i){return i<2?'#4A90FF':i===2?'#FFB547':'rgba(74,144,255,.4)'}),
-    tension:.3,borderWidth:2.5,fill:true,
-    segment:{borderDash:function(c){return c.p0DataIndex>=2?[5,5]:undefined},borderColor:function(c){return c.p0DataIndex>=2?'rgba(74,144,255,.4)':'#4A90FF'}},
-    datalabels:{display:function(c){return [0,1,2,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,font:dfs,
-      color:function(c){var i=c.dataIndex;return i<2?'#4A90FF':i===2?'#FFB547':'#94A3BE'},formatter:function(v){return fK(Math.round(v))}}},
-  {label:'37HC \u2192 R$3,40M',data:p37,borderColor:'#FFB547',pointRadius:M12.map(function(_,i){return i<3?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],backgroundColor:'transparent',
-    datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return fK(Math.round(v))}}},
-  {label:'32HC \u2192 R$2,93M',data:p32,borderColor:'#FF6B6B',pointRadius:M12.map(function(_,i){return i<3?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],backgroundColor:'transparent',
-    datalabels:{display:function(c){return c.dataIndex===11},anchor:'start',align:'bottom',offset:4,color:'#FF6B6B',font:dfs,formatter:function(v){return fK(Math.round(v))}}}
-]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
-  plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}},tooltip:T},
-  scales:{y:{min:200000,max:320000,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+  // KPIs row 1
+  html+='<div class="kpi-grid">';
+  html+='<div class="kpi"><div class="kpi-l">Desembolso Realizado</div><div class="kpi-v" style="color:var(--blue)">'+fBRL(custoReal)+'</div><div class="kpi-s">'+realLabel+' fechados <span class="tag tb">'+nReal+' meses</span></div></div>';
+  html+='<div class="kpi"><div class="kpi-l">'+andLabel+' em Andamento</div><div class="kpi-v" style="color:var(--amber)">'+fBRL(custoAnd)+'</div><div class="kpi-s">Parcial — pode variar até fechamento</div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Projeção Anual</div><div class="kpi-v" style="color:var(--purple)">'+fBRL(projAnual)+'</div><div class="kpi-s">Média realizada x 12 <span class="tag tn">'+fBRL(mediaReal)+'/mês</span></div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Headcount Atual</div><div class="kpi-v" style="color:var(--green)">'+hcAtual+'</div><div class="kpi-s">'+mNomes[mesRefN]+'/26 · era '+hcInicio+' em Jan <span class="tag tg">+'+(hcAtual-hcInicio)+'</span></div></div>';
+  html+='</div>';
+
+  // KPIs row 2
+  html+='<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">';
+  html+='<div class="kpi"><div class="kpi-l">Custo/Func. (Realizado)</div><div class="kpi-v" style="color:var(--teal)">R$ '+Math.round(custoFunc).toLocaleString('pt-BR')+'</div><div class="kpi-s">Média '+realLabel+' <span class="tag '+(varFevJan>0?'tr':'tg')+'">'+
+    (varFevJan>0?'+':'')+varFevJan.toFixed(1)+'% Fev vs Jan</span></div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Turnover Realizado</div><div class="kpi-v" style="color:var(--red)">'+(turnReal*100).toFixed(1)+'%</div><div class="kpi-s">'+(saidaVol+saidaInv)+' saídas em '+nReal+' meses ('+saidaVol+' vol + '+saidaInv+' inv)</div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Rescisões Realizadas</div><div class="kpi-v" style="color:var(--pink)">'+fBRL(rescReal)+'</div><div class="kpi-s">'+mesesReal.map(function(m){return mNomes[parseInt(m.split('-')[1])]+': '+fKd(D.custo_mensal[m].rescisao)}).join(' + ')+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-l">Admissões Realizadas</div><div class="kpi-v" style="color:var(--orange)">'+admTotal+'</div><div class="kpi-s">'+admPorMes.join(' · ')+'</div></div>';
+  html+='</div>';
+
+  // Charts section
+  html+='<div class="sec">Visão Financeira — Evolução de Custos</div>';
+  html+='<div class="row r3"><div class="card"><div class="card-h"><div class="card-t">Custo total mensal + custo per capita</div></div><div class="cc" style="height:310px"><canvas id="c1"></canvas></div><div class="ins" id="ins1"></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Composição — onde vai o dinheiro</div><div class="bdg">YTD Real</div></div><div class="cc" style="height:310px"><canvas id="c2"></canvas></div></div></div>';
+
+  html+='<div class="row r2"><div class="card"><div class="card-h"><div class="card-t">Desembolso mensal por natureza</div></div><div class="cc" style="height:300px"><canvas id="cFlux"></canvas></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Rescisões & comissões — impacto caixa</div></div><div class="cc" style="height:300px"><canvas id="cResc"></canvas></div><div class="ins" id="insResc"></div></div></div>';
+
+  html+='<div class="sec">Distribuição por Área</div>';
+  html+='<div class="row r2"><div class="card"><div class="card-h"><div class="card-t">Custo mensal por área</div></div><div class="cc" style="height:340px"><canvas id="c3"></canvas></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Ranking áreas — custo acumulado</div></div><div class="tw"><table><thead><tr><th>Área</th><th>HC</th><th>Acum.</th><th>Per Capita</th><th>%</th><th style="min-width:80px"></th></tr></thead><tbody id="tbl1"></tbody></table></div></div></div>';
+
+  html+='<div class="row r2"><div class="card"><div class="card-h"><div class="card-t">Custo per capita por área ('+mNomes[mesRefN]+')</div></div><div class="cc" style="height:300px"><canvas id="cPC"></canvas></div><div class="ins" id="insPC"></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">HC por departamento — '+realLabel+(andLabel?' a '+andLabel:'')+'</div></div><div class="cc" style="height:300px"><canvas id="cHCd"></canvas></div><div class="ins" id="insHC"></div></div></div>';
+
+  html+='<div class="sec">People Analytics</div>';
+  html+='<div class="row r2"><div class="card"><div class="card-h"><div class="card-t">Headcount histórico — 2024 a 2026</div><div class="bdg bdg-g">3 anos</div></div><div class="cc" style="height:280px"><canvas id="c4"></canvas></div><div class="ins" id="insHist"></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Ponte de headcount — Jan → '+mNomes[mesRefN]+'</div><div class="bdg">Waterfall</div></div><div class="cc" style="height:280px"><canvas id="cWF"></canvas></div></div></div>';
+
+  html+='<div class="sec">Projeção & Cenários</div>';
+  html+='<div class="row r1"><div class="card"><div class="card-h"><div class="card-t">Projeção anual — 3 cenários</div></div><div class="cc" style="height:310px"><canvas id="cProj"></canvas></div><div class="ins" id="insProj"></div></div></div>';
+
+  // Fluxo de caixa table
+  html+='<div class="row r1"><div class="card" style="padding:16px 22px"><div class="card-h" style="margin-bottom:10px"><div class="card-t">Fluxo de Caixa RH (R$ mil)</div></div><div class="tw"><table id="tblFluxo"></table></div></div></div>';
+
+  html+='<div class="foot">Studio Koti — Painel Executivo RH · Realizado: '+realLabel+' · '+(andLabel?'Em andamento: '+andLabel+' · ':'')+'Projeção: '+projLabelStr+'</div>';
+
+  document.getElementById('appMain').innerHTML=html;
+
+  // === RENDER CHARTS ===
+  var mesLabels=meses.map(function(m){return mNomes[parseInt(m.split('-')[1])]});
+  var ct=meses.map(function(m){return Math.round(D.custo_mensal[m].total)});
+  var cpf=meses.map(function(m,i){var h=D.hc[m]?D.hc[m].final:1;return Math.round(D.custo_mensal[m].total/h)});
+  var rC='rgba(74,144,255,.85)',aC='rgba(255,181,71,.7)',pC='rgba(74,144,255,.18)';
+  var bC=meses.map(function(m){var s=st[m];return s==='realizado'?rC:s==='andamento'?aC:pC});
+  var dlInside={anchor:'center',align:'center',color:'rgba(255,255,255,.85)',font:dfs,formatter:function(v){return v>=1000?fKd(v):''},display:function(c){return c.dataset.data[c.dataIndex]>=5000}};
+
+  // 1. Custo total + per capita
+  new Chart(document.getElementById('c1'),{type:'bar',data:{labels:mesLabels,datasets:[
+    {label:'Custo total',data:ct,backgroundColor:bC,borderRadius:5,yAxisID:'y',order:2,
+      datalabels:{display:true,anchor:'end',align:'end',offset:2,font:df,formatter:fK,color:function(c){var s=st[meses[c.dataIndex]];return s==='realizado'?'#EAF0FA':s==='andamento'?'rgba(255,181,71,.9)':'#5C6B85'}}},
+    {label:'Custo/func',data:cpf,type:'line',borderColor:'#FFB547',backgroundColor:'rgba(255,181,71,.06)',pointBackgroundColor:cpf.map(function(_,i){return st[meses[i]]==='projecao'?'rgba(255,181,71,.4)':'#FFB547'}),pointRadius:5,tension:.35,borderWidth:2.5,fill:true,yAxisID:'y1',order:1,
+      segment:{borderDash:function(c){return st[meses[c.p0DataIndex]]==='projecao'?[5,4]:undefined}},
+      datalabels:{display:true,anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{tooltip:T},
+    scales:{y:{min:Math.min.apply(null,ct)*0.85,max:Math.max.apply(null,ct)*1.15,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},
+      y1:{position:'right',min:Math.min.apply(null,cpf)*0.85,max:Math.max.apply(null,cpf)*1.15,ticks:{callback:function(v){return 'R$'+v}},grid:{display:false}},x:{grid:{display:false}}}}});
+
+  // Insight 1
+  document.getElementById('ins1').innerHTML='<strong>CFO:</strong> Custo '+(varFevJan>0?'subiu':'caiu')+' '+Math.abs(varFevJan).toFixed(1)+'% Jan→Fev ('+fBRL(ct[0])+'→'+fBRL(ct[1])+'). <span class="hl">'+mNomes[mesRefN]+' parcial '+fBRL(custoAnd)+' — '+(custoAnd>custoReal/nReal?'maior':'menor')+' mês.</span>';
+
+  // 2. Composição donut
+  var comp=D.composicao_custo_ytd;var compL=Object.keys(comp);var compV=Object.values(comp);var compT=compV.reduce(function(a,b){return a+b},0);
+  var compPct=compV.map(function(v){return Math.round(v/compT*1000)/10});
+  var compCol=['#4A90FF','#3DDC97','#A78BFA','#FF6B6B','#FFB547','#FB923C','#2DD4BF','#F472B6'];
+  new Chart(document.getElementById('c2'),{type:'doughnut',data:{labels:compL,datasets:[{data:compPct,backgroundColor:compCol.slice(0,compL.length),borderColor:'#0F1420',borderWidth:3,
+    datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>=3},anchor:'center',align:'center',color:'#fff',font:{family:"'JetBrains Mono',monospace",size:11,weight:'500'},formatter:function(v){return v.toFixed(1)+'%'}}}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{font:{size:11},padding:10}},tooltip:T}}});
+
+  // 3. Desembolso por natureza (fluxo caixa)
+  var fc=D.fluxo_caixa||{};
+  var fcRub=[['salarios','Salários','74,144,255'],['caju','Caju','61,220,151'],['rescisao','Rescisão','255,107,107'],['comissao','Comissão','167,139,250']];
+  var mC=function(rgb){return meses.map(function(m){var s=st[m];return s==='realizado'?'rgba('+rgb+',.75)':s==='andamento'?'rgba('+rgb+',.45)':'rgba('+rgb+',.15)'})};
+  var dsFlux=fcRub.map(function(r){return{label:r[1],data:meses.map(function(m){return fc[m]?fc[m][r[0]]||0:D.custo_mensal[m][r[0]]||0}),backgroundColor:mC(r[2]),borderRadius:4,datalabels:dlInside}}).filter(function(ds){return ds.data.some(function(v){return v>0})});
+  new Chart(document.getElementById('cFlux'),{type:'bar',plugins:[STP],data:{labels:mesLabels,datasets:dsFlux},options:{_stp:true,responsive:true,maintainAspectRatio:false,plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+  // 4. Rescisões & comissões
+  var rescData=meses.map(function(m){return D.custo_mensal[m].rescisao||0});
+  var comData=meses.map(function(m){return D.custo_mensal[m].comissao||0});
+  new Chart(document.getElementById('cResc'),{type:'bar',data:{labels:mesLabels,datasets:[
+    {label:'Rescisão',data:rescData,backgroundColor:mC('255,107,107'),borderRadius:5,datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#FF6B6B',font:df,formatter:fKd}},
+    {label:'Comissão',data:comData,backgroundColor:mC('167,139,250'),borderRadius:5,datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0},anchor:'end',align:'end',offset:2,color:'#A78BFA',font:df,formatter:fKd}}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:T,legend:{position:'bottom',labels:{font:{size:10}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+  var comUltimo=comData[mesesYTD.length-1]||0;
+  document.getElementById('insResc').innerHTML='<strong>CEO:</strong> '+fBRL(rescReal)+' rescisões realizadas'+(custoAnd>0?' + '+fBRL(D.custo_mensal[mesesAnd[0]]?.rescisao||0)+' '+andLabel:'')+'. '+(comUltimo===0?'Comissões cessaram. <span class="hl">Sem variável no Comercial = risco.</span>':'');
+
+  // 5. Custo por área stacked
+  var areas=Object.keys(D.custo_por_area[meses[0]]||{});
+  var aCol=['#4A90FF','#3DDC97','#A78BFA','#FFB547','#FB923C','#F472B6','#2DD4BF','#94A3BE','#FF6B6B'];
+  new Chart(document.getElementById('c3'),{type:'bar',plugins:[STP],data:{labels:mesLabels,
+    datasets:areas.map(function(a,i){return{label:a,data:meses.map(function(m){return Math.round(D.custo_por_area[m]?.[a]||0)}),backgroundColor:meses.map(function(m){var s=st[m];return s==='realizado'?aCol[i]+'CC':s==='andamento'?aCol[i]+'66':aCol[i]+'25'})}})
+  },options:{_stp:true,responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}},tooltip:T},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}}}}});
+
+  // Table ranking
+  var areaCusto={};mesesYTD.forEach(function(m){var a=D.custo_por_area[m]||{};Object.keys(a).forEach(function(k){areaCusto[k]=(areaCusto[k]||0)+a[k]})});
+  var totalCusto=Object.values(areaCusto).reduce(function(a,b){return a+b},0);
+  var areasSorted=Object.entries(areaCusto).sort(function(a,b){return b[1]-a[1]});
+  var mx=areasSorted[0]?areasSorted[0][1]/totalCusto*100:1;
+  var tb=document.getElementById('tbl1');
+  areasSorted.forEach(function(e,i){
+    var a=e[0],c=e[1],hc=D.hc_por_area[mesRef]?.[a]||0,pc=hc?Math.round(c/hc/mesesYTD.length):0,pct=(c/totalCusto*100);
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+a+'</td><td style="font-family:JetBrains Mono,monospace">'+hc+'</td><td>'+Math.round(c/1000)+'K</td><td>R$ '+pc.toLocaleString('pt-BR')+'</td><td>'+pct.toFixed(1)+'%</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-f" style="width:'+Math.round(pct/mx*100)+'%;background:'+(aCol[i]||aCol[0])+'"></div></div></div></td>';
+    tb.appendChild(tr);
+  });
+  var tot=document.createElement('tr');tot.innerHTML='<td>TOTAL</td><td style="font-family:JetBrains Mono,monospace">'+hcAtual+'</td><td>'+Math.round(totalCusto/1000)+'K</td><td>—</td><td>100%</td><td></td>';tb.appendChild(tot);
+
+  // 6. Per capita
+  var pc=D.per_capita_area[mesRef]||{};var pcS=Object.entries(pc).filter(function(e){return e[1]>0}).sort(function(a,b){return b[1]-a[1]});
+  var pcV=pcS.map(function(e){return Math.round(e[1])});
+  var pcCC=pcV.map(function(v){return v>10000?'rgba(255,107,107,.7)':v>7500?'rgba(255,181,71,.7)':'rgba(61,220,151,.7)'});
+  new Chart(document.getElementById('cPC'),{type:'bar',data:{labels:pcS.map(function(e){return e[0]}),datasets:[{data:pcV,backgroundColor:pcCC,borderRadius:4,barPercentage:.55,
+    datalabels:{display:true,anchor:'end',align:'end',offset:4,font:dfs,color:function(c){var v=pcV[c.dataIndex];return v>10000?'#FF6B6B':v>7500?'#FFB547':'#3DDC97'},formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},
+    scales:{x:{max:Math.max.apply(null,pcV)*1.3,ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{grid:{display:false}}}}});
+  document.getElementById('insPC').innerHTML='<strong>CFO:</strong> <span class="hl">'+pcS[0][0]+' R$'+(pcS[0][1]/1000).toFixed(1)+'K/func</span> em '+mNomes[mesRefN]+'. Média: R$'+(pcV.reduce(function(a,b){return a+b},0)/pcV.length/1000).toFixed(1)+'K.';
+
+  // 7. HC dept grouped
+  var hcArea=D.hc_por_area||{};var depts=Object.keys(hcArea[mesesYTD[0]]||{}).sort();
+  new Chart(document.getElementById('cHCd'),{type:'bar',plugins:[STP],data:{labels:mesLabels.slice(0,mesesYTD.length),
+    datasets:depts.map(function(d,i){return{label:d,data:mesesYTD.map(function(m){return hcArea[m]?.[d]||0}),backgroundColor:mesesYTD.map(function(m){var s=st[m];return s==='andamento'?aCol[i]+'55':aCol[i]+'AA'})}})
+  },options:{_stp:true,responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:5}},tooltip:T},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(37,46,69,.3)'}}}}});
+  document.getElementById('insHC').innerHTML='<strong>CEO:</strong> HC estável. <span class="hl">'+mNomes[mesRefN]+' composição no target ('+hcAtual+').</span>';
+
+  // 8. HC histórico
+  var hist=D.historico_hc||{};
+  var hc26=hist['2026']||[];
+  var nRealIdx=mesesReal.length;var nAndIdx=nRealIdx+mesesAnd.length;
+  new Chart(document.getElementById('c4'),{type:'line',data:{labels:M12,datasets:[
+    {label:'2024',data:hist['2024']||[],borderColor:'#5C6B85',borderDash:[5,5],pointRadius:3,tension:.35,borderWidth:1.5,fill:false,
+      datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}},
+    {label:'2025',data:hist['2025']||[],borderColor:'#A78BFA',pointRadius:3,tension:.35,borderWidth:2,fill:false,
+      datalabels:{display:function(c){return [0,7,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,color:'#A78BFA',font:dfs}},
+    {label:'2026 Real',data:hc26.map(function(v,i){return i<nRealIdx?v:null}),borderColor:'#4A90FF',pointRadius:5,pointBackgroundColor:'#4A90FF',tension:.35,borderWidth:2.5,fill:false,spanGaps:false,
+      datalabels:{display:function(c){return c.dataset.data[c.dataIndex]!==null},anchor:'end',align:'top',offset:6,color:'#4A90FF',font:df}},
+    {label:'2026 ~',data:hc26.map(function(v,i){return i>=nRealIdx-1&&i<nAndIdx?v:null}),borderColor:'#FFB547',pointRadius:5,pointBackgroundColor:'#FFB547',pointStyle:'triangle',tension:.35,borderWidth:2,borderDash:[4,3],fill:false,spanGaps:false,
+      datalabels:{display:function(c){return c.dataIndex===nAndIdx-1},anchor:'end',align:'top',offset:6,color:'#FFB547',font:df}},
+    {label:'2026 Proj.',data:hc26.map(function(v,i){return i>=nAndIdx-1?v:null}),borderColor:'rgba(74,144,255,.3)',pointRadius:3,pointBackgroundColor:'rgba(74,144,255,.3)',tension:.35,borderWidth:1.5,borderDash:[5,5],backgroundColor:'rgba(74,144,255,.03)',fill:true,spanGaps:false,
+      datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'bottom',offset:4,color:'#5C6B85',font:dfs}}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{tooltip:T},scales:{y:{min:20,max:48,grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+
+  var hc25=hist['2025']||[];var pico25=Math.max.apply(null,hc25);var fim25=hc25[11]||0;
+  document.getElementById('insHist').innerHTML='<strong>Board:</strong> 2025: pico '+pico25+' Jul→'+fim25+' Dez (−'+Math.round((1-fim25/pico25)*100)+'%). 2026 recuperou +'+(hcAtual-hcInicio)+' em '+nReal+' meses. <span class="hl">Cautela no S2.</span>';
+
+  // 9. Waterfall
+  var wIni=hcInicio,wAdm=admTotal,wVol=saidaVol,wInv=saidaInv,wFin=hcAtual;
+  var wAfterAdm=wIni+wAdm,wAfterVol=wAfterAdm-wVol,wAfterInv=wAfterVol-wInv;
+  var wD=[[0,wIni],[wIni,wAfterAdm],[wAfterVol,wAfterAdm],[wAfterInv,wAfterVol],[0,wFin]];
+  var wV=[wIni,wAdm,-wVol,-wInv,wFin];
+  var wCC=['rgba(74,144,255,.85)','rgba(61,220,151,.75)','rgba(255,181,71,.75)','rgba(255,107,107,.75)','rgba(74,144,255,.85)'];
+  new Chart(document.getElementById('cWF'),{type:'bar',data:{labels:[['HC início','Jan'],'Admissões',['Saída','voluntária'],['Saída','involuntária'],['HC atual',mNomes[mesRefN]]],
+    datasets:[{data:wD,backgroundColor:wCC,borderRadius:5,borderSkipped:false,barPercentage:.5,categoryPercentage:.7}]},
+  plugins:[wConn,wLbl],options:{_wfvals:wV,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:T},
+    scales:{y:{min:0,max:Math.max(wAfterAdm,wFin)+5,ticks:{stepSize:5},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+
+  // 10. Projeção 3 cenários
+  var avg=mediaReal;
+  var pB=meses.map(function(m,i){return i<nRealIdx?ct[i]:i<nAndIdx?ct[i]:Math.round(avg)});
+  var p37=meses.map(function(m,i){return i<nAndIdx?pB[i]:Math.round(avg*37/35)});
+  var p32=meses.map(function(m,i){return i<nAndIdx?pB[i]:Math.round(avg*32/35)+5000});
+  var projBaseT=pB.reduce(function(a,b){return a+b},0);
+  var proj37T=p37.reduce(function(a,b){return a+b},0);
+  var proj32T=p32.reduce(function(a,b){return a+b},0);
+  new Chart(document.getElementById('cProj'),{type:'line',data:{labels:mesLabels,datasets:[
+    {label:'Base '+hcAtual+'HC → '+fBRL(projBaseT),data:pB,borderColor:'#4A90FF',backgroundColor:'rgba(74,144,255,.05)',
+      pointRadius:meses.map(function(_,i){return i<nAndIdx?5:3}),
+      pointBackgroundColor:meses.map(function(_,i){return i<nRealIdx?'#4A90FF':i<nAndIdx?'#FFB547':'rgba(74,144,255,.4)'}),
+      tension:.3,borderWidth:2.5,fill:true,
+      segment:{borderDash:function(c){return c.p0DataIndex>=nAndIdx-1?[5,5]:undefined},borderColor:function(c){return c.p0DataIndex>=nAndIdx-1?'rgba(74,144,255,.4)':'#4A90FF'}},
+      datalabels:{display:function(c){return [0,nRealIdx-1,nAndIdx-1,11].indexOf(c.dataIndex)>=0},anchor:'end',align:'top',offset:4,font:dfs,
+        color:function(c){return c.dataIndex<nRealIdx?'#4A90FF':c.dataIndex<nAndIdx?'#FFB547':'#94A3BE'},formatter:function(v){return fK(Math.round(v))}}},
+    {label:(hcAtual+2)+'HC → '+fBRL(proj37T),data:p37,borderColor:'#FFB547',pointRadius:meses.map(function(_,i){return i<nAndIdx?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],fill:false,
+      datalabels:{display:function(c){return c.dataIndex===11},anchor:'end',align:'top',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return fK(Math.round(v))}}},
+    {label:(hcAtual-3)+'HC → '+fBRL(proj32T),data:p32,borderColor:'#FF6B6B',pointRadius:meses.map(function(_,i){return i<nAndIdx?0:3}),pointStyle:'triangle',tension:.3,borderWidth:1.5,borderDash:[5,5],fill:false,
+      datalabels:{display:function(c){return c.dataIndex===11},anchor:'start',align:'bottom',offset:4,color:'#FF6B6B',font:dfs,formatter:function(v){return fK(Math.round(v))}}}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+    plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}},tooltip:T},
+    scales:{y:{min:Math.min.apply(null,p32)*0.9,max:Math.max.apply(null,p37)*1.1,ticks:{callback:fK},grid:{color:'rgba(37,46,69,.3)'}},x:{grid:{display:false}}}}});
+
+  document.getElementById('insProj').innerHTML='<strong>Board:</strong> <strong style="color:var(--blue)">'+hcAtual+' HC</strong> → '+fBRL(projBaseT)+' · <strong style="color:var(--amber)">'+(hcAtual+2)+' HC</strong> → '+fBRL(proj37T)+' · <strong style="color:var(--red)">'+(hcAtual-3)+' HC</strong> → '+fBRL(proj32T)+'. <span class="hl">Apenas '+nReal+' meses fechados — revisitar mensalmente.</span>';
+
+  // Fluxo de caixa table
+  var fcTbl=document.getElementById('tblFluxo');
+  var fcRubT=[['salarios','Salários'],['caju','Cartão Caju'],['inss_fgts','INSS / FGTS'],['estacionamento','Estacionamento'],['rescisao','Rescisão'],['comissao','Comissão']];
+  var thd='<thead><tr><th>Rubrica</th>';
+  meses.slice(0,6).forEach(function(m){var s=st[m];var col=s==='realizado'?'var(--blue)':s==='andamento'?'var(--amber)':'';
+    thd+='<th'+(col?' style="color:'+col+'"':'')+'>'+(mNomes[parseInt(m.split('-')[1])])+(s==='realizado'?' ✓':s==='andamento'?' ~':'')+'</th>'});
+  thd+='<th>Acum.</th></tr></thead>';
+  var tbody='<tbody>';
+  fcRubT.forEach(function(r){
+    tbody+='<tr><td>'+r[1]+'</td>';
+    var acum=0;
+    meses.slice(0,6).forEach(function(m){
+      var v=fc[m]?fc[m][r[0]]||0:D.custo_mensal[m][r[0]]||0;acum+=v;
+      var s=st[m];var cls=s==='projecao'?' class="proj-cell"':'';var stl=s==='andamento'?' style="color:var(--amber)"':'';
+      tbody+='<td'+cls+stl+'>'+(v>0?(v/1000).toFixed(1):'—')+'</td>';
+    });
+    tbody+='<td>'+(acum/1000).toFixed(1)+'</td></tr>';
+  });
+  // Total row
+  tbody+='<tr><td>TOTAL</td>';
+  var acumT=0;
+  meses.slice(0,6).forEach(function(m){
+    var v=fc[m]?fc[m].total||0:D.custo_mensal[m].total||0;acumT+=v;
+    var s=st[m];var cls=s==='projecao'?' class="proj-cell"':'';var stl=s==='andamento'?' style="color:var(--amber)"':'';
+    tbody+='<td'+cls+stl+'>'+(v/1000).toFixed(1)+'</td>';
+  });
+  tbody+='<td>'+(acumT/1000).toFixed(1)+'</td></tr></tbody>';
+  fcTbl.innerHTML=thd+tbody;
+}
+
+loadAndRender();
 </script>
 </body>
 </html>
