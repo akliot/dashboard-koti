@@ -742,13 +742,13 @@ function renderVisaoGeral(d){
       pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
   },options:cOpts('currency')});
 
-  // PMR / PMP mensal
+  // PMR / PMP mensal (usa todos os lançamentos, não apenas filtrados)
   const pmrPmpMes={};
-  dadosFiltrados.lancamentos.filter(l=>l.data_pagamento&&l.data_emissao&&['PAGO','RECEBIDO'].includes(l.status)).forEach(l=>{
+  dadosOriginal.lancamentos.filter(l=>l.data_pagamento&&l.data_emissao&&['PAGO','RECEBIDO'].includes(l.status)).forEach(l=>{
     const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao);
     if(!pag||!emi)return;
     const dias=Math.round((pag-emi)/86400000);
-    if(dias<0||dias>180)return;
+    if(dias<-30||dias>365)return;
     const m=toYM(l.data_pagamento);if(!m)return;
     if(!pmrPmpMes[m])pmrPmpMes[m]={pmrSum:0,pmrN:0,pmpSum:0,pmpN:0};
     if(l.tipo==='entrada'){pmrPmpMes[m].pmrSum+=dias;pmrPmpMes[m].pmrN++}
