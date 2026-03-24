@@ -734,30 +734,20 @@ function renderVisaoGeral(d){
       pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
   },options:cOpts('currency')});
 
-  // PMR / PMP mensal PONDERADO POR VALOR (usa todos os lançamentos)
-  const pmrPmpMes={};
-  dadosOriginal.lancamentos.filter(l=>l.data_pagamento&&l.data_emissao&&['PAGO','RECEBIDO'].includes(l.status)).forEach(l=>{
-    const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao);
-    if(!pag||!emi)return;
-    const dias=Math.round((pag-emi)/86400000);
-    if(dias<0||dias>120)return;
-    const m=toYM(l.data_pagamento);if(!m)return;
-    const v=l.valor||0;
-    if(!pmrPmpMes[m])pmrPmpMes[m]={pmrDiasVal:0,pmrVal:0,pmpDiasVal:0,pmpVal:0};
-    if(l.tipo==='entrada'){pmrPmpMes[m].pmrDiasVal+=dias*v;pmrPmpMes[m].pmrVal+=v}
-    else{pmrPmpMes[m].pmpDiasVal+=dias*v;pmrPmpMes[m].pmpVal+=v}
-  });
-  const pmrMeses=Object.keys(pmrPmpMes).sort();
-  const pmrData=pmrMeses.map(m=>pmrPmpMes[m].pmrVal>0?Math.round(pmrPmpMes[m].pmrDiasVal/pmrPmpMes[m].pmrVal*10)/10:null);
-  const pmpData=pmrMeses.map(m=>pmrPmpMes[m].pmpVal>0?Math.round(pmrPmpMes[m].pmpDiasVal/pmrPmpMes[m].pmpVal*10)/10:null);
-  console.log('PMR/PMP debug:',{meses:pmrMeses.length,pmrData,pmpData,sampleMes:pmrPmpMes[pmrMeses[0]]});
-  charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
-    labels:pmrMeses.map(mesNome),
-    datasets:[
-      {label:'PMR (Recebimento)',data:pmrData,borderColor:'#3b82f6',backgroundColor:'#3b82f622',tension:.3,pointRadius:4,spanGaps:true},
-      {label:'PMP (Pagamento)',data:pmpData,borderColor:'#ef4444',backgroundColor:'#ef444422',tension:.3,pointRadius:4,spanGaps:true}
-    ]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
+  // PMR / PMP mensal — dados pré-calculados pela API (ponderado por valor)
+  const pmrPmpApi=dadosOriginal.pmr_pmp_mensal||[];
+  if(pmrPmpApi.length){
+    const pmrMeses=pmrPmpApi.map(r=>r.mes);
+    const pmrData=pmrPmpApi.map(r=>r.pmr);
+    const pmpData=pmrPmpApi.map(r=>r.pmp);
+    charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
+      labels:pmrMeses.map(mesNome),
+      datasets:[
+        {label:'PMR (Recebimento)',data:pmrData,borderColor:'#3b82f6',backgroundColor:'#3b82f622',tension:.3,pointRadius:4,spanGaps:true},
+        {label:'PMP (Pagamento)',data:pmpData,borderColor:'#ef4444',backgroundColor:'#ef444422',tension:.3,pointRadius:4,spanGaps:true}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
+  }
 
   // Saldo Bancário Real — usa historico_conciliacao (mensal)
   const projFiltro=document.getElementById('filterProjeto').value;

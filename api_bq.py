@@ -312,6 +312,33 @@ def build_json() -> dict:
             "dre": dre_list,
         }
 
+    # ---- PMR / PMP mensal (ponderado por valor) ----
+    pmr_pmp_rows = query_rows(f"""
+        SELECT FORMAT_DATE('%Y-%m', data_pagamento) as mes,
+          ROUND(
+            SUM(CASE WHEN tipo='entrada' AND DATE_DIFF(data_pagamento, data_emissao, DAY) BETWEEN 0 AND 120
+                THEN DATE_DIFF(data_pagamento, data_emissao, DAY) * valor END) /
+            NULLIF(SUM(CASE WHEN tipo='entrada' AND DATE_DIFF(data_pagamento, data_emissao, DAY) BETWEEN 0 AND 120
+                THEN valor END), 0)
+          , 1) as pmr,
+          ROUND(
+            SUM(CASE WHEN tipo='saida' AND DATE_DIFF(data_pagamento, data_emissao, DAY) BETWEEN 0 AND 120
+                THEN DATE_DIFF(data_pagamento, data_emissao, DAY) * valor END) /
+            NULLIF(SUM(CASE WHEN tipo='saida' AND DATE_DIFF(data_pagamento, data_emissao, DAY) BETWEEN 0 AND 120
+                THEN valor END), 0)
+          , 1) as pmp
+        FROM {tbl('lancamentos')}
+        WHERE status IN ('PAGO','RECEBIDO')
+          AND data_pagamento >= DATE_SUB(CURRENT_DATE(), INTERVAL 12 MONTH)
+          AND data_pagamento < CURRENT_DATE()
+          AND data_emissao IS NOT NULL
+        GROUP BY mes ORDER BY mes
+    """)
+    pmr_pmp_mensal = [
+        {"mes": r["mes"], "pmr": float(r["pmr"]) if r.get("pmr") else None, "pmp": float(r["pmp"]) if r.get("pmp") else None}
+        for r in pmr_pmp_rows
+    ]
+
     result = {
         "atualizado_em": now.isoformat(),
         "atualizado_em_formatado": now.strftime("%d/%m/%Y às %H:%M"),
@@ -322,6 +349,7 @@ def build_json() -> dict:
         "historico_conciliacao": historico_conciliacao,
         "vendas": vendas,
         "clientes": clientes,
+        "pmr_pmp_mensal": pmr_pmp_mensal,
     }
 
     # Incluir orçamento se disponível
