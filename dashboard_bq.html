@@ -847,7 +847,7 @@ function renderConciliacao(){
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       scales:{x:{suggestedMin:-maxAbsVal*1.5,suggestedMax:maxAbsVal*1.5,ticks:{display:false},grid:{color:'#1e293b',drawBorder:false}},y:{afterFit:function(s){s.width=200},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){const l=this.getLabelForValue(v);return l.length>30?l.substring(0,27)+'...':l}},grid:{display:false}}},
       plugins:{legend:{display:false},
-        datalabels:{display:true,anchor:'end',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',offset:4,font:{size:11,weight:'bold'},color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',formatter:v=>{const p=v<0?'-R$ ':'R$ ';return p+Math.abs(Math.round(v/1000))+'K'}},
+        datalabels:{display:true,anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',offset:4,font:{size:11,weight:'bold'},color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',formatter:v=>{const p=v<0?'-R$ ':'R$ ';return p+Math.abs(Math.round(v/1000))+'K'}},
         tooltip:{callbacks:{label:ctx=>'Saldo: '+fmt(ctx.raw)}}
       }
     }
