@@ -360,24 +360,26 @@ tr:hover td{background:rgba(59,130,246,.05)}
     <div class="page" id="page-rh">
       <div class="kpi-row" id="kpi-rh"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Custo Total Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div></div>
+        <div class="chart-card"><h3>Custo Total Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div><div id="insRhCusto" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
         <div class="chart-card"><h3>Composição de Custo YTD</h3><div class="chart-container"><canvas id="chartRhComp"></canvas></div></div>
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Desembolso Mensal por Natureza (Caixa)</h3><div class="chart-container"><canvas id="chartRhFluxo"></canvas></div></div>
-        <div class="chart-card"><h3>Rescisões & Comissões</h3><div class="chart-container"><canvas id="chartRhResc"></canvas></div></div>
+        <div class="chart-card"><h3>Rescisões & Comissões</h3><div class="chart-container"><canvas id="chartRhResc"></canvas></div><div id="insRhResc" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Custo por Área (acumulado YTD)</h3><div class="chart-container" style="height:320px"><canvas id="chartRhArea"></canvas></div></div>
-        <div class="chart-card"><h3>Per Capita por Área</h3><div class="chart-container" style="height:320px"><canvas id="chartRhPerCapita"></canvas></div></div>
+        <div class="chart-card"><h3>Per Capita por Área</h3><div class="chart-container" style="height:320px"><canvas id="chartRhPerCapita"></canvas></div><div id="insRhPC" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Headcount Histórico 2024–2026</h3><div class="chart-container"><canvas id="chartRhHist"></canvas></div></div>
+        <div class="chart-card"><h3>Headcount Histórico 2024–2026</h3><div class="chart-container"><canvas id="chartRhHist"></canvas></div><div id="insRhHist" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
         <div class="chart-card"><h3>Ponte de HC (Waterfall YTD)</h3><div class="chart-container"><canvas id="chartRhWF"></canvas></div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Projeção Anual — 3 Cenários</h3><div class="chart-container"><canvas id="chartRhProj"></canvas></div></div>
-        <div class="chart-card"><h3>HC por Departamento</h3><div class="chart-container" style="height:320px"><canvas id="chartRhHCDept"></canvas></div></div>
+        <div class="chart-card" style="grid-column:1/-1"><h3>Projeção Anual — 3 Cenários</h3><div class="chart-container"><canvas id="chartRhProj"></canvas></div><div id="insRhProj" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>HC por Departamento</h3><div class="chart-container" style="height:320px"><canvas id="chartRhHCDept"></canvas></div><div id="insRhHCDept" class="ins" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6"></div></div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1"><h3>HC por Departamento × Mês</h3><div class="proj-table" id="rhHcTable"></div></div>
@@ -1668,18 +1670,46 @@ function renderRH(){
   h+='</tr></tbody></table>';
   document.getElementById('rhHcTable').innerHTML=h;
 
-  // Insights automáticos
+  // Insights por gráfico
   const custos=mesesYTD.map(m=>({m,t:d.custo_mensal[m]?.total||0}));
-  const mesMaisCaro=custos.reduce((a,b)=>b.t>a.t?b:a,{m:'',t:0});
+  const varMes2=custos.length>1?((custos[custos.length-1].t/custos[custos.length-2].t-1)*100):0;
+  const mesMaisCaro2=custos.reduce((a,b)=>b.t>a.t?b:a,{m:'',t:0});
+  const rescYTD=mesesYTD.reduce((s,m)=>s+(d.custo_mensal[m]?.rescisao||0),0);
+  const comYTD=mesesYTD.reduce((s,m)=>s+(d.custo_mensal[m]?.comissao||0),0);
+  const comUltimoMes=d.custo_mensal[mesesYTD[mesesYTD.length-1]]?.comissao||0;
+
+  // Custo mensal insight
+  document.getElementById('insRhCusto').innerHTML=`<strong>CFO:</strong> Custo ${varMes2>0?'subiu':'caiu'} ${Math.abs(varMes2).toFixed(1)}% no último mês. <span style="color:var(--yellow);font-weight:600">${mesNome(mesMaisCaro2.m)} é o mês mais caro (${fmt(mesMaisCaro2.t)}).</span>`;
+
+  // Rescisões insight
+  const comAlerta=comUltimoMes===0?'<span style="color:var(--yellow);font-weight:600">Comissões zeradas — sem variável no Comercial = risco.</span>':'';
+  document.getElementById('insRhResc').innerHTML=`<strong>CEO:</strong> ${fmt(rescYTD)} em rescisões YTD. Comissões: ${fmt(comYTD)} YTD. ${comAlerta}`;
+
+  // Per capita insight
+  document.getElementById('insRhPC').innerHTML=`<strong>CFO:</strong> <span style="color:var(--yellow);font-weight:600">${pcS[0]?.[0]||''} ${fmt(pcS[0]?.[1]||0)}/func</span> é a área com maior per capita. Média: ${fmt(pcM)}/func.`;
+
+  // HC histórico insight
+  const hc25=d.historico_hc?.['2025']||[];const pico25=Math.max(...hc25);const fim25=hc25[11]||0;
+  document.getElementById('insRhHist').innerHTML=`<strong>Board:</strong> 2025: pico ${pico25} Jul→${fim25} Dez (−${Math.round((1-fim25/pico25)*100)}%). 2026 recuperou para ${hcAtual}. <span style="color:var(--yellow);font-weight:600">Cautela no S2.</span>`;
+
+  // Projeção insight
+  const projBaseAnual=custoMedio*12;const projExpAnual=(custoMedio+16000)*12;const projRedAnual=(custoMedio-23000)*12+30000;
+  document.getElementById('insRhProj').innerHTML=`<strong>Board:</strong> <span style="color:var(--blue)">${hcAtual} HC</span> → ${fmt(projBaseAnual)} · <span style="color:var(--green)">${hcAtual+2} HC</span> → ${fmt(projExpAnual)} · <span style="color:var(--red)">${hcAtual-3} HC</span> → ${fmt(projRedAnual)}. <span style="color:var(--yellow);font-weight:600">Apenas ${mesesYTD.length} meses fechados — revisitar mensalmente.</span>`;
+
+  // HC dept insight
+  const hcM1=d.hc_por_area[mesesYTD[0]]||{};const hcMF=d.hc_por_area[mesesYTD[mesesYTD.length-1]]||{};
+  const deptChanges=depts.filter(dept=>(hcMF[dept]||0)!==(hcM1[dept]||0)).map(dept=>{const diff=(hcMF[dept]||0)-(hcM1[dept]||0);return `${dept} ${diff>0?'+':''}${diff}`});
+  document.getElementById('insRhHCDept').innerHTML=`<strong>CEO:</strong> Movimentação: ${deptChanges.length?deptChanges.join(', '):'sem alterações'}. <span style="color:var(--yellow);font-weight:600">HC ${hcAtual} no target.</span>`;
+
+  // Insights gerais
   const areaTop=areasSorted[0]||['',0];
   const pcTop=pcS[0]||['',0];
-  const varMes=custos.length>1?((custos[custos.length-1].t/custos[custos.length-2].t-1)*100):0;
   document.getElementById('rhInsights').innerHTML=`
     <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px">
       <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Insights</div>
       <div style="font-size:13px;color:var(--text);line-height:1.8">
-        📊 Mês mais caro: <strong>${mesNome(mesMaisCaro.m)}</strong> (${fmt(mesMaisCaro.t)})<br>
-        📈 Variação último mês: <strong style="color:${varMes>0?'var(--red)':'var(--green)'}">${varMes>0?'+':''}${varMes.toFixed(1)}%</strong><br>
+        📊 Mês mais caro: <strong>${mesNome(mesMaisCaro2.m)}</strong> (${fmt(mesMaisCaro2.t)})<br>
+        📈 Variação último mês: <strong style="color:${varMes2>0?'var(--red)':'var(--green)'}">${varMes2>0?'+':''}${varMes2.toFixed(1)}%</strong><br>
         🏢 Área com maior custo: <strong>${areaTop[0]}</strong> (${fmt(areaTop[1])} YTD)<br>
         💰 Maior per capita: <strong>${pcTop[0]}</strong> (${fmt(pcTop[1])}/mês)<br>
         🔄 Turnover YTD: <strong>${(turnoverYTD*100).toFixed(1)}%</strong> (${mesesYTD.length} meses)
