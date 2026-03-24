@@ -166,6 +166,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
   <button class="tab" data-tab="clientes">Clientes</button>
   <button class="tab" data-tab="projetos">Projetos</button>
   <button class="tab" data-tab="orcamento">Real vs Orçado</button>
+  <button class="tab" data-tab="rh">RH</button>
 </div>
 <div class="content">
   <div id="loadingState" class="empty-state">
@@ -352,6 +353,22 @@ tr:hover td{background:rgba(59,130,246,.05)}
           <input type="text" class="search-input" id="projetoBusca" placeholder="🔍 Buscar projeto..." oninput="filtrarProjetos()">
           <div class="proj-table" id="projetoDetalhe"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- RH -->
+    <div class="page" id="page-rh">
+      <div class="kpi-row" id="kpi-rh"></div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Custo Mensal por Rubrica</h3><div class="chart-container"><canvas id="chartRhCusto"></canvas></div></div>
+        <div class="chart-card"><h3>Composição de Custo YTD</h3><div class="chart-container"><canvas id="chartRhComp"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Custo por Área (acumulado)</h3><div class="chart-container" style="height:320px"><canvas id="chartRhArea"></canvas></div></div>
+        <div class="chart-card"><h3>Per Capita por Área</h3><div class="chart-container" style="height:320px"><canvas id="chartRhPerCapita"></canvas></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1"><h3>HC por Departamento</h3><div class="proj-table" id="rhHcTable"></div></div>
       </div>
     </div>
 
@@ -659,7 +676,7 @@ function renderSaldoGrid(){
 
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
-function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3b8';
@@ -1495,6 +1512,111 @@ async function decryptFile(url,password){
 
 // ============ LOGIN ============
 // Dashboard BQ — login + fetch da API BigQuery
+// ============ RH ============
+let rhData=null;
+
+function loadRhData(){
+  return fetch('rh_data.json').then(r=>r.ok?r.json():null).then(d=>{rhData=d}).catch(()=>{rhData=null});
+}
+
+function renderRH(){
+  if(!rhData){
+    document.getElementById('kpi-rh').innerHTML='<p style="color:var(--muted);padding:20px">Dados de RH não disponíveis. Rode: python extract_rh.py</p>';
+    return;
+  }
+  const d=rhData;
+  const meses=Object.keys(d.custo_mensal).sort();
+  const mesRef=d.mes_referencia;
+  const st=d.status_meses;
+
+  // Meses realizados + andamento para YTD
+  const mesesYTD=meses.filter(m=>st[m]==='realizado'||st[m]==='andamento');
+  const custoYTD=mesesYTD.reduce((s,m)=>s+(d.custo_mensal[m]?.total||0),0);
+  const hcAtual=d.hc[mesRef]?.final||0;
+  const custoPerCapita=hcAtual>0?custoYTD/(hcAtual*mesesYTD.length):0;
+  const turnoverYTD=mesesYTD.reduce((s,m)=>s+(d.hc[m]?.turnover||0),0);
+
+  // KPIs
+  document.getElementById('kpi-rh').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Custo Total YTD</div><div class="kpi-value red">${fmt(custoYTD)}</div><div class="kpi-sub">${mesesYTD.length} meses</div></div>
+    <div class="kpi-card"><div class="kpi-label">Headcount Atual</div><div class="kpi-value blue">${hcAtual}</div><div class="kpi-sub">${mesNome(mesRef)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Custo/Funcionário</div><div class="kpi-value purple">${fmt(custoPerCapita)}</div><div class="kpi-sub">por mês (média)</div></div>
+    <div class="kpi-card"><div class="kpi-label">Turnover YTD</div><div class="kpi-value yellow">${(turnoverYTD*100).toFixed(1)}%</div><div class="kpi-sub">${mesesYTD.length} meses</div></div>`;
+
+  // Custo Mensal Stacked Bar
+  const rubricas=['salarios','beneficios','rescisao','comissao','impostos','softwares','treinamentos','bonus','decimo_terceiro'];
+  const rubLabels=['Salários','Benefícios','Rescisão','Comissão','Impostos','Softwares','Treinamentos','Bônus','13º'];
+  const rubCores=['#3b82f6','#22c55e','#ef4444','#f97316','#eab308','#a855f7','#06b6d4','#ec4899','#14b8a6'];
+  const datasets=rubricas.map((r,i)=>({
+    label:rubLabels[i],
+    data:meses.map(m=>d.custo_mensal[m]?.[r]||0),
+    backgroundColor:rubCores[i]+'99',
+    borderColor:rubCores[i],
+    borderWidth:1
+  })).filter(ds=>ds.data.some(v=>v>0));
+
+  if(charts.rhCusto)charts.rhCusto.destroy();
+  charts.rhCusto=new Chart(document.getElementById('chartRhCusto'),{type:'bar',data:{
+    labels:meses.map(m=>{const s=st[m];const icon=s==='realizado'?'✅':s==='andamento'?'🟡':'⬜';return icon+' '+mesNome(m)}),
+    datasets
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:9}}},datalabels:dlNone}}});
+
+  // Composição YTD Donut
+  const comp=d.composicao_custo_ytd;
+  const compLabels=Object.keys(comp);
+  const compData=Object.values(comp);
+  if(charts.rhComp)charts.rhComp.destroy();
+  charts.rhComp=new Chart(document.getElementById('chartRhComp'),{type:'doughnut',data:{
+    labels:compLabels,datasets:[{data:compData,backgroundColor:rubCores.slice(0,compLabels.length).map(c=>c+'99')}]
+  },options:dOpts});
+
+  // Custo por Área (acumulado YTD)
+  const areaCusto={};
+  mesesYTD.forEach(m=>{const a=d.custo_por_area[m]||{};Object.entries(a).forEach(([k,v])=>{areaCusto[k]=(areaCusto[k]||0)+v})});
+  const areasSorted=Object.entries(areaCusto).sort((a,b)=>b[1]-a[1]);
+  if(charts.rhArea)charts.rhArea.destroy();
+  charts.rhArea=new Chart(document.getElementById('chartRhArea'),{type:'bar',data:{
+    labels:areasSorted.map(a=>a[0]),datasets:[{data:areasSorted.map(a=>a[1]),backgroundColor:cores}]
+  },options:hBarOpts()});
+
+  // Per Capita por Área (mês corrente)
+  const pc=d.per_capita_area[mesRef]||{};
+  const pcSorted=Object.entries(pc).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
+  const pcMedia=pcSorted.length?pcSorted.reduce((s,e)=>s+e[1],0)/pcSorted.length:0;
+  if(charts.rhPC)charts.rhPC.destroy();
+  charts.rhPC=new Chart(document.getElementById('chartRhPerCapita'),{type:'bar',data:{
+    labels:pcSorted.map(a=>a[0]),
+    datasets:[{label:'Per Capita',data:pcSorted.map(a=>a[1]),backgroundColor:cores},{label:'Média',data:pcSorted.map(()=>pcMedia),type:'line',borderColor:'#eab308',borderDash:[5,5],pointRadius:0,borderWidth:2}]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:dlNone}}});
+
+  // HC por Departamento × Mês (tabela)
+  const hcArea=d.hc_por_area||{};
+  const depts=[...new Set(Object.values(hcArea).flatMap(m=>Object.keys(m)))].sort();
+  let h='<table style="font-size:12px"><thead><tr><th>Departamento</th>';
+  meses.forEach(m=>{
+    const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.15)':s==='andamento'?'rgba(234,179,8,.15)':'';
+    h+=`<th style="text-align:center;background:${bg};font-size:10px">${mesNome(m)}</th>`;
+  });
+  h+='</tr></thead><tbody>';
+  depts.forEach(dept=>{
+    h+=`<tr><td style="white-space:nowrap">${dept}</td>`;
+    meses.forEach(m=>{
+      const v=hcArea[m]?.[dept]||0;
+      const s=st[m];const bg=s==='realizado'?'rgba(34,197,94,.05)':s==='andamento'?'rgba(234,179,8,.05)':'';
+      h+=`<td style="text-align:center;background:${bg}">${v||'-'}</td>`;
+    });
+    h+='</tr>';
+  });
+  // Total row
+  h+='<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td>';
+  meses.forEach(m=>{
+    const total=d.hc[m]?.final||0;
+    h+=`<td style="text-align:center">${total}</td>`;
+  });
+  h+='</tr></tbody></table>';
+  document.getElementById('rhHcTable').innerHTML=h;
+}
+
 const PASS_HASH='b4f4c73433abb7aa1c26729be0fade444d6c4476bf22f5e8480eeb2be0fdc6f1';
 async function sha256(str){
   // crypto.subtle só funciona em HTTPS/localhost seguro
@@ -1541,6 +1663,7 @@ async function showApp(){
     dadosOriginal=await resp.json();
     // Carregar orçamento da API (se disponível no mesmo payload) ou tentar BP
     try{await loadOrcamento()}catch(e){console.log('Orçamento não carregado:',e)}
+    try{await loadRhData()}catch(e){console.log('RH não carregado:',e)}
     initDashboard();
   }catch(e){
     console.error('Erro ao carregar dados da API:',e);
