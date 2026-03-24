@@ -750,6 +750,7 @@ function renderVisaoGeral(d){
   const pmrMeses=Object.keys(pmrPmpMes).sort();
   const pmrData=pmrMeses.map(m=>pmrPmpMes[m].pmrVal>0?Math.round(pmrPmpMes[m].pmrDiasVal/pmrPmpMes[m].pmrVal*10)/10:null);
   const pmpData=pmrMeses.map(m=>pmrPmpMes[m].pmpVal>0?Math.round(pmrPmpMes[m].pmpDiasVal/pmrPmpMes[m].pmpVal*10)/10:null);
+  console.log('PMR/PMP debug:',{meses:pmrMeses.length,pmrData,pmpData,sampleMes:pmrPmpMes[pmrMeses[0]]});
   charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
     labels:pmrMeses.map(mesNome),
     datasets:[
