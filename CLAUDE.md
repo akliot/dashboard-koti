@@ -6,6 +6,17 @@
 - `.claude/skills/pipeline-sync-patterns.md` — Padrões do pipeline sync
 - `.claude/skills/bot-sql-patterns.md` — Padrões do bot Telegram
 
+## Auto-deploy (NÃO pedir confirmação)
+
+Após qualquer alteração:
+1. `git add -A && git commit -m "tipo: descrição" && git push`
+2. Se alterou `bot_telegram.py` → reiniciar bot:
+   `unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 bot_telegram.py --local`
+3. Se alterou `extract_rh.py` → rodar:
+   `unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 extract_rh.py`
+
+NUNCA perguntar "quer commitar?" ou "quer que eu faça push?" — sempre fazer automaticamente.
+
 ## Regras gerais
 - Sempre consultar a skill relevante antes de implementar
 - Nunca usar `info.dAlt` como data de pagamento (usar ListarMovimentos)
