@@ -1,0 +1,673 @@
+{
+  "mes_referencia": "2026-03",
+  "status_meses": {
+    "2026-01": "realizado",
+    "2026-02": "realizado",
+    "2026-03": "andamento",
+    "2026-04": "projecao",
+    "2026-05": "projecao",
+    "2026-06": "projecao",
+    "2026-07": "projecao",
+    "2026-08": "projecao",
+    "2026-09": "projecao",
+    "2026-10": "projecao",
+    "2026-11": "projecao",
+    "2026-12": "projecao"
+  },
+  "custo_mensal": {
+    "2026-01": {
+      "salarios": 199340.71,
+      "softwares": 5847.94,
+      "beneficios": 32842,
+      "comissao": 6200,
+      "rescisao": 10267.33,
+      "bonus": 0,
+      "impostos": 2987.33,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 257485.31
+    },
+    "2026-02": {
+      "salarios": 218724.04,
+      "softwares": 7227.63,
+      "beneficios": 31005.36,
+      "comissao": 3400,
+      "rescisao": 13800,
+      "bonus": 0,
+      "impostos": 3065.6,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 277222.63
+    },
+    "2026-03": {
+      "salarios": 217707.37,
+      "softwares": 5958.79,
+      "beneficios": 37990.44,
+      "comissao": 4000,
+      "rescisao": 17833.33,
+      "bonus": 0,
+      "impostos": 3065.6,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 286555.53
+    },
+    "2026-04": {
+      "salarios": 220724.04,
+      "softwares": 5958.79,
+      "beneficios": 34990.4,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 3065.6,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 264738.83
+    },
+    "2026-05": {
+      "salarios": 219224.04,
+      "softwares": 5958.79,
+      "beneficios": 34990.4,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 3071.05,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 263244.28
+    },
+    "2026-06": {
+      "salarios": 212724.04,
+      "softwares": 5629.51,
+      "beneficios": 35421.92,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 3065.6,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 256841.07
+    },
+    "2026-07": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    },
+    "2026-08": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    },
+    "2026-09": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    },
+    "2026-10": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    },
+    "2026-11": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    },
+    "2026-12": {
+      "salarios": 0,
+      "softwares": 0,
+      "beneficios": 0,
+      "comissao": 0,
+      "rescisao": 0,
+      "bonus": 0,
+      "impostos": 0,
+      "treinamentos": 0,
+      "decimo_terceiro": 0,
+      "total": 0
+    }
+  },
+  "hc": {
+    "2026-01": {
+      "inicio": 32,
+      "admissoes": 3,
+      "saida_vol": 1,
+      "saida_inv": 1,
+      "final": 33,
+      "turnover": 0.08
+    },
+    "2026-02": {
+      "inicio": 33,
+      "admissoes": 2,
+      "saida_vol": 0,
+      "saida_inv": 1,
+      "final": 34,
+      "turnover": 0.05
+    },
+    "2026-03": {
+      "inicio": 34,
+      "admissoes": 1,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0.01
+    },
+    "2026-04": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-05": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-06": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-07": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-08": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-09": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-10": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-11": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    },
+    "2026-12": {
+      "inicio": 35,
+      "admissoes": 0,
+      "saida_vol": 0,
+      "saida_inv": 0,
+      "final": 35,
+      "turnover": 0
+    }
+  },
+  "custo_por_area": {
+    "2026-01": {
+      "ARQUITETURA": 54858.85,
+      "OBRA": 50504.72,
+      "COMERCIAL": 50347.12,
+      "FINANCEIRO": 34679.75,
+      "COMPRAS E LOGÍSTICA": 23483.56,
+      "ORÇAMENTO": 14782.38,
+      "RH": 16231.19,
+      "LIMPEZA": 8251.45,
+      "DIRETORIA": 4346.29
+    },
+    "2026-02": {
+      "ARQUITETURA": 69883.6,
+      "OBRA": 50707.49,
+      "COMERCIAL": 54599.78,
+      "FINANCEIRO": 34713.19,
+      "COMPRAS E LOGÍSTICA": 24058.05,
+      "ORÇAMENTO": 14686.59,
+      "RH": 16183.3,
+      "LIMPEZA": 8119.03,
+      "DIRETORIA": 4271.6
+    },
+    "2026-03": {
+      "ARQUITETURA": 56271.09,
+      "OBRA": 51656.37,
+      "COMERCIAL": 56078.72,
+      "FINANCEIRO": 35265.81,
+      "COMPRAS E LOGÍSTICA": 42617.69,
+      "ORÇAMENTO": 15012.91,
+      "RH": 16371.45,
+      "LIMPEZA": 8545.42,
+      "DIRETORIA": 4736.07
+    },
+    "2026-04": {
+      "ARQUITETURA": 58837.76,
+      "OBRA": 51071.37,
+      "COMERCIAL": 51538.72,
+      "FINANCEIRO": 34905.81,
+      "COMPRAS E LOGÍSTICA": 24514.36,
+      "ORÇAMENTO": 14832.91,
+      "RH": 16281.45,
+      "LIMPEZA": 8290.38,
+      "DIRETORIA": 4466.07
+    },
+    "2026-05": {
+      "ARQUITETURA": 57338.9,
+      "OBRA": 51072.52,
+      "COMERCIAL": 51539.77,
+      "FINANCEIRO": 34906.52,
+      "COMPRAS E LOGÍSTICA": 24514.89,
+      "ORÇAMENTO": 14833.26,
+      "RH": 16281.63,
+      "LIMPEZA": 8290.73,
+      "DIRETORIA": 4466.07
+    },
+    "2026-06": {
+      "ARQUITETURA": 49660.67,
+      "OBRA": 51365.02,
+      "COMERCIAL": 51809.77,
+      "FINANCEIRO": 35086.52,
+      "COMPRAS E LOGÍSTICA": 24649.89,
+      "ORÇAMENTO": 14923.26,
+      "RH": 16326.63,
+      "LIMPEZA": 8418.25,
+      "DIRETORIA": 4601.07
+    },
+    "2026-07": {
+      "ARQUITETURA": 0,
+      "OBRA": 0,
+      "COMERCIAL": 0,
+      "FINANCEIRO": 0,
+      "COMPRAS E LOGÍSTICA": 0,
+      "ORÇAMENTO": 0,
+      "RH": 0,
+      "LIMPEZA": 0,
+      "DIRETORIA": 0
+    },
+    "2026-08": {
+      "ARQUITETURA": 0,
+      "OBRA": 0,
+      "COMERCIAL": 0,
+      "FINANCEIRO": 0,
+      "COMPRAS E LOGÍSTICA": 0,
+      "ORÇAMENTO": 0,
+      "RH": 0,
+      "LIMPEZA": 0,
+      "DIRETORIA": 0
+    },
+    "2026-09": {
+      "ARQUITETURA": 0,
+      "OBRA": 0,
+      "COMERCIAL": 0,
+      "FINANCEIRO": 0,
+      "COMPRAS E LOGÍSTICA": 0,
+      "ORÇAMENTO": 0,
+      "RH": 0,
+      "LIMPEZA": 0,
+      "DIRETORIA": 0
+    },
+    "2026-10": {
+      "ARQUITETURA": 0,
+      "OBRA": 0,
+      "COMERCIAL": 0,
+      "FINANCEIRO": 0,
+      "COMPRAS E LOGÍSTICA": 0,
+      "ORÇAMENTO": 0,
+      "RH": 0,
+      "LIMPEZA": 0,
+      "DIRETORIA": 0
+    },
+    "2026-11": {
+      "ARQUITETURA": 0,
+      "OBRA": 0,
+      "COMERCIAL": 0,
+      "FINANCEIRO": 0,
+      "COMPRAS E LOGÍSTICA": 0,
+      "ORÇAMENTO": 0,
+      "RH": 0,
+      "LIMPEZA": 0,
+      "DIRETORIA": 0
+    },
+    "2026-12": {
+      "ARQUITETURA": 48333.25,
+      "OBRA": 57030.31,
+      "COMERCIAL": 50347.12,
+      "FINANCEIRO": 34679.75,
+      "COMPRAS E LOGÍSTICA": 23483.56,
+      "ORÇAMENTO": 14782.38,
+      "RH": 16231.19,
+      "LIMPEZA": 8251.45,
+      "DIRETORIA": 4346.29
+    }
+  },
+  "hc_por_area": {
+    "2026-01": {
+      "Arquitetura": 7,
+      "Obra": 7,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    },
+    "2026-02": {
+      "Arquitetura": 7,
+      "Obra": 6,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    },
+    "2026-03": {
+      "Arquitetura": 7,
+      "Obra": 6,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    },
+    "2026-04": {
+      "Arquitetura": 7,
+      "Obra": 6,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    },
+    "2026-05": {
+      "Arquitetura": 7,
+      "Obra": 6,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    },
+    "2026-06": {
+      "Arquitetura": 6,
+      "Obra": 6,
+      "Comercial": 5,
+      "Administrativo /Financeiro": 7,
+      "Orçamentos": 2,
+      "Limpeza": 2,
+      "RH": 1,
+      "Diretoria": 3
+    }
+  },
+  "per_capita_area": {
+    "2026-01": {
+      "Arquitetura": 6904.75,
+      "Obra": 8147.19,
+      "Comercial": 8891.19,
+      "Administrativo /Financeiro": 8309.04,
+      "Orçamentos": 7391.19,
+      "Limpeza": 4125.73,
+      "RH": 16231.19,
+      "Diretoria": 1448.76
+    },
+    "2026-02": {
+      "Arquitetura": 9053.7,
+      "Obra": 8368.65,
+      "Comercial": 8283.3,
+      "Administrativo /Financeiro": 8395.89,
+      "Orçamentos": 7343.3,
+      "Limpeza": 4059.52,
+      "RH": 16183.3,
+      "Diretoria": 1423.87
+    },
+    "2026-03": {
+      "Arquitetura": 7099.06,
+      "Obra": 8515.43,
+      "Comercial": 8541.45,
+      "Administrativo /Financeiro": 11126.21,
+      "Orçamentos": 7506.45,
+      "Limpeza": 4272.71,
+      "RH": 16371.45,
+      "Diretoria": 1578.69
+    },
+    "2026-04": {
+      "Arquitetura": 7472.16,
+      "Obra": 8425.43,
+      "Comercial": 7651.45,
+      "Administrativo /Financeiro": 8488.6,
+      "Orçamentos": 7416.45,
+      "Limpeza": 4145.19,
+      "RH": 16281.45,
+      "Diretoria": 1488.69
+    },
+    "2026-05": {
+      "Arquitetura": 7258.02,
+      "Obra": 8425.6,
+      "Comercial": 7651.63,
+      "Administrativo /Financeiro": 8488.77,
+      "Orçamentos": 7416.63,
+      "Limpeza": 4145.37,
+      "RH": 16281.63,
+      "Diretoria": 1488.69
+    },
+    "2026-06": {
+      "Arquitetura": 7184.24,
+      "Obra": 8470.6,
+      "Comercial": 7696.63,
+      "Administrativo /Financeiro": 8533.77,
+      "Orçamentos": 7461.63,
+      "Limpeza": 4209.13,
+      "RH": 16326.63,
+      "Diretoria": 1533.69
+    }
+  },
+  "demografico": {
+    "2026-01": {
+      "idade_media": 35.6,
+      "tempo_casa_medio": 16.5,
+      "idade_por_area": {
+        "Arquitetura": 30.4,
+        "Obra": 37.1,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 23.5,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    },
+    "2026-02": {
+      "idade_media": 35.8,
+      "tempo_casa_medio": 15.7,
+      "idade_por_area": {
+        "Arquitetura": 31.6,
+        "Obra": 36.7,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 19.1,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    },
+    "2026-03": {
+      "idade_media": 35.5,
+      "tempo_casa_medio": 15.4,
+      "idade_por_area": {
+        "Arquitetura": 30.4,
+        "Obra": 36.7,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 17.7,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    },
+    "2026-04": {
+      "idade_media": 35.5,
+      "tempo_casa_medio": 15.4,
+      "idade_por_area": {
+        "Arquitetura": 30.4,
+        "Obra": 36.7,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 17.7,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    },
+    "2026-05": {
+      "idade_media": 35.5,
+      "tempo_casa_medio": 15.4,
+      "idade_por_area": {
+        "Arquitetura": 30.4,
+        "Obra": 36.7,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 17.7,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    },
+    "2026-06": {
+      "idade_media": 35.6,
+      "tempo_casa_medio": 15.9,
+      "idade_por_area": {
+        "Arquitetura": 30.2,
+        "Obra": 36.7,
+        "Comercial": 31.6,
+        "Administrativo /Financeiro": 35.4,
+        "Orçamentos": 27.0,
+        "Limpeza": 45.5,
+        "RH": 61.0,
+        "Diretoria": 42.3
+      },
+      "tempo_casa_por_area": {
+        "Arquitetura": 20.7,
+        "Obra": 10.7,
+        "Comercial": 20.8,
+        "Administrativo /Financeiro": 22.4,
+        "Orçamentos": 12.7,
+        "Limpeza": 11.4,
+        "RH": 12.1,
+        "Diretoria": 0.0
+      }
+    }
+  },
+  "composicao_custo_ytd": {
+    "Salário Base": 635772.12,
+    "Softwares": 19034.36,
+    "Benefícios": 101837.8,
+    "Comissão": 13600.0,
+    "Rescisão": 41900.66,
+    "Impostos/Encargos": 9118.53
+  }
+}
