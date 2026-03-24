@@ -823,7 +823,7 @@ function renderConciliacao(){
   const labels=top.map(p=>p.nome.length>25?p.nome.substring(0,25)+'...':p.nome);
   const chartH=Math.max(300,top.length*40);
   document.getElementById('concilFDContainer').style.height=chartH+'px';
-  document.getElementById('saldoFDContainer').style.height=chartH+'px';
+  document.getElementById('saldoFDContainer').style.height=Math.max(300,top.length*45)+'px';
   charts.concilFD=new Chart(document.getElementById('chartConcilFD'),{type:'bar',
     data:{labels,datasets:[
       {label:'Receita FD',data:top.map(p=>p.rec_fd),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1},
@@ -843,10 +843,10 @@ function renderConciliacao(){
   const saldoBorders=saldos.map(v=>v>=0?'#22c55e':'#ef4444');
   charts.saldoFD=new Chart(document.getElementById('chartSaldoFD'),{type:'bar',
     data:{labels,datasets:[{label:'Saldo FD',data:saldos,backgroundColor:saldoColors,borderColor:saldoBorders,borderWidth:1}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:20}},
-      scales:{x:{ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#1e293b'}},y:{afterFit:function(s){s.width=250},ticks:{color:'#94a3b8',font:{size:10},callback:function(v){const l=this.getLabelForValue(v);return l.length>30?l.substring(0,27)+'...':l}},grid:{display:false}}},
       plugins:{legend:{display:false},
-        datalabels:{display:true,anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',font:{size:9,weight:'bold'},color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',formatter:v=>fmtK(v)},
+        datalabels:{display:false},
         tooltip:{callbacks:{label:ctx=>'Saldo: '+fmt(ctx.raw)}}
       }
     }
