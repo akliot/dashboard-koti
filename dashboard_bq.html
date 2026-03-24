@@ -746,7 +746,7 @@ function renderVisaoGeral(d){
         {label:'PMR (Recebimento)',data:pmrData,borderColor:'#3b82f6',backgroundColor:'#3b82f622',tension:.3,pointRadius:4,spanGaps:true},
         {label:'PMP (Pagamento)',data:pmpData,borderColor:'#ef4444',backgroundColor:'#ef444422',tension:.3,pointRadius:4,spanGaps:true}
       ]
-    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
+    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:true,anchor:'end',align:'top',offset:2,font:{size:10,weight:'bold'},color:ctx=>ctx.dataset.borderColor,formatter:v=>v!=null?v+'d':''},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
   }
 
   // Saldo Bancário Real — usa historico_conciliacao (mensal)
