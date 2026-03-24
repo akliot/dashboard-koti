@@ -189,7 +189,17 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div class="saldo-grid" id="saldoGrid"></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Entradas vs Saídas (Mensal)</h3><div class="chart-container"><canvas id="chartGeralFluxo"></canvas></div></div>
+        <div class="chart-card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+            <h3 style="margin:0">Entradas vs Saídas (Mensal)</h3>
+            <div class="periodo-btns" id="fluxoModBtns">
+              <button onclick="setFluxoMod('total',this)" class="active">Total</button>
+              <button onclick="setFluxoMod('sk',this)">SK</button>
+              <button onclick="setFluxoMod('fd',this)">FD</button>
+            </div>
+          </div>
+          <div class="chart-container"><canvas id="chartGeralFluxo"></canvas></div>
+        </div>
         <div class="chart-card"><h3>Variação de Caixa</h3><div class="chart-container"><canvas id="chartVariacaoCaixa"></canvas></div></div>
       </div>
       <div class="chart-row">
@@ -549,6 +559,52 @@ function computeCompetencia(){
   return{tE,tS,ent,sai,porMes,porProj,porCliente,finGrupos,finGruposArr,finMesAll,abRec,abPag,vRec,vPag,L};
 }
 
+let _fluxoModData=null,_fluxoModMode='total';
+
+function setFluxoMod(mode,el){
+  _fluxoModMode=mode;
+  document.querySelectorAll('#fluxoModBtns button').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderFluxoMod();
+}
+
+function renderFluxoMod(){
+  if(!_fluxoModData)return;
+  if(charts.gFluxo){charts.gFluxo.destroy();delete charts.gFluxo}
+  const{meses,porMesFD}=_fluxoModData;
+  const m=_fluxoModMode;
+
+  if(m==='total'){
+    // Stacked SK+FD
+    const entTot=meses.map(x=>(porMesFD[x]?.ent_sk||0)+(porMesFD[x]?.ent_fd||0));
+    const saiTot=meses.map(x=>(porMesFD[x]?.sai_sk||0)+(porMesFD[x]?.sai_fd||0));
+    charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{
+      labels:meses.map(mesNome),
+      datasets:[
+        {label:'Entrada SK',data:meses.map(x=>(porMesFD[x]?.ent_sk||0)),backgroundColor:'#22c55ecc',stack:'e',
+          datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
+        {label:'Entrada FD',data:meses.map(x=>(porMesFD[x]?.ent_fd||0)),backgroundColor:'#22c55e55',stack:'e',
+          datalabels:{display:ctx=>entTot[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',formatter:(v,ctx)=>fmtK(entTot[ctx.dataIndex])}},
+        {label:'Saída SK',data:meses.map(x=>(porMesFD[x]?.sai_sk||0)),backgroundColor:'#ef4444cc',stack:'s',
+          datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
+        {label:'Saída FD',data:meses.map(x=>(porMesFD[x]?.sai_fd||0)),backgroundColor:'#ef444455',stack:'s',
+          datalabels:{display:ctx=>saiTot[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',formatter:(v,ctx)=>fmtK(saiTot[ctx.dataIndex])}},
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}}}});
+  } else {
+    // SK ou FD apenas
+    const ek=m==='sk'?'ent_sk':'ent_fd', sk=m==='sk'?'sai_sk':'sai_fd';
+    const label=m==='sk'?'Studio Koti':'Faturamento Direto';
+    charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{
+      labels:meses.map(mesNome),
+      datasets:[
+        {label:'Entrada '+label,data:meses.map(x=>(porMesFD[x]?.[ek]||0)),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},
+        {label:'Saída '+label,data:meses.map(x=>(porMesFD[x]?.[sk]||0)),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1},
+      ]
+    },options:cOpts('currency')});
+  }
+}
+
 let _saldoContaMode='d1';
 
 function setSaldoContaMode(mode,el){
@@ -658,7 +714,7 @@ function renderVisaoGeral(d){
   renderSaldoGrid();
 
   const meses=Object.keys(d.porMes).sort();
-  // Entradas vs Saídas separado por FD (Faturamento Direto) e SK (Studio Koti)
+  // Entradas vs Saídas separado por FD/SK
   const porMesFD={};
   dadosFiltrados.lancamentos.forEach(l=>{
     const m=toYM(l.data);if(!m)return;
@@ -667,24 +723,8 @@ function renderVisaoGeral(d){
     if(l.tipo==='entrada'){if(fd)porMesFD[m].ent_fd+=l.valor;else porMesFD[m].ent_sk+=l.valor}
     else{if(fd)porMesFD[m].sai_fd+=l.valor;else porMesFD[m].sai_sk+=l.valor}
   });
-  // Pré-calcular totais para labels
-  const entTotais=meses.map(m=>(porMesFD[m]?.ent_sk||0)+(porMesFD[m]?.ent_fd||0));
-  const saiTotais=meses.map(m=>(porMesFD[m]?.sai_sk||0)+(porMesFD[m]?.sai_fd||0));
-  charts.gFluxo=new Chart(document.getElementById('chartGeralFluxo'),{type:'bar',data:{
-    labels:meses.map(mesNome),
-    datasets:[
-      {label:'Entrada SK',data:meses.map(m=>(porMesFD[m]?.ent_sk||0)),backgroundColor:'#22c55ecc',stack:'entrada',
-        datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
-      {label:'Entrada FD',data:meses.map(m=>(porMesFD[m]?.ent_fd||0)),backgroundColor:'#22c55e55',stack:'entrada',
-        datalabels:{display:ctx=>entTotais[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',
-          formatter:(v,ctx)=>fmtK(entTotais[ctx.dataIndex])}},
-      {label:'Saída SK',data:meses.map(m=>(porMesFD[m]?.sai_sk||0)),backgroundColor:'#ef4444cc',stack:'saida',
-        datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:8},formatter:v=>fmtK(v)}},
-      {label:'Saída FD',data:meses.map(m=>(porMesFD[m]?.sai_fd||0)),backgroundColor:'#ef444455',stack:'saida',
-        datalabels:{display:ctx=>saiTotais[ctx.dataIndex]>0,color:'#fff',font:{size:9,weight:'bold'},anchor:'end',align:'end',
-          formatter:(v,ctx)=>fmtK(saiTotais[ctx.dataIndex])}},
-    ]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{stacked:true,ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}}}});
+  _fluxoModData={meses,porMesFD};_fluxoModMode='total';
+  renderFluxoMod();
 
   // Variação de Caixa — barras de resultado mensal (entradas - saídas)
   const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));
