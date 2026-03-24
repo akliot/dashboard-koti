@@ -161,7 +161,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
   <button class="tab active" data-tab="visao-geral">Visão Geral</button>
   <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
   <button class="tab" data-tab="financeiro">Financeiro</button>
-  <button class="tab" data-tab="conciliacao">Conciliação</button>
+  <button class="tab" data-tab="conciliacao">Conciliação FD</button>
   <button class="tab" data-tab="vendas">Vendas</button>
   <button class="tab" data-tab="clientes">Clientes</button>
   <button class="tab" data-tab="projetos">Projetos</button>
@@ -263,24 +263,12 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- CONCILIAÇÃO BANCÁRIA -->
     <div class="page" id="page-conciliacao">
-      <div class="concil-summary" id="concilSummary"></div>
-      <div style="display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap">
-        <div class="filter-group"><label>Banco:</label><select id="concilBanco" onchange="renderConcilChart()"><option value="__todos__">Todos (consolidado)</option></select></div>
-        <div class="filter-group"><label>Visão:</label>
-          <select id="concilVisao" onchange="renderConcilChart()">
-            <option value="mensal">Mensal (últimos 6 meses)</option>
-            <option value="diario">Diário (mês corrente)</option>
-          </select>
-        </div>
-      </div>
+      <div class="kpi-row" id="kpi-concilFD"></div>
       <div class="chart-card" style="margin-bottom:20px">
-        <h3>Evolução da Diferença de Conciliação</h3>
-        <div class="chart-container" style="height:320px"><canvas id="chartConcil"></canvas></div>
+        <h3>Conciliação Faturamento Direto</h3>
+        <div class="chart-container" style="height:400px"><canvas id="chartConcilFD"></canvas></div>
       </div>
-      <div class="chart-card">
-        <h3>Status por Conta</h3>
-        <div class="concil-grid" id="concilGrid"></div>
-      </div>
+      <div id="concilFDInfo" style="color:var(--muted);font-size:13px;padding:8px 16px"></div>
     </div>
 
     <!-- VENDAS -->
@@ -666,7 +654,7 @@ function renderSaldoGrid(){
 
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
-function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao(dadosFiltrados.saldos_bancarios||[]);renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3b8';
@@ -807,74 +795,49 @@ function renderVisaoGeral(d){
 }
 
 // ============ CONCILIAÇÃO BANCÁRIA (aba própria) ============
-function renderConciliacao(saldos){
-  const contas=saldos.filter(s=>s.saldo!==0||s.saldo_conciliado!==0);
-  if(!contas.length){
-    document.getElementById('concilSummary').innerHTML='<p style="color:var(--muted)">Sem dados de conciliação. Execute o sync v5+.</p>';
-    document.getElementById('concilGrid').innerHTML='';
+function renderConciliacao(){
+  // Conciliação Faturamento Direto — por projeto
+  const porProj={};
+  dadosFiltrados.lancamentos.forEach(l=>{
+    if(!l.projeto||!l.is_fd)return;
+    const k=l.projeto;
+    if(!porProj[k])porProj[k]={nome:l.projeto_nome,rec_fd:0,desp_fd:0};
+    if(l.tipo==='entrada')porProj[k].rec_fd+=l.valor;
+    else porProj[k].desp_fd+=l.valor;
+  });
+  const all=Object.values(porProj);
+  const totalProj=all.length;
+  const desbalanceados=all.filter(p=>Math.abs(p.rec_fd-p.desp_fd)>100).sort((a,b)=>Math.abs(b.rec_fd-b.desp_fd)-Math.abs(a.rec_fd-a.desp_fd));
+  const equilibrados=totalProj-desbalanceados.length;
+
+  const totalRecFD=all.reduce((s,p)=>s+p.rec_fd,0);
+  const totalDespFD=all.reduce((s,p)=>s+p.desp_fd,0);
+  const saldoFD=totalRecFD-totalDespFD;
+  document.getElementById('kpi-concilFD').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Receita FD</div><div class="kpi-value green">${fmt(totalRecFD)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Despesa FD</div><div class="kpi-value red">${fmt(totalDespFD)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Saldo FD</div><div class="kpi-value ${saldoFD>=0?'green':'red'}">${fmt(saldoFD)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Projetos FD</div><div class="kpi-value blue">${totalProj}</div><div class="kpi-sub">${equilibrados} equilibrados</div></div>`;
+
+  if(!desbalanceados.length){
+    document.getElementById('concilFDInfo').innerHTML='Todos os projetos FD estão equilibrados (diferença < R$ 100).';
     return;
   }
-  let ok=0,warn=0,error=0,totalDif=0;
-  contas.forEach(c=>{const dif=Math.abs(c.diferenca||0);totalDif+=dif;if(dif<1)ok++;else if(dif<1000)warn++;else error++});
-  document.getElementById('concilSummary').innerHTML=`
-    <div class="concil-stat"><div class="num" style="color:var(--green)">${ok}</div><div class="lbl">Conciliadas</div></div>
-    <div class="concil-stat"><div class="num" style="color:var(--yellow)">${warn}</div><div class="lbl">Peq. Diferença</div></div>
-    <div class="concil-stat"><div class="num" style="color:var(--red)">${error}</div><div class="lbl">Pendentes</div></div>
-    <div class="concil-stat"><div class="num" style="color:var(--text)">${contas.length}</div><div class="lbl">Total</div></div>
-    <div class="concil-stat"><div class="num" style="color:${totalDif<1?'var(--green)':'var(--red)'}; font-size:16px">${fmt(totalDif)}</div><div class="lbl">Diferença Total</div></div>`;
-  const sel=document.getElementById('concilBanco');
-  const curVal=sel.value;
-  sel.innerHTML='<option value="__todos__">Todos (consolidado)</option>';
-  contas.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(c=>{
-    const o=document.createElement('option');o.value=c.id;o.textContent=c.nome;sel.appendChild(o);
-  });
-  sel.value=curVal||'__todos__';
-  renderConcilChart();
-  document.getElementById('concilGrid').innerHTML=contas.sort((a,b)=>Math.abs(b.diferenca||0)-Math.abs(a.diferenca||0)).map(c=>{
-    const dif=Math.abs(c.diferenca||0);
-    let cls='error',badge='Pendente';
-    if(dif<1){cls='ok';badge='OK'}else if(dif<1000){cls='warn';badge='Atenção'}
-    return`<div class="concil-item ${cls}">
-      <div class="concil-header"><span class="concil-nome">${c.nome}</span><span class="concil-badge ${cls}">${badge}</span></div>
-      <div class="concil-row"><span>Saldo (D-1)</span><span class="val">${fmt(c.saldo)}</span></div>
-      <div class="concil-row"><span>Conciliado</span><span class="val">${fmt(c.saldo_conciliado||0)}</span></div>
-      <div class="concil-row"><span>Diferença</span><span class="val" style="color:${dif<1?'var(--green)':'var(--red)'}; font-weight:700">${dif<1?'R$ 0,00':fmt(c.diferenca)}</span></div>
-    </div>`}).join('');
-}
-
-function renderConcilChart(){
-  if(charts.concil){charts.concil.destroy();delete charts.concil}
-  const hist=dadosOriginal.historico_conciliacao||[];
-  if(!hist.length)return;
-  const banco=document.getElementById('concilBanco').value;
-  const visao=document.getElementById('concilVisao').value;
-  let filtered=hist.filter(h=>h.tipo===visao);
-  if(banco!=='__todos__'){
-    filtered=filtered.filter(h=>String(h.banco_id)===String(banco));
-  } else {
-    const byDate={};
-    filtered.forEach(h=>{
-      if(!byDate[h.data])byDate[h.data]={data:h.data,label:h.label,saldo_atual:0,saldo_conciliado:0,diferenca:0};
-      byDate[h.data].saldo_atual+=h.saldo_atual;
-      byDate[h.data].saldo_conciliado+=h.saldo_conciliado;
-      byDate[h.data].diferenca+=h.diferenca;
-    });
-    filtered=Object.values(byDate).sort((a,b)=>a.data.localeCompare(b.data));
-  }
-  if(!filtered.length)return;
-  if(banco!=='__todos__') filtered.sort((a,b)=>a.data.localeCompare(b.data));
-  const labels=filtered.map(h=>h.label);
-  const difs=filtered.map(h=>h.diferenca);
-  const bgColors=difs.map(v=>Math.abs(v)<1?'#22c55e88':Math.abs(v)<1000?'#eab30888':'#ef444488');
-  const bdColors=difs.map(v=>Math.abs(v)<1?'#22c55e':Math.abs(v)<1000?'#eab308':'#ef4444');
-  charts.concil=new Chart(document.getElementById('chartConcil'),{
-    type:'bar',
-    data:{labels,datasets:[{label:'Diferença (Saldo - Conciliado)',data:difs,backgroundColor:bgColors,borderColor:bdColors,borderWidth:1}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      scales:{x:{ticks:{color:'#94a3b8',maxRotation:45},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}},
-      plugins:{legend:{labels:{color:'#94a3b8'}},tooltip:{callbacks:{label:ctx=>`Diferença: ${fmt(ctx.raw)}`}},datalabels:dlCurrency}
+  const top=desbalanceados.slice(0,20);
+  const labels=top.map(p=>p.nome.length>35?p.nome.substring(0,32)+'...':p.nome);
+  charts.concilFD=new Chart(document.getElementById('chartConcilFD'),{type:'bar',
+    data:{labels,datasets:[
+      {label:'Receita FD',data:top.map(p=>p.rec_fd),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1},
+      {label:'Despesa FD',data:top.map(p=>p.desp_fd),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
+      plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},
+        tooltip:{callbacks:{label:ctx=>{const p=top[ctx.dataIndex];const saldo=p.rec_fd-p.desp_fd;return`${ctx.dataset.label}: ${fmt(ctx.raw)} · Saldo: ${fmt(saldo)}`}}}
+      }
     }
   });
+  document.getElementById('concilFDInfo').innerHTML=`Projetos equilibrados (diferença FD < R$ 100): ${equilibrados} de ${totalProj}`;
 }
 
 // ============ FLUXO DE CAIXA ============
