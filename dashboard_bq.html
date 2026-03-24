@@ -848,10 +848,10 @@ function renderConciliacao(){
   const saldoBorders=saldos.map(v=>v>=0?'#22c55e':'#ef4444');
   charts.saldoFD=new Chart(document.getElementById('chartSaldoFD'),{type:'bar',
     data:{labels,datasets:[{label:'Saldo FD',data:saldos,backgroundColor:saldoColors,borderColor:saldoBorders,borderWidth:1}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:10,right:10}},
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{display:false},grid:{display:false}}},
       plugins:{legend:{display:false},
-        datalabels:{display:true,anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',font:{size:9,weight:'bold'},formatter:v=>fmt(v)},
+        datalabels:{display:true,anchor:'center',align:'center',color:'#fff',font:{size:9,weight:'bold'},formatter:(v,ctx)=>{const n=top[ctx.dataIndex].nome;const short=n.length>20?n.substring(0,18)+'..':n;return short+' '+fmtK(v)}},
         tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}
       }
     }
