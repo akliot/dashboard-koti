@@ -1161,7 +1161,7 @@ function renderVendas(d){
   const v=dadosOriginal.vendas;
   if(v){
     const et=Object.entries(v.por_etapa);
-    charts.etapas=new Chart(document.getElementById('chartEtapas'),{type:'doughnut',data:{labels:et.map(e=>e[0]),datasets:[{data:et.map(e=>e[1]),backgroundColor:cores}]},options:dOpts});
+    charts.etapas=new Chart(document.getElementById('chartEtapas'),{type:'doughnut',data:{labels:et.map(e=>e[0]),datasets:[{data:et.map(e=>e[1]),backgroundColor:cores}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}},datalabels:{display:ctx=>{const d=ctx.dataset.data;const t=d.reduce((a,b)=>a+b,0);return d[ctx.dataIndex]/t>0.05},color:'#fff',font:{size:9,weight:600},formatter:v=>v+' pedidos'}}}});
   }
 
   const topCli=Object.entries(d.porCliente).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -1179,7 +1179,9 @@ function renderClientes(){
     <div class="kpi-card"><div class="kpi-label">Ativos</div><div class="kpi-value green">${fmtNum(c.ativos)}</div><div class="kpi-sub">${(c.ativos/c.total_clientes*100).toFixed(1)}%</div></div>
     <div class="kpi-card"><div class="kpi-label">PJ</div><div class="kpi-value purple">${fmtNum(c.pessoa_juridica)}</div></div>
     <div class="kpi-card"><div class="kpi-label">PF</div><div class="kpi-value cyan">${fmtNum(c.pessoa_fisica)}</div></div>`;
-  const m=Object.keys(c.por_mes_cadastro).sort();
+  // Filtrar últimos 12 meses (evita spike de importação em meses antigos)
+  const allM=Object.keys(c.por_mes_cadastro).sort();
+  const m=allM.slice(-12);
   charts.cMes=new Chart(document.getElementById('chartClientesMes'),{type:'bar',data:{labels:m.map(mesNome),datasets:[{label:'Novos',data:m.map(x=>c.por_mes_cadastro[x]),backgroundColor:'#a855f788',borderColor:'#a855f7',borderWidth:1}]},options:cOpts('number')});
   const est=Object.entries(c.por_estado);
   charts.est=new Chart(document.getElementById('chartEstados'),{type:'bar',data:{labels:est.map(e=>e[0]),datasets:[{data:est.map(e=>e[1]),backgroundColor:cores}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtNum(v)}}}});
