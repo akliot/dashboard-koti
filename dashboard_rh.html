@@ -219,10 +219,16 @@ function render(D){
   html+='</div>';
 
   html+='<div class="row r2">';
-  html+='<div class="card"><div class="card-h"><div class="card-t">Demográfico por Área</div><div class="bdg">'+mNomes[mesRefN]+'/26</div></div><div class="cc" style="height:320px"><canvas id="cDemo"></canvas></div><div class="ins" id="insDemo"></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Demográfico — Idade por Área</div><div class="bdg">'+mNomes[mesRefN]+'/26</div></div><div class="cc" style="height:320px"><canvas id="cDemo"></canvas></div><div class="ins" id="insDemo"></div></div>';
 
-  // 12. Faixa salarial
-  html+='<div class="card"><div class="card-h"><div class="card-t">Faixa Salarial por Cargo</div><div class="bdg bdg-g">LGPD-safe</div></div><div class="cc" style="height:320px"><canvas id="cFaixa"></canvas></div><div class="ins" id="insFaixa"></div></div>';
+  // 12. Faixa salarial (demográfico row fecha aqui)
+  html+='<div class="card"><div class="card-h"><div class="card-t">Demográfico — Tempo de Casa</div><div class="bdg bdg-g">'+mNomes[mesRefN]+'/26</div></div><div class="cc" style="height:320px"><canvas id="cDemoTC"></canvas></div></div>';
+  html+='</div>';
+
+  // 12a/12b. Faixa salarial — nível + área
+  html+='<div class="row r2">';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Faixa Salarial por Nível</div><div class="bdg bdg-g">LGPD-safe</div></div><div class="cc" style="height:300px"><canvas id="cFaixaN"></canvas></div><div class="ins" id="insFaixaN"></div></div>';
+  html+='<div class="card"><div class="card-h"><div class="card-t">Faixa Salarial por Área</div><div class="bdg bdg-g">LGPD-safe</div></div><div class="cc" style="height:300px"><canvas id="cFaixaA"></canvas></div><div class="ins" id="insFaixaA"></div></div>';
   html+='</div>';
 
   // 14. Alert cards dinâmicos (pré-calcular pcS/pcV/comData aqui)
@@ -436,39 +442,65 @@ function render(D){
   new Chart(document.getElementById('cDemo'),{type:'bar',data:{
     labels:demoA,
     datasets:[
-      {label:'Idade média (anos)',data:demoA.map(function(a){return idadePorArea[a]||0}),backgroundColor:'rgba(74,144,255,.6)',borderRadius:4},
-      {label:'Tempo de casa (meses)',data:demoA.map(function(a){return tcPorArea[a]||0}),backgroundColor:'rgba(61,220,151,.6)',borderRadius:4}
+      {label:'Idade média (anos)',data:demoA.map(function(a){return idadePorArea[a]||0}),backgroundColor:'rgba(74,144,255,.6)',borderRadius:4}
     ]
-  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T,datalabels:{display:true,anchor:'end',align:'end',offset:2,font:dfs,color:'#EAF0FA',formatter:function(v){return Math.round(v)}}},
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T,datalabels:{display:true,anchor:'end',align:'end',offset:2,font:dfs,color:'#4A90FF',formatter:function(v){return Math.round(v)+' anos'}}},
     scales:{x:{grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:10}},grid:{display:false}}}}});
 
   var areaMaxTC=demoA.reduce(function(a,d){return(tcPorArea[d]||0)>(tcPorArea[a]||0)?d:a},demoA[0]);
   var areaMinIdade=demoA.reduce(function(a,d){return(idadePorArea[d]||99)<(idadePorArea[a]||99)?d:a},demoA[0]);
   document.getElementById('insDemo').innerHTML='<strong>People:</strong> <span class="hl">'+areaMaxTC+'</span> tem maior tempo de casa ('+Math.round(tcPorArea[areaMaxTC]||0)+' meses). '+areaMinIdade+' é a área mais jovem ('+Math.round(idadePorArea[areaMinIdade]||0)+' anos).';
 
-  // === 12. FAIXA SALARIAL ===
-  var fs=D.faixa_salarial||{};
-  var fsCargos=Object.entries(fs).filter(function(e){return e[1].min>0}).sort(function(a,b){return b[1].media-a[1].media});
-  var fsLabels=fsCargos.map(function(e){return e[0]+' ('+e[1].qtd+')'});
-  var fsMin=fsCargos.map(function(e){return e[1].min});
-  var fsMax=fsCargos.map(function(e){return e[1].max});
-  var fsMedia=fsCargos.map(function(e){return e[1].media});
-  var fsRange=fsCargos.map(function(e){return[e[1].min,e[1].max]});
-  var mediaGeralSal=fsMedia.reduce(function(a,b){return a+b},0)/fsMedia.length;
+  // === 12. DEMOGRÁFICO — Tempo de Casa chart separado ===
+  new Chart(document.getElementById('cDemoTC'),{type:'bar',data:{
+    labels:demoA,
+    datasets:[{label:'Tempo de casa (meses)',data:demoA.map(function(a){return tcPorArea[a]||0}),backgroundColor:'rgba(61,220,151,.6)',borderRadius:4}]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T,datalabels:{display:true,anchor:'end',align:'end',offset:2,font:dfs,color:'#3DDC97',formatter:function(v){return Math.round(v)+' m'}}},
+    scales:{x:{grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:10}},grid:{display:false}}}}});
 
-  new Chart(document.getElementById('cFaixa'),{type:'bar',data:{
-    labels:fsLabels,
+  // === 12a. FAIXA SALARIAL POR NÍVEL ===
+  var fN=D.faixa_por_nivel||{};
+  var fNEntries=Object.entries(fN).filter(function(e){return e[1].qtd>0});
+  var fNLabels=fNEntries.map(function(e){return e[0]+' ('+e[1].qtd+')'});
+  var fNRange=fNEntries.map(function(e){return[e[1].min,e[1].max]});
+  var fNMedia=fNEntries.map(function(e){return e[1].media});
+  var fNColors=['rgba(74,144,255,.4)','rgba(167,139,250,.4)','rgba(61,220,151,.4)','rgba(255,181,71,.4)'];
+  var fNBorder=['rgba(74,144,255,.7)','rgba(167,139,250,.7)','rgba(61,220,151,.7)','rgba(255,181,71,.7)'];
+
+  new Chart(document.getElementById('cFaixaN'),{type:'bar',data:{
+    labels:fNLabels,
     datasets:[
-      {label:'Faixa (mín–máx)',data:fsRange,backgroundColor:'rgba(74,144,255,.35)',borderColor:'rgba(74,144,255,.6)',borderWidth:1,borderRadius:3,borderSkipped:false},
-      {label:'Média',data:fsMedia,type:'line',borderColor:'#FFB547',pointBackgroundColor:'#FFB547',pointRadius:4,borderWidth:0,fill:false,
-        datalabels:{display:true,anchor:'end',align:'right',offset:4,color:'#FFB547',font:dfs,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
+      {label:'Faixa (mín–máx)',data:fNRange,backgroundColor:fNColors.slice(0,fNEntries.length),borderColor:fNBorder.slice(0,fNEntries.length),borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.55},
+      {label:'Média',data:fNMedia,type:'line',borderColor:'#FFB547',pointBackgroundColor:'#FFB547',pointRadius:6,pointStyle:'circle',borderWidth:0,fill:false,
+        datalabels:{display:true,anchor:'end',align:'right',offset:6,color:'#FFB547',font:df,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
     ]
   },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:T},
-    scales:{x:{ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:9}},grid:{display:false}}}}});
+    plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:{...T,callbacks:{label:function(c){if(c.datasetIndex===0){var d=c.raw;return 'R$'+(d[0]/1000).toFixed(1)+'K – R$'+(d[1]/1000).toFixed(1)+'K'}return 'Média: R$'+(c.raw/1000).toFixed(1)+'K'}}}},
+    scales:{x:{min:0,ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:10}},grid:{display:false}}}}});
 
-  var cargoMaiorFaixa=fsCargos.reduce(function(a,e){return(e[1].max-e[1].min)>(a[1].max-a[1].min)?e:a},fsCargos[0]);
-  document.getElementById('insFaixa').innerHTML='<strong>RH:</strong> Maior faixa: <span class="hl">'+cargoMaiorFaixa[0]+'</span> (R$'+(cargoMaiorFaixa[1].min/1000).toFixed(1)+'K–R$'+(cargoMaiorFaixa[1].max/1000).toFixed(1)+'K). Média geral: R$'+(mediaGeralSal/1000).toFixed(1)+'K.';
+  var fNTop=fNEntries[0];var fNBot=fNEntries[fNEntries.length-1];
+  document.getElementById('insFaixaN').innerHTML='<strong>RH:</strong> <span class="hl">'+fNTop[0]+'</span> R$'+(fNTop[1].min/1000).toFixed(1)+'K–R$'+(fNTop[1].max/1000).toFixed(1)+'K ('+fNTop[1].qtd+' pessoas). '+fNBot[0]+': R$'+(fNBot[1].min/1000).toFixed(1)+'K–R$'+(fNBot[1].max/1000).toFixed(1)+'K.';
+
+  // === 12b. FAIXA SALARIAL POR ÁREA ===
+  var fA=D.faixa_por_area||{};
+  var fAEntries=Object.entries(fA).filter(function(e){return e[1].qtd>0}).sort(function(a,b){return b[1].media-a[1].media});
+  var fALabels=fAEntries.map(function(e){return e[0]+' ('+e[1].qtd+')'});
+  var fARange=fAEntries.map(function(e){return[e[1].min,e[1].max]});
+  var fAMedia=fAEntries.map(function(e){return e[1].media});
+
+  new Chart(document.getElementById('cFaixaA'),{type:'bar',data:{
+    labels:fALabels,
+    datasets:[
+      {label:'Faixa (mín–máx)',data:fARange,backgroundColor:'rgba(74,144,255,.35)',borderColor:'rgba(74,144,255,.6)',borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.55},
+      {label:'Média',data:fAMedia,type:'line',borderColor:'#FFB547',pointBackgroundColor:'#FFB547',pointRadius:6,pointStyle:'circle',borderWidth:0,fill:false,
+        datalabels:{display:true,anchor:'end',align:'right',offset:6,color:'#FFB547',font:df,formatter:function(v){return 'R$'+(v/1000).toFixed(1)+'K'}}}
+    ]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#94A3BE',font:{size:10}}},tooltip:{...T,callbacks:{label:function(c){if(c.datasetIndex===0){var d=c.raw;return 'R$'+(d[0]/1000).toFixed(1)+'K – R$'+(d[1]/1000).toFixed(1)+'K'}return 'Média: R$'+(c.raw/1000).toFixed(1)+'K'}}}},
+    scales:{x:{min:0,ticks:{callback:function(v){return 'R$'+fK(v)}},grid:{color:'rgba(37,46,69,.3)'}},y:{ticks:{color:'#94A3BE',font:{size:10}},grid:{display:false}}}}});
+
+  var fATop=fAEntries[0];var mediaGeralSal=fAMedia.reduce(function(a,b){return a+b},0)/fAMedia.length;
+  document.getElementById('insFaixaA').innerHTML='<strong>RH:</strong> <span class="hl">'+fATop[0]+'</span> maior média (R$'+(fATop[1].media/1000).toFixed(1)+'K). Média geral: R$'+(mediaGeralSal/1000).toFixed(1)+'K. Maior amplitude: '+(function(){var mx=fAEntries.reduce(function(a,e){return(e[1].max-e[1].min)>(a[1].max-a[1].min)?e:a},fAEntries[0]);return mx[0]+' (R$'+((mx[1].max-mx[1].min)/1000).toFixed(1)+'K)'})()+'.';
 }
 
 loadAndRender();
