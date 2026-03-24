@@ -264,9 +264,13 @@ tr:hover td{background:rgba(59,130,246,.05)}
     <!-- CONCILIAÇÃO BANCÁRIA -->
     <div class="page" id="page-conciliacao">
       <div class="kpi-row" id="kpi-concilFD"></div>
-      <div class="chart-card" style="margin-bottom:20px">
-        <h3>Conciliação Faturamento Direto</h3>
-        <div class="chart-container" style="height:400px"><canvas id="chartConcilFD"></canvas></div>
+      <div class="chart-row">
+        <div class="chart-card" style="flex:3"><h3>Conciliação Faturamento Direto</h3>
+          <div class="chart-container" style="height:400px"><canvas id="chartConcilFD"></canvas></div>
+        </div>
+        <div class="chart-card" style="flex:2"><h3>Saldo FD por Projeto</h3>
+          <div class="chart-container" style="height:400px"><canvas id="chartSaldoFD"></canvas></div>
+        </div>
       </div>
       <div id="concilFDInfo" style="color:var(--muted);font-size:13px;padding:8px 16px"></div>
     </div>
@@ -832,8 +836,23 @@ function renderConciliacao(){
     ]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
-      plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:false},
+      plugins:{legend:{labels:{color:'#94a3b8'}},
+        datalabels:{display:true,anchor:'end',align:'end',color:'#94a3b8',font:{size:9},formatter:v=>v>0?fmtK(v):''},
         tooltip:{callbacks:{label:ctx=>{const p=top[ctx.dataIndex];const saldo=p.rec_fd-p.desp_fd;return`${ctx.dataset.label}: ${fmt(ctx.raw)} · Saldo: ${fmt(saldo)}`}}}
+      }
+    }
+  });
+  // Gráfico de saldo FD por projeto
+  const saldos=top.map(p=>p.rec_fd-p.desp_fd);
+  const saldoColors=saldos.map(v=>v>=0?'#22c55e88':'#ef444488');
+  const saldoBorders=saldos.map(v=>v>=0?'#22c55e':'#ef4444');
+  charts.saldoFD=new Chart(document.getElementById('chartSaldoFD'),{type:'bar',
+    data:{labels,datasets:[{label:'Saldo FD',data:saldos,backgroundColor:saldoColors,borderColor:saldoBorders,borderWidth:1}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}},
+      plugins:{legend:{display:false},
+        datalabels:{display:true,anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',color:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'#22c55e':'#ef4444',font:{size:9,weight:'bold'},formatter:v=>fmt(v)},
+        tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}
       }
     }
   });
