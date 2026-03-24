@@ -105,6 +105,7 @@ def build_json() -> dict:
             "data_vencimento": date_to_ddmmyyyy(r.get("data_vencimento")),
             "data_pagamento": date_to_ddmmyyyy(r.get("data_pagamento")),
             "data_previsao": date_to_ddmmyyyy(r.get("data_previsao")),
+            "data_emissao": date_to_ddmmyyyy(r.get("data_emissao")),
             "categoria": r.get("categoria_codigo") or "",
             "categoria_nome": r.get("categoria_nome", ""),
             "projeto": proj_id,
