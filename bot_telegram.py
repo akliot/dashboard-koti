@@ -244,9 +244,19 @@ class FinancialAssistant:
             # 1. Gerar SQL via LLM
             sql = self.generate_sql(text, history_context)
 
-            # Garantir que queries de folha sempre incluem nome
-            if "folha_funcionarios" in sql.lower() and "nome" not in sql.lower().split("from")[0]:
-                sql = sql.replace("SELECT ", "SELECT nome, ", 1)
+            # Garantir que queries de folha sempre retornam dados individuais
+            if "folha_funcionarios" in sql.lower():
+                sql_lower = sql.lower()
+                select_part = sql_lower.split("from")[0]
+                # Se não tem 'nome' no SELECT, ou tem GROUP BY sem nome → reescrever
+                has_group_by = "group by" in sql_lower
+                has_nome = "nome" in select_part
+                if not has_nome or (has_group_by and "nome" not in sql_lower.split("group by")[-1]):
+                    # Remover GROUP BY que agrupa por departamento/cargo (perde dados individuais)
+                    import re as _re
+                    sql = _re.sub(r'\bGROUP\s+BY\b[^)]*?(?=\bORDER\b|\bLIMIT\b|\bHAVING\b|$)', '', sql, flags=_re.IGNORECASE)
+                    if "nome" not in sql.lower().split("from")[0]:
+                        sql = sql.replace("SELECT ", "SELECT nome, cargo, departamento, ", 1)
 
             log.info(f"SQL gerado: {sql[:200]}")
             self._last_sql = sql  # Salvar para o histórico
@@ -632,10 +642,10 @@ REGRAS CRÍTICAS (OBRIGATÓRIO):
 
         if self._is_exec:
             prompt += """
-6. Para dados de folha de pagamento: SEMPRE inclua o nome da pessoa (campo 'nome') na resposta. Não substitua por cargo ou departamento. O usuário tem acesso autorizado a dados individuais."""
+6. REGRA ABSOLUTA PARA DADOS DE FOLHA: Este usuário é EXEC com acesso total. Quando a query retornar dados da tabela folha_funcionarios, você DEVE incluir o campo 'nome' (nome da PESSOA, não departamento). NUNCA substitua o nome da pessoa pelo nome do departamento ou cargo. Mostre: "Nome: [nome], Departamento: [dept], Salário: R$ X"."""
 
         return self.llm.generate(
-            "Você é o assistente financeiro do Studio Koti. REGRA ABSOLUTA: apresente SOMENTE os valores exatos da query. NUNCA mencione encargos, INSS, FGTS, tributos ou qualquer custo inventado. A empresa é PJ — encargos NÃO existem. O campo custo_total já é o valor correto — NÃO decomponha nem explique como foi calculado.",
+            "Você é o assistente financeiro do Studio Koti. REGRA ABSOLUTA: apresente SOMENTE os valores exatos da query. NUNCA mencione encargos, INSS, FGTS, tributos ou qualquer custo inventado. A empresa é PJ — encargos NÃO existem. O campo custo_total já é o valor correto — NÃO decomponha nem explique como foi calculado. IMPORTANTE: quando a query retornar dados de folha_funcionarios com campo 'nome', SEMPRE mostre o NOME DA PESSOA (não o departamento).",
             prompt,
         )
 
