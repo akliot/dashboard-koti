@@ -1,0 +1,59 @@
+name: Deploy Bot → Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bot_telegram.py'
+      - 'Dockerfile'
+      - 'requirements_bot.txt'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate GCP
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          echo "$GCP_SA_KEY" | base64 --decode > /tmp/gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json" >> $GITHUB_ENV
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: dashboard-koti-omie
+
+      - name: Activate service account
+        run: gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+
+      - name: Build and push image
+        run: gcloud builds submit --tag gcr.io/dashboard-koti-omie/bot-telegram
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy bot-telegram \
+            --image=gcr.io/dashboard-koti-omie/bot-telegram \
+            --region=southamerica-east1 \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=1 \
+            --timeout=60s \
+            --set-env-vars="GCP_PROJECT_ID=dashboard-koti-omie" \
+            --set-env-vars="BQ_DATASET=studio_koti" \
+            --set-env-vars="ADMIN_CHAT_ID=8107744840" \
+            --set-env-vars="EXEC_CHAT_IDS=8230872349" \
+            --update-env-vars="^||^AUTHORIZED_CHAT_IDS=8107744840,8230872349" \
+            --set-secrets="TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/gcp-key.json
