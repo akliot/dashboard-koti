@@ -625,6 +625,10 @@ REGRAS CRÍTICAS (OBRIGATÓRIO):
 4. Se custo_total > salário + comissão + bônus + benefícios, NÃO comente a diferença. Apenas mostre os valores como estão.
 5. NUNCA some ou recalcule valores — mostre apenas o que veio da query."""
 
+        if self._is_exec:
+            prompt += """
+6. Para dados de folha de pagamento: SEMPRE inclua o nome da pessoa (campo 'nome') na resposta. Não substitua por cargo ou departamento. O usuário tem acesso autorizado a dados individuais."""
+
         return self.llm.generate(
             "Você é o assistente financeiro do Studio Koti. REGRA ABSOLUTA: apresente SOMENTE os valores exatos da query. NUNCA mencione encargos, INSS, FGTS, tributos ou qualquer custo inventado. A empresa é PJ — encargos NÃO existem. O campo custo_total já é o valor correto — NÃO decomponha nem explique como foi calculado.",
             prompt,
