@@ -1,0 +1,20 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests google-cloud-bigquery db-dtypes openpyxl
+
+      - name: Run unit tests
+        run: python -m pytest test_pipeline.py test_api.py -v --tb=short
