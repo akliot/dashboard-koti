@@ -237,13 +237,13 @@ def extract_funcionarios(wb, status_meses):
 
             benef = _num(COL_CAJU) + _num(COL_VT) + _num(COL_ESTAC) + _num(COL_CLINICA) + _num(COL_GYMPASS)
 
-            # Calcular custo_total = salário + comissão + bônus + rescisão + benefícios
-            # NÃO usar coluna 24 da planilha — ela inclui encargos CLT que não se aplicam (empresa PJ)
+            # Calcular custo_total = salário + comissão + bônus + benefícios (sem rescisão)
+            # Rescisão é evento pontual, não faz parte do custo recorrente
             salario = _num(COL_SALARIO)
             comissao = _num(COL_COMISSAO)
             bonus = _num(COL_BONUS)
             rescisao = _num(COL_RESCISAO)
-            custo = salario + comissao + bonus + rescisao + benef
+            custo = salario + comissao + bonus + benef
 
             rows.append({
                 "nome": nome.strip(),
