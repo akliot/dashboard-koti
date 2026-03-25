@@ -1,0 +1,32 @@
+steps:
+  # Build container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/bot-telegram', '.']
+
+  # Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/bot-telegram']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bot-telegram'
+      - '--image=gcr.io/$PROJECT_ID/bot-telegram'
+      - '--region=southamerica-east1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=1'
+      - '--timeout=60s'
+      - '--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,BQ_DATASET=studio_koti,ADMIN_CHAT_ID=8107744840,EXEC_CHAT_IDS=8230872349,AUTHORIZED_CHAT_IDS=8107744840,8230872349'
+      - '--set-secrets=TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
+
+# NOTE: After first deploy, set WEBHOOK_URL with the Cloud Run URL:
+#   gcloud run services update bot-telegram \
+#     --region=southamerica-east1 \
+#     --set-env-vars=WEBHOOK_URL=https://<SERVICE_URL>

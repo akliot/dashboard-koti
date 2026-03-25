@@ -5,6 +5,7 @@ Responde perguntas financeiras em linguagem natural, consultando BigQuery via Ge
 
 Uso:
   python bot_telegram.py --local     # Polling (dev)
+  python bot_telegram.py --webhook   # Webhook mode (Cloud Run)
   python bot_telegram.py --cli       # CLI interativo (sem Telegram)
 
 Variáveis de ambiente:
@@ -815,6 +816,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Bot Telegram Financeiro — Studio Koti")
     parser.add_argument("--local", action="store_true", help="Polling mode (dev)")
+    parser.add_argument("--webhook", action="store_true", help="Webhook mode (Cloud Run)")
     parser.add_argument("--cli", action="store_true", help="CLI mode (sem Telegram)")
     args = parser.parse_args()
 
@@ -867,10 +869,54 @@ def main():
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         app.run_polling()
 
+    elif args.webhook:
+        # Webhook mode (Cloud Run)
+        from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+        import hashlib
+
+        if not TELEGRAM_TOKEN:
+            print("❌ Configure TELEGRAM_BOT_TOKEN!")
+            sys.exit(1)
+
+        # Derive webhook secret from bot token (deterministic, no extra env var needed)
+        webhook_secret = hashlib.sha256(TELEGRAM_TOKEN.encode()).hexdigest()
+
+        # Cloud Run provides PORT env var
+        port = int(os.environ.get("PORT", "8080"))
+
+        # WEBHOOK_URL must be set to the Cloud Run service URL
+        webhook_url = os.environ.get("WEBHOOK_URL", "")
+        if not webhook_url:
+            print("❌ Configure WEBHOOK_URL (ex: https://bot-telegram-xxxxx-uc.a.run.app)")
+            sys.exit(1)
+
+        print("🏠 Koti Finance Bot — Webhook mode")
+        print(f"   Projeto: {GCP_PROJECT_ID}")
+        print(f"   Dataset: {BQ_DATASET}")
+        print(f"   Port: {port}")
+        print(f"   Webhook: {webhook_url}/webhook")
+
+        app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+        app.add_handler(CommandHandler("start", cmd_start))
+        app.add_handler(CommandHandler("saldo", cmd_saldo))
+        app.add_handler(CommandHandler("analise", cmd_analise))
+        app.add_handler(CommandHandler("status", cmd_status))
+        app.add_handler(CommandHandler("ajuda", cmd_start))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path="webhook",
+            webhook_url=f"{webhook_url}/webhook",
+            secret_token=webhook_secret,
+        )
+
     else:
-        print("Uso: python bot_telegram.py --local (Telegram) ou --cli (terminal)")
-        print("  --local  Conecta ao Telegram via polling")
-        print("  --cli    Modo interativo no terminal")
+        print("Uso: python bot_telegram.py --local | --webhook | --cli")
+        print("  --local    Polling (dev)")
+        print("  --webhook  Webhook (Cloud Run)")
+        print("  --cli      Terminal interativo")
 
 
 if __name__ == "__main__":
