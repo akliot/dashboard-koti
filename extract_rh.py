@@ -237,6 +237,14 @@ def extract_funcionarios(wb, status_meses):
 
             benef = _num(COL_CAJU) + _num(COL_VT) + _num(COL_ESTAC) + _num(COL_CLINICA) + _num(COL_GYMPASS)
 
+            # Calcular custo_total = salário + comissão + bônus + rescisão + benefícios
+            # NÃO usar coluna 24 da planilha — ela inclui encargos CLT que não se aplicam (empresa PJ)
+            salario = _num(COL_SALARIO)
+            comissao = _num(COL_COMISSAO)
+            bonus = _num(COL_BONUS)
+            rescisao = _num(COL_RESCISAO)
+            custo = salario + comissao + bonus + rescisao + benef
+
             rows.append({
                 "nome": nome.strip(),
                 "departamento": (ws.cell(row=row, column=COL_DEPT).value or "").strip(),
@@ -244,12 +252,12 @@ def extract_funcionarios(wb, status_meses):
                 "data_admissao": data_adm,
                 "idade": int(_num(COL_IDADE)) if _num(COL_IDADE) > 0 else None,
                 "tempo_casa_meses": _num(COL_TEMPO_CASA),
-                "salario": _num(COL_SALARIO),
-                "comissao": _num(COL_COMISSAO),
-                "bonus": _num(COL_BONUS),
-                "rescisao": _num(COL_RESCISAO),
+                "salario": salario,
+                "comissao": comissao,
+                "bonus": bonus,
+                "rescisao": rescisao,
                 "beneficios": round(benef, 2),
-                "custo_total": _num(COL_CUSTO_TOTAL),
+                "custo_total": round(custo, 2),
                 "mes_referencia": mes_key,
                 "status": status,
             })
