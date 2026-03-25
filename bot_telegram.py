@@ -243,6 +243,11 @@ class FinancialAssistant:
 
             # 1. Gerar SQL via LLM
             sql = self.generate_sql(text, history_context)
+
+            # Garantir que queries de folha sempre incluem nome
+            if "folha_funcionarios" in sql.lower() and "nome" not in sql.lower().split("from")[0]:
+                sql = sql.replace("SELECT ", "SELECT nome, ", 1)
+
             log.info(f"SQL gerado: {sql[:200]}")
             self._last_sql = sql  # Salvar para o histórico
 
