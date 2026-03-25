@@ -884,11 +884,20 @@ def main():
         # Cloud Run provides PORT env var
         port = int(os.environ.get("PORT", "8080"))
 
-        # WEBHOOK_URL must be set to the Cloud Run service URL
+        # Auto-discover webhook URL from WEBHOOK_URL or Cloud Run's K_SERVICE
         webhook_url = os.environ.get("WEBHOOK_URL", "")
         if not webhook_url:
-            print("❌ Configure WEBHOOK_URL (ex: https://bot-telegram-xxxxx-uc.a.run.app)")
-            sys.exit(1)
+            # Cloud Run sets K_SERVICE and K_REVISION automatically
+            k_service = os.environ.get("K_SERVICE", "")
+            region = os.environ.get("CLOUD_RUN_REGION", "southamerica-east1")
+            if k_service:
+                project_hash = os.environ.get("K_CONFIGURATION", k_service)
+                # Use gcloud to get the URL, or construct from Cloud Run convention
+                webhook_url = f"https://{k_service}-294770561801.{region}.run.app"
+                log.info(f"Auto-discovered webhook URL: {webhook_url}")
+            else:
+                print("❌ Configure WEBHOOK_URL ou rode no Cloud Run")
+                sys.exit(1)
 
         print("🏠 Koti Finance Bot — Webhook mode")
         print(f"   Projeto: {GCP_PROJECT_ID}")
