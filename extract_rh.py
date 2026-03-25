@@ -222,6 +222,20 @@ def extract_funcionarios(wb, status_meses):
             if nome.strip().upper() in ("TOTAIS", "TOTAL"):
                 continue
 
+            # Pular subtotais de departamento: linhas onde "nome" é o nome
+            # do departamento (ex: COMERCIAL, ARQUITETURA) sem cargo individual
+            cargo_val = ws.cell(row=row, column=COL_CARGO).value
+            dept_val = ws.cell(row=row, column=COL_DEPT).value
+            nome_upper = nome.strip().upper()
+            # Se não tem cargo E o nome parece um departamento (all caps, sem espaço ou com poucos chars)
+            # OU se o nome é igual ao departamento → é subtotal
+            if not cargo_val or not str(cargo_val).strip():
+                # Sem cargo = provavelmente subtotal de departamento
+                if dept_val and str(dept_val).strip().upper() == nome_upper:
+                    continue  # nome == departamento → subtotal
+                if nome_upper == nome.strip() and " " not in nome.strip():
+                    continue  # ALL CAPS sem espaço (ex: "COMERCIAL") → subtotal
+
             sal = ws.cell(row=row, column=COL_SALARIO).value
             if not isinstance(sal, (int, float)) or sal <= 0:
                 continue
