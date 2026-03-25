@@ -616,10 +616,15 @@ Máximo 4000 caracteres (limite Telegram).
 NÃO inclua o SQL na resposta.
 NÃO use markdown com asteriscos.
 
-REGRA CRÍTICA: NÃO calcule, estime ou mencione encargos, tributos, INSS, FGTS, impostos ou custo total estimado. A empresa usa PJ (pessoa jurídica) — não há encargos trabalhistas. Apresente APENAS os valores exatos retornados pela query, sem adicionar nenhum cálculo próprio."""
+REGRAS CRÍTICAS (OBRIGATÓRIO):
+1. Apresente SOMENTE os valores exatos retornados pela query. NÃO calcule, estime ou invente NENHUM valor.
+2. NÃO mencione encargos, tributos, INSS, FGTS, impostos, contribuições ou qualquer custo adicional. A empresa é 100% PJ — encargos trabalhistas NÃO EXISTEM.
+3. O campo 'custo_total' já é o valor final correto do banco de dados. NÃO tente explicar ou decompor como ele foi calculado.
+4. Se custo_total > salário + comissão + bônus + benefícios, NÃO comente a diferença. Apenas mostre os valores como estão.
+5. NUNCA some ou recalcule valores — mostre apenas o que veio da query."""
 
         return self.llm.generate(
-            "Você é o assistente financeiro do Studio Koti. Apresente apenas os dados retornados, sem inventar encargos ou tributos (empresa PJ).",
+            "Você é o assistente financeiro do Studio Koti. REGRA ABSOLUTA: apresente SOMENTE os valores exatos da query. NUNCA mencione encargos, INSS, FGTS, tributos ou qualquer custo inventado. A empresa é PJ — encargos NÃO existem. O campo custo_total já é o valor correto — NÃO decomponha nem explique como foi calculado.",
             prompt,
         )
 
