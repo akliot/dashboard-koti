@@ -106,10 +106,10 @@ def get_schema_context(is_exec: bool = False) -> str:
 Exemplos de queries para folha_funcionarios:
 - "quanto ganha X" → SELECT nome, cargo, departamento, salario, beneficios, custo_total FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(nome) LIKE '%x%' AND mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE())
 - "custo do departamento X" → SELECT departamento, COUNT(*) as qtd, ROUND(SUM(custo_total),2) as custo, ROUND(AVG(salario),2) as sal_medio FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE LOWER(departamento) LIKE '%x%' AND mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE()) GROUP BY departamento
-- "maiores salários" → SELECT nome, cargo, departamento, salario FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE()) ORDER BY salario DESC LIMIT 10
+- "maiores salários" ou "segundo maior salário" → SELECT nome, cargo, departamento, salario FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE()) ORDER BY salario DESC LIMIT 10
 - "rescisões previstas" → SELECT nome, cargo, departamento, ROUND(rescisao,2) as rescisao FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.folha_funcionarios` WHERE rescisao > 0 AND mes_referencia = FORMAT_DATE('%Y-%m', CURRENT_DATE())
 - Se o usuário pedir mês específico (ex: "folha de janeiro", "salários em fevereiro"), usar WHERE mes_referencia = 'YYYY-MM' com o mês solicitado (ex: '2026-01', '2026-02')
-- IMPORTANTE: cada linha na tabela folha_funcionarios é UM funcionário. Nunca agrupar por departamento quando a pergunta é sobre pessoas individuais.
+- REGRA OBRIGATÓRIA: queries em folha_funcionarios DEVEM SEMPRE incluir o campo 'nome' no SELECT. Cada linha é UM funcionário individual. NUNCA agrupar por departamento ou cargo quando a pergunta é sobre pessoas — sempre retornar nome, cargo, departamento juntos.
 
 Contexto: a maioria dos funcionários é PJ (pessoa jurídica). Apenas Auxiliar de Limpeza é CLT. Para PJ não há encargos (INSS/FGTS = 0). O campo 'rescisao' é multa contratual, não rescisão trabalhista CLT."""
     else:
