@@ -10,10 +10,20 @@
 
 Após qualquer alteração:
 1. `git add -A && git commit -m "tipo: descrição" && git push`
-2. Se alterou `bot_telegram.py` → reiniciar bot:
-   `unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 bot_telegram.py --local`
+2. Se alterou `bot_telegram.py`, `Dockerfile` ou `requirements_bot.txt`:
+   - Cloud Run: deploy automático via GitHub Actions (`.github/workflows/deploy_bot.yml`)
+   - Dev local: `unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 bot_telegram.py --local`
 3. Se alterou `extract_rh.py` → rodar:
    `unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 extract_rh.py`
+
+## GitHub Secrets necessários
+
+- `GCP_SA_KEY` — Service account key JSON codificada em base64. Usada pelos workflows de sync e deploy.
+  Para configurar: Settings → Secrets → Actions → New repository secret
+  ```bash
+  cat sa-key.json | base64 | pbcopy  # copia pro clipboard
+  ```
+  A SA precisa dos roles: Cloud Build Editor, Cloud Run Admin, Service Account User, Secret Manager Secret Accessor
 
 NUNCA perguntar "quer commitar?" ou "quer que eu faça push?" — sempre fazer automaticamente.
 
