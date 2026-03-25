@@ -52,32 +52,17 @@ jobs:
           BQ_DATASET: studio_koti
         run: python extract_bp_bq.py || echo "BP não processado"
 
+      - name: Extract RH → BigQuery
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          BQ_DATASET: studio_koti
+        run: |
+          if [ -f "Folha de Pagamentos 2026.xlsx" ]; then
+            python extract_rh.py "Folha de Pagamentos 2026.xlsx"
+          else
+            echo "Planilha RH não encontrada — pulando"
+          fi
+
       - name: Cleanup
         if: always()
         run: rm -f /tmp/gcp-key.json
-
-      # --- LEGACY: Pipeline GitHub Pages (opcional, remover quando migrar) ---
-      - name: Sync GitHub Pages (legacy)
-        env:
-          OMIE_APP_KEY: ${{ secrets.OMIE_APP_KEY }}
-          OMIE_APP_SECRET: ${{ secrets.OMIE_APP_SECRET }}
-          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
-          PYTHONUNBUFFERED: "1"
-        run: |
-          python omie_sync.py
-          python extract_orcamento.py || true
-          python encrypt_data.py
-
-      - name: Commit (legacy)
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add dados_omie.enc dados_orcamento.enc || true
-          git rm -f --ignore-unmatch dados_omie.json dados_omie.js dados_orcamento.json
-          if git diff --cached --quiet; then
-            echo "No changes"
-          else
-            git commit -m "sync: $(date +'%d/%m/%Y %H:%M')"
-            git pull --rebase origin main
-            git push
-          fi

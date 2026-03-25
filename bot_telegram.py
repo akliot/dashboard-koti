@@ -17,9 +17,12 @@ Variáveis de ambiente:
 """
 
 import os
+import re
 import sys
 import asyncio
 import logging
+import time as _time
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 
 from google.cloud import bigquery
@@ -55,6 +58,20 @@ log = logging.getLogger(__name__)
 # Memória de conversa por chat
 chat_history: dict[int, list[dict]] = {}
 MAX_HISTORY = 5
+
+# Rate-limit por chat
+_rate_limit: dict[int, list[float]] = defaultdict(list)
+MAX_QUERIES_PER_MINUTE = 10
+
+
+def _check_rate_limit(chat_id: int) -> bool:
+    """Retorna True se dentro do limite. False se excedeu 10 queries/min."""
+    now = _time.time()
+    _rate_limit[chat_id] = [t for t in _rate_limit[chat_id] if now - t < 60]
+    if len(_rate_limit[chat_id]) >= MAX_QUERIES_PER_MINUTE:
+        return False
+    _rate_limit[chat_id].append(now)
+    return True
 
 
 # ============================================================
@@ -253,11 +270,17 @@ class FinancialAssistant:
             log.error(f"Erro ao processar: {e}")
             return f"❌ Erro ao processar sua pergunta: {e}"
 
+    @staticmethod
+    def _sanitize_word(w: str) -> str:
+        """Remove caracteres perigosos para uso em LIKE (previne SQL injection)."""
+        return re.sub(r"[^a-záàâãéèêíóôõúüçñ0-9]", "", w.lower())
+
     def disambiguate(self, question: str) -> str | None:
         """Busca projetos/clientes similares para desambiguação.
         Retorna mensagem com opções, ou None se não encontrou nada."""
-        words = [w for w in question.lower().split()
+        words = [self._sanitize_word(w) for w in question.lower().split()
                  if len(w) > 2 and w not in self._STOPWORDS]
+        words = [w for w in words if w]  # remove vazios após sanitize
         if not words:
             return None
 
@@ -291,7 +314,7 @@ class FinancialAssistant:
 
         if not results:
             # Tentar com menos palavras (só as mais longas)
-            long_words = [w for w in words if len(w) > 3][:2]
+            long_words = [w for w in words if len(w) > 3][:2]  # already sanitized
             if long_words and long_words != words:
                 for w in long_words:
                     try:
@@ -720,6 +743,11 @@ async def handle_message(update, context):
     if AUTHORIZED_CHAT_IDS and chat_id not in AUTHORIZED_CHAT_IDS:
         await update.message.reply_text("⛔ Acesso não autorizado.")
         log.warning(f"Acesso negado para chat_id={chat_id}")
+        return
+
+    # Rate-limit (10 queries/min por chat)
+    if not _check_rate_limit(chat_id):
+        await update.message.reply_text("⚠️ Muitas perguntas em pouco tempo. Aguarde 1 minuto.")
         return
 
     # Indicar que está "digitando"

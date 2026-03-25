@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS `studio_koti.lancamentos` (
   status                STRING      OPTIONS(description="Status: LIQUIDADO, RECEBIDO, ATRASADO, A_VENCER, etc."),
   data_vencimento       DATE        OPTIONS(description="Data de vencimento do título"),
   data_emissao          DATE        OPTIONS(description="Data de emissão do documento (competência)"),
-  data_pagamento        DATE        OPTIONS(description="Data real de pagamento/recebimento (info.dAlt). NULL se não pago"),
+  data_pagamento        DATE        OPTIONS(description="Data real de pagamento/recebimento via ListarMovimentos (dDtPagamento). NULL se não pago"),
+  data_previsao         DATE        OPTIONS(description="Data prevista de pagamento — dia útil real (FDS → segunda)"),
   numero_documento      STRING      OPTIONS(description="Número do documento/NF"),
   categoria_codigo      STRING      OPTIONS(description="Código da categoria contábil (ex: 1.01.02)"),
   categoria_nome        STRING      OPTIONS(description="Nome da categoria (ex: Marcenaria)"),
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `studio_koti.lancamentos` (
   cliente_nome          STRING      OPTIONS(description="Nome fantasia ou razão social"),
   conta_corrente_id     INT64       OPTIONS(description="ID da conta corrente no Omie"),
   is_faturamento_direto BOOL        OPTIONS(description="True se FD (faturamento direto). Lógica específica do Koti"),
+  modalidade            STRING      OPTIONS(description="'SK' (Studio Koti) ou 'FD' (Faturamento Direto)"),
   sync_timestamp        TIMESTAMP   NOT NULL OPTIONS(description="Timestamp do sync que inseriu este registro"),
   sync_date             DATE        NOT NULL OPTIONS(description="Data do sync (para particionamento)")
 )

@@ -244,7 +244,7 @@ def build_json() -> dict:
         else:
             pj += 1
         dt = r.get("data_cadastro")
-        if dt and hasattr(dt, "strftime"):
+        if dt and hasattr(dt, "strftime") and dt.year >= 2020:
             por_mes_cadastro[dt.strftime("%Y-%m")] += 1
 
     # Top 15 estados

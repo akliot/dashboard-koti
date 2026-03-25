@@ -991,6 +991,19 @@ def main() -> None:
         # Histórico — APPEND (dedup via view)
         load_to_bq(client, "historico_saldos", historico, "WRITE_APPEND")
 
+        # TTL: limpar registros > 13 meses para evitar crescimento infinito
+        try:
+            cleanup_sql = f"""
+                DELETE FROM `{table_ref('historico_saldos')}`
+                WHERE sync_date < DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH)
+            """
+            result = client.query(cleanup_sql).result()
+            deleted = result.num_dml_affected_rows or 0
+            if deleted:
+                print(f"  🗑 historico_saldos: {deleted} registros antigos removidos (TTL 13 meses)")
+        except Exception as e:
+            print(f"  ⚠ TTL cleanup falhou: {e}")
+
         # ---- Registrar sucesso ----
         log_sync_success(client, sync_id, sync_ts, counts)
 
