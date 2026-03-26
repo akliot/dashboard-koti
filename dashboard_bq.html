@@ -754,7 +754,8 @@ function renderVisaoGeral(d){
     <div class="vg-kpi bar-purple"><div class="vg-lbl">Headcount</div><div class="vg-val" style="color:#A78BFA">${hc}</div><div class="vg-sub">funcionários</div></div>`;
 
   // Sparklines (últimos 6 meses)
-  const sparkOpts={responsive:true,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{enabled:false}},elements:{point:{radius:0}}};
+  const sparkDL={display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'rgba(255,255,255,.6)',font:{family:'JetBrains Mono',size:9,weight:500},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(Math.abs(v))};
+  const sparkOpts={responsive:true,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},datalabels:sparkDL,tooltip:{enabled:false}},elements:{point:{radius:0}}};
   const m6=meses.slice(-6);
 
   // Spark 1: Receita vs Despesa
@@ -779,7 +780,7 @@ function renderVisaoGeral(d){
     labels:m6.map(mesNome),
     datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
-  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+  },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
 
   // Alertas automáticos
   const alerts=[];
