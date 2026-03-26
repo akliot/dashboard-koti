@@ -1700,15 +1700,16 @@ function _renderRH_legacy(){
     </div>`;
 }
 
-const PASS_HASH='b4f4c73433abb7aa1c26729be0fade444d6c4476bf22f5e8480eeb2be0fdc6f1';
-async function sha256(str){
-  // crypto.subtle só funciona em HTTPS/localhost seguro
-  if(window.crypto&&window.crypto.subtle){
-    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
-  // Fallback: comparação direta (menos seguro, mas funciona em HTTP)
-  return null;
+const PASS_HASH='c80b2708ab237f12b62bd4e3c362bb3bacbf74a72d4d559de2b25d18afd9a346';
+const PASS_SALT='koti2026_salt_';
+const PASS_ITERATIONS=10000;
+
+async function pbkdf2Hash(password){
+  if(!window.crypto||!window.crypto.subtle) return null;
+  const enc=new TextEncoder();
+  const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(PASS_SALT),iterations:PASS_ITERATIONS,hash:'SHA-256'},keyMaterial,256);
+  return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
 async function doLogin(){
@@ -1717,13 +1718,11 @@ async function doLogin(){
     if(!pass){document.getElementById('loginError').style.display='block';return;}
     let ok=false;
     try{
-      const hash=await sha256(pass);
+      const hash=await pbkdf2Hash(pass);
       ok=hash&&hash===PASS_HASH;
     }catch(e){
-      // Fallback se crypto falhar
-      ok=pass==='koti2025';
+      ok=false;
     }
-    if(!ok)ok=pass==='koti2025'; // Fallback direto
     if(ok){
       sessionStorage.setItem('sk_auth','1');
       showApp();
