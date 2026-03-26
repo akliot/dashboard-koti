@@ -100,14 +100,31 @@ var STP={id:'stp',afterDatasetsDraw:function(ch){if(!ch.config.options._stp)retu
 var wConn={id:'wfc',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;if(!m.data.length)return;ctx.save();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(148,163,190,.3)';for(var i=0;i<m.data.length-1;i++){var c=m.data[i],n=m.data[i+1];ctx.beginPath();ctx.moveTo(c.x+c.width/2,c.y);ctx.lineTo(n.x-n.width/2,c.y);ctx.stroke()}ctx.restore()}};
 var wLbl={id:'wfl',afterDatasetsDraw:function(ch){var m=ch.getDatasetMeta(0),ctx=ch.ctx;if(!m.data.length||!ch.config.options._wfvals)return;ctx.save();ctx.textAlign='center';ctx.font="500 13px 'JetBrains Mono',monospace";var wV=ch.config.options._wfvals;m.data.forEach(function(b,i){var isT=i===0||i===m.data.length-1;ctx.fillStyle=isT?'#4A90FF':wV[i]>0?'#3DDC97':'#FF6B6B';ctx.fillText((wV[i]>0&&!isT?'+':'')+wV[i],b.x,b.y-8)});ctx.restore()}};
 
+async function deriveKeyRH(password,saltB64,iterations){
+  var salt=Uint8Array.from(atob(saltB64),function(c){return c.charCodeAt(0)});
+  var keyMaterial=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),{name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:iterations,hash:'SHA-256'},keyMaterial,{name:'AES-GCM',length:256},false,['decrypt']);
+}
+
+async function decryptRH(url,password){
+  var resp=await fetch(url);
+  if(!resp.ok)return null;
+  var enc=await resp.json();
+  if(!enc.salt||!enc.nonce||!enc.data)return null;
+  var key=await deriveKeyRH(password,enc.salt,enc.iter||100000);
+  var nonce=Uint8Array.from(atob(enc.nonce),function(c){return c.charCodeAt(0)});
+  var ciphertext=Uint8Array.from(atob(enc.data),function(c){return c.charCodeAt(0)});
+  var decrypted=await crypto.subtle.decrypt({name:'AES-GCM',iv:nonce},key,ciphertext);
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
 async function loadAndRender(){
   try{
-    var resp=await fetch('rh_data.json');
-    if(!resp.ok)throw new Error('rh_data.json não encontrado');
-    var D=await resp.json();
+    var D=await decryptRH('rh_data.enc','koti2025');
+    if(!D)throw new Error('Falha ao descriptografar');
     render(D);
   }catch(e){
-    document.getElementById('loadingRH').innerHTML='<div style="text-align:center"><h2 style="color:var(--t2)">Dados RH não disponíveis</h2><p style="color:var(--t3);margin-top:8px">Rode: python extract_rh.py</p></div>';
+    document.getElementById('loadingRH').innerHTML='<div style="text-align:center"><h2 style="color:var(--t2)">Dados RH não disponíveis</h2><p style="color:var(--t3);margin-top:8px">'+e.message+'</p></div>';
   }
 }
 

@@ -529,6 +529,32 @@ def main():
     print(f"  ✅ Salvo em: {output} ({os.path.getsize(output) / 1024:.1f} KB)")
     print(f"  🔒 Sem dados pessoais no JSON (LGPD)")
 
+    # Gerar versão encriptada (AES-256-GCM + PBKDF2)
+    try:
+        import base64
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+        from cryptography.hazmat.primitives import hashes
+
+        plaintext = json.dumps(result, ensure_ascii=False).encode()
+        password = b"koti2025"
+        salt = os.urandom(16)
+        nonce = os.urandom(12)
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+        key = kdf.derive(password)
+        ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
+        enc_path = os.path.join(SCRIPT_DIR, "rh_data.enc")
+        with open(enc_path, "w") as f:
+            json.dump({
+                "salt": base64.b64encode(salt).decode(),
+                "nonce": base64.b64encode(nonce).decode(),
+                "data": base64.b64encode(ciphertext).decode(),
+                "iter": 100000,
+            }, f)
+        print(f"  🔐 Encriptado: {enc_path} ({os.path.getsize(enc_path) / 1024:.1f} KB)")
+    except ImportError:
+        print("  ⚠ cryptography não instalado — rh_data.enc não gerado")
+
     # Upload dados individuais para BigQuery (tabela restrita)
     if "--no-bq" not in sys.argv:
         funcionarios = extract_funcionarios(wb, status_meses)
