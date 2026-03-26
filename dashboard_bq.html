@@ -735,8 +735,8 @@ function renderVisaoGeral(d){
   const corRunway=runway>=6?'bar-green':runway>=3?'bar-yellow':'bar-red';
   const corRunwayTxt=runway>=6?'#3DDC97':runway>=3?'#FFB547':'#FF6B6B';
 
-  // Headcount
-  const hc=(dadosOriginal.rh_resumo?.headcount_atual)||'--';
+  // Headcount (carrega async do rh_data.enc)
+  const hc='--';
 
   // Saldo anterior
   const hist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
@@ -826,6 +826,17 @@ function renderVisaoGeral(d){
     dreHtml+='</tbody></table><p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:8px">Dados em tempo real do Omie • Atualize a BP para ver Real vs Orçado</p>';
   }
   document.getElementById('vg-dre').innerHTML=dreHtml;
+
+  // Carregar headcount async do rh_data.enc
+  decryptFile('rh_data.enc','koti2025').then(rh=>{
+    if(!rh||!rh.hc)return;
+    const ms=Object.keys(rh.hc).sort();
+    const ultimo=ms[ms.length-1];
+    if(!ultimo)return;
+    const hcVal=rh.hc[ultimo]?.final||0;
+    const el=document.querySelector('#vg-kpis .bar-purple .vg-val');
+    if(el&&hcVal)el.textContent=hcVal;
+  }).catch(()=>{});
 }
 
 // ============ CONCILIAÇÃO BANCÁRIA (aba própria) ============
