@@ -752,31 +752,37 @@ function renderVisaoGeral(d,dc){
   // Sparklines (últimos 6 meses)
   const sparkDL={display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'rgba(255,255,255,.6)',font:{family:'JetBrains Mono',size:9,weight:500},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(Math.abs(v))};
   const sparkOpts={responsive:true,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},datalabels:sparkDL,tooltip:{enabled:false}},elements:{point:{radius:0}}};
-  const m6=meses.slice(-6);
+  const m6=meses.filter(m=>m<=mesAtual).slice(-6);
 
   // Spark 1: Receita vs Despesa
+  const spk1Ent=m6.map(m=>d.porMes[m]?.entrada||0);
+  const spk1Sai=m6.map(m=>-(d.porMes[m]?.saida||0));
+  const spk1Max=Math.max(...spk1Ent)*1.15;
+  const spk1Min=Math.min(...spk1Sai)*1.15;
   charts.spkRD=new Chart(document.getElementById('sparkRecDesp'),{type:'bar',data:{
     labels:m6.map(mesNome),
-    datasets:[{data:m6.map(m=>d.porMes[m]?.entrada||0),backgroundColor:'#3DDC9788',borderRadius:4},
-              {data:m6.map(m=>-(d.porMes[m]?.saida||0)),backgroundColor:'#FF6B6B88',borderRadius:4}]
-  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+    datasets:[{data:spk1Ent,backgroundColor:'#3DDC9788',borderRadius:4},
+              {data:spk1Sai,backgroundColor:'#FF6B6B88',borderRadius:4}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk1Max,suggestedMin:spk1Min}}}});
 
   // Spark 2: Evolução Caixa (saldo acumulado a partir dos lançamentos)
   let acum=0;
   const caixaAcum=m6.map(m=>{const e=d.porMes[m]?.entrada||0,s=d.porMes[m]?.saida||0;acum+=e-s;return acum});
+  const spk2Max=Math.max(...caixaAcum)*1.15;
   charts.spkCx=new Chart(document.getElementById('sparkCaixa'),{type:'line',data:{
     labels:m6.map(mesNome),
     datasets:[{data:caixaAcum,borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
-  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk2Max}}}});
 
   // Spark 3: Resultado Operacional % (competência, mesmos 6 meses)
   const dcPM=dc?dc.porMes:{};
   const mrgData=m6.map(m=>{const pm=dcPM[m]||d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  const spk3Max=Math.max(...mrgData)*1.15;
   charts.spkMg=new Chart(document.getElementById('sparkMargem'),{type:'line',data:{
     labels:m6.map(mesNome),
     datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
-  },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+  },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk3Max}}}});
 
   // Alertas automáticos
   const alerts=[];
