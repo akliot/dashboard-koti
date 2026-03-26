@@ -810,7 +810,7 @@ function renderVisaoGeral(d,dc){
   else{alertsEl.style.display='none'}
 
   // Mini DRE
-  let dreHtml='<h4>Mini DRE — YTD</h4>';
+  let dreHtml='<h4>Mini DRE — YTD <span class="regime-badge competencia">Competência</span></h4><p class="chart-note" style="margin-bottom:12px">Fonte: planilha BP (Real vs Orçado). Não vem do Omie.</p>';
   if(orcData&&orcData.dre){
     const dreRows=['Receita Bruta','Custos Operacionais','Despesas Gerais e Adm','EBITDA','Lucro Líquido'];
     const mesesReal=orcData.meses_com_real||[];
