@@ -242,6 +242,16 @@ tr:hover td{background:rgba(59,130,246,.05)}
         <div class="chart-card"><h3>Custos: Realizado vs A Realizar</h3><div class="chart-container"><canvas id="chartCustosStack"></canvas></div></div>
         <div class="chart-card"><h3>Receitas: Realizado vs A Realizar</h3><div class="chart-container"><canvas id="chartReceitasStack"></canvas></div></div>
       </div>
+      <div class="chart-card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <h3 style="margin:0" id="saldoTitle">Saldo por Conta Bancária</h3>
+          <div class="periodo-btns" id="saldoContaBtns">
+            <button onclick="setSaldoContaMode('d1',this)" class="active">Atual (D-1)</button>
+            <button onclick="setSaldoContaMode('periodo',this)">Fim do período</button>
+          </div>
+        </div>
+        <div class="saldo-grid" id="saldoGrid"></div>
+      </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -976,7 +986,8 @@ function renderFluxoCaixa(d){
     ]},options:stackOpts()
   });
 
-  // Tabela
+  // Saldos bancários + Tabela
+  renderSaldoGrid();
   renderFluxoTabela(d);
 
   // Aging / Inadimplência
