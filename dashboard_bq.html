@@ -367,6 +367,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
         <div class="chart-card" style="grid-column:1/-1">
           <h3>Receita vs Margem % (projetos com faturamento &gt; R$ 70K)</h3>
           <div class="chart-container" style="height:360px"><canvas id="chartMargemScatter"></canvas></div>
+          <p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:8px">Dados acumulados do projeto inteiro • Filtro de datas seleciona quais projetos exibir</p>
         </div>
       </div>
       <div class="chart-row">
@@ -1309,9 +1310,21 @@ function renderClientes(){}
 
 // ============ PROJETOS ============
 function renderProjetos(dc){
-  // Projetos usa regime de COMPETÊNCIA (data_vencimento, sem atrasados)
-  const porProj=dc?dc.porProj:{};
-  if(!dc){dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProj[k])porProj[k]={nome:l.projeto_nome,entrada:0,saida:0,ent_sk:0,ent_fd:0,sai_sk:0,sai_fd:0};const fd=l.is_fd;if(l.tipo==='entrada'){porProj[k].entrada+=l.valor;if(fd)porProj[k].ent_fd+=l.valor;else porProj[k].ent_sk+=l.valor}else{porProj[k].saida+=l.valor;if(fd)porProj[k].sai_fd+=l.valor;else porProj[k].sai_sk+=l.valor}});}
+  // 1. Identificar projetos com atividade no período filtrado (competência)
+  const porProjPeriodo=dc?dc.porProj:{};
+  if(!dc){dadosFiltrados.lancamentos.forEach(l=>{if(!l.projeto)return;const k=l.projeto;if(!porProjPeriodo[k])porProjPeriodo[k]={nome:l.projeto_nome};});}
+  const projIds=new Set(Object.keys(porProjPeriodo));
+
+  // 2. Calcular dados all-time desses projetos (dadosOriginal, sem filtro de data)
+  const porProj={};
+  (dadosOriginal.lancamentos||[]).forEach(l=>{
+    if(!l.projeto||!projIds.has(String(l.projeto)))return;
+    const k=l.projeto;
+    if(!porProj[k])porProj[k]={nome:l.projeto_nome||porProjPeriodo[k]?.nome||k,entrada:0,saida:0,ent_sk:0,ent_fd:0,sai_sk:0,sai_fd:0};
+    const fd=l.is_fd;
+    if(l.tipo==='entrada'){porProj[k].entrada+=l.valor;if(fd)porProj[k].ent_fd+=l.valor;else porProj[k].ent_sk+=l.valor}
+    else{porProj[k].saida+=l.valor;if(fd)porProj[k].sai_fd+=l.valor;else porProj[k].sai_sk+=l.valor}
+  });
   const projs=Object.entries(porProj);
   const tR=projs.reduce((s,e)=>s+e[1].entrada,0),tD=projs.reduce((s,e)=>s+e[1].saida,0);
   document.getElementById('kpi-projetos').innerHTML=`
