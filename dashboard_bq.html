@@ -217,7 +217,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
       <div class="vg-sparks" id="vg-sparks">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div></div>
         <div class="vg-spark"><h4>Evolução Caixa (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div></div>
-        <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div></div>
+        <div class="vg-spark"><h4>Resultado Operacional % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
       <div class="vg-dre" id="vg-dre"></div>
@@ -686,7 +686,7 @@ function renderSaldoGrid(){
 
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
 
-function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3b8';
@@ -698,7 +698,7 @@ const dOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position
 const hBarOpts=(f)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtK(v)}}});
 
 // ============ VISÃO GERAL (Premium) ============
-function renderVisaoGeral(d){
+function renderVisaoGeral(d,dc){
   const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
 
   // Mês corrente vs anterior — usar mês real (hoje) ou último mês com receita > 0
@@ -712,8 +712,9 @@ function renderVisaoGeral(d){
   const recMes=d.porMes[mesAtual]?.entrada||0;
   const recMesAnt=d.porMes[mesAnt]?.entrada||0;
   const despMes=d.porMes[mesAtual]?.saida||0;
-  const resultado=d.tE-d.tS;
-  const margem=d.tE>0?(resultado/d.tE*100).toFixed(1):'0';
+  const resultado=dc?(dc.tE-dc.tS):(d.tE-d.tS);
+  const margemBase=dc?dc.tE:d.tE;
+  const margem=margemBase>0?(resultado/margemBase*100).toFixed(1):'0';
   const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100).toFixed(0):'--';
 
   // Inadimplência
@@ -769,10 +770,13 @@ function renderVisaoGeral(d){
     datasets:[{data:m6c.map(m=>pmS[m]),borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
 
-  // Spark 3: Margem %
-  const mrgData=m6.map(m=>{const e=d.porMes[m]?.entrada||0,s=d.porMes[m]?.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  // Spark 3: Resultado Operacional % (competência)
+  const dcPM=dc?dc.porMes:{};
+  const m6dc=Object.keys(dcPM).sort().slice(-6);
+  const mrgM6=m6dc.length>=3?m6dc:m6;
+  const mrgData=mrgM6.map(m=>{const pm=dcPM[m]||d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
   charts.spkMg=new Chart(document.getElementById('sparkMargem'),{type:'line',data:{
-    labels:m6.map(mesNome),
+    labels:mrgM6.map(mesNome),
     datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
