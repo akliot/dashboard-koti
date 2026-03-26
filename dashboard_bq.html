@@ -999,7 +999,10 @@ function renderAging(d){
   const atrasados=dadosFiltrados.lancamentos.filter(l=>{
     if(l.tipo!=='entrada')return false;
     if(l.status!=='ATRASADO')return false;
-    return true;
+    // Só conta se realmente vencido (data_vencimento < hoje)
+    if(!l.data_vencimento)return false;
+    const venc=new Date(l.data_vencimento);
+    return venc<hoje;
   });
   if(!atrasados.length){document.getElementById('aging-section').style.display='none';return}
   document.getElementById('aging-section').style.display='block';
