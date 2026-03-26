@@ -9,6 +9,8 @@ dados_omie.js
 dados_orcamento.json
 BP.xlsx
 
+rh_data.json
+
 # LGPD — dados pessoais de funcionários
 Folha*.xlsx
 *folha*.xlsx
