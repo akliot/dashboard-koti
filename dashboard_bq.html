@@ -811,7 +811,20 @@ function renderVisaoGeral(d){
       dreHtml+=`<tr class="${cls}"><td>${label}</td><td style="text-align:right;color:${real>=0?'#3DDC97':'#FF6B6B'}">${fmtK(real)}</td><td style="text-align:right;color:rgba(255,255,255,.5)">${fmtK(bp)}</td><td style="text-align:right">${pct}%</td><td style="text-align:center">${emoji}</td></tr>`;
     });
     dreHtml+='</tbody></table>';
-  } else {dreHtml+='<p style="color:rgba(255,255,255,.4);font-size:13px">Dados orçamentários não disponíveis</p>';}
+  } else {
+    // Fallback: calcular DRE simplificado dos lançamentos Omie
+    const dreSimp=[
+      {label:'Receita Bruta',val:d.tE},
+      {label:'Despesas Totais',val:-d.tS},
+      {label:'Resultado',val:d.tE-d.tS,bold:true}
+    ];
+    dreHtml+='<table><thead><tr><th>Linha</th><th style="text-align:right">Real YTD (Omie)</th></tr></thead><tbody>';
+    dreSimp.forEach(r=>{
+      const cls=r.bold?'dre-total':'';
+      dreHtml+=`<tr class="${cls}"><td>${r.label}</td><td style="text-align:right;color:${r.val>=0?'#3DDC97':'#FF6B6B'}">${fmtK(Math.abs(r.val))}</td></tr>`;
+    });
+    dreHtml+='</tbody></table><p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:8px">Dados em tempo real do Omie • Atualize a BP para ver Real vs Orçado</p>';
+  }
   document.getElementById('vg-dre').innerHTML=dreHtml;
 }
 
