@@ -244,8 +244,8 @@ tr:hover td{background:rgba(74,144,255,.04)}
         <div class="chart-card" style="grid-column:1/-1"><h3>Receita vs Despesa (Mensal) <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoRecDesp"></canvas></div><p class="chart-note">Entradas e saídas por mês (data de pagamento)</p></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Evolução do Saldo (Acumulado) <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoSaldo"></canvas></div><p class="chart-note">Entradas − saídas acumuladas no período filtrado</p></div>
-        <div class="chart-card"><h3>Variação de Caixa % <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoVarCaixa"></canvas></div><p class="chart-note">(Entrada − Saída) ÷ Entrada × 100 por mês</p></div>
+        <div class="chart-card"><h3>Resultado Mensal (R$) <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoVarCaixa"></canvas></div><p class="chart-note">Entrada − Saída por mês. Verde = superávit, vermelho = déficit</p></div>
+        <div class="chart-card"><h3>Saldo Bancário Real <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoSaldo"></canvas></div><p class="chart-note">Saldo conciliado real por mês (historico_conciliacao)</p></div>
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Despesas por Grupo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div><p class="chart-note">Grupos de categoria (2 primeiros níveis do plano de contas)</p></div>
@@ -973,18 +973,21 @@ function renderFluxoCaixa(d){
       {label:'Saída',data:fSai,backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
     ]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
 
-  let sAcum=0;
-  const fSaldo=fMeses.map((m,i)=>{sAcum+=fEnt[i]-fSai[i];return sAcum});
-  charts.fSaldo=new Chart(document.getElementById('chartFluxoSaldo'),{type:'line',data:{
-    labels:fMeses.map(mesNome),
-    datasets:[{label:'Saldo Acumulado',data:fSaldo,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:fSaldo.map(v=>v>=0?'#22c55e':'#ef4444')}]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
-
-  const fVar=fMeses.map((m,i)=>fEnt[i]>0?Math.round((fEnt[i]-fSai[i])/fEnt[i]*100):0);
+  // Resultado mensal em R$ (entrada - saída)
+  const fRes=fMeses.map((m,i)=>fEnt[i]-fSai[i]);
   charts.fVarCaixa=new Chart(document.getElementById('chartFluxoVarCaixa'),{type:'bar',data:{
     labels:fMeses.map(mesNome),
-    datasets:[{label:'Margem %',data:fVar,backgroundColor:fVar.map(v=>v>=0?'#22c55e88':'#ef444488'),borderColor:fVar.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1}]
-  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>v+'%'}}}});
+    datasets:[{label:'Resultado',data:fRes,backgroundColor:fRes.map(v=>v>=0?'#22c55e88':'#ef444488'),borderColor:fRes.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1}]
+  },options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
+
+  // Saldo bancário real (historico_conciliacao)
+  const fHist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  const fSaldoMap={};fHist.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);fSaldoMap[m]=(fSaldoMap[m]||0)+h.saldo_atual});
+  const fSaldo=fMeses.map(m=>fSaldoMap[m]||0);
+  charts.fSaldo=new Chart(document.getElementById('chartFluxoSaldo'),{type:'line',data:{
+    labels:fMeses.map(mesNome),
+    datasets:[{label:'Saldo Bancário',data:fSaldo,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:fSaldo.map(v=>v>=0?'#22c55e':'#ef4444')}]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
 
   // Charts — barras horizontais simples por grupo
   const dG=Object.entries(d.gruposDesp).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
