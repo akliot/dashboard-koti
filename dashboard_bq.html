@@ -803,7 +803,7 @@ function renderVisaoGeral(d,dc){
   const projsNeg=Object.values(d.porProj||{}).filter(p=>p.entrada>50000&&(p.entrada-p.saida)<0);
   if(projsNeg.length)alerts.push({cls:'a-yellow',txt:`<strong>${projsNeg.length} projeto(s) com margem negativa</strong> (receita > R$ 50K): ${projsNeg.slice(0,3).map(p=>p.nome).join(', ')}`});
   // Orçamento
-  if(orcData&&orcData.dre){const rb=orcData.dre.find(r=>r.label==='Receita Bruta');if(rb){const real=rb.acum_real||0,bp=rb.acum_bp||0;if(bp>0&&real>bp*1.1)alerts.push({cls:'a-green',txt:`<strong>Receita ${((real/bp-1)*100).toFixed(0)}% acima do orçado</strong> (Real: ${fmtK(real)} vs BP: ${fmtK(bp)})`});}}
+  if(orcData&&orcData.dre){const rb=orcData.dre.find(r=>r.label==='Receita Bruta');if(rb){const mr=orcData.meses_com_real||[];let real=0,bpV=0;if(rb.real&&typeof rb.real==='object'){mr.forEach(m=>{real+=(rb.real[m]||0);bpV+=(rb.bp[m]||0)})}else{real=rb.acum_real||0;bpV=rb.acum_bp||0;}if(bpV>0&&real>bpV*1.1)alerts.push({cls:'a-green',txt:`<strong>Receita ${((real/bpV-1)*100).toFixed(0)}% acima do orçado</strong> (Real: ${fmtK(real)} vs BP: ${fmtK(bpV)})`});}}
   const alertsEl=document.getElementById('vg-alerts');
   if(alerts.length){alertsEl.innerHTML=alerts.slice(0,4).map(a=>`<div class="vg-alert ${a.cls}">${a.txt}</div>`).join('');alertsEl.style.display=''}
   else{alertsEl.style.display='none'}
@@ -812,11 +812,15 @@ function renderVisaoGeral(d,dc){
   let dreHtml='<h4>Mini DRE — YTD</h4>';
   if(orcData&&orcData.dre){
     const dreRows=['Receita Bruta','Custos Operacionais','Despesas Gerais e Adm','EBITDA','Lucro Líquido'];
+    const mesesReal=orcData.meses_com_real||[];
     dreHtml+='<table><thead><tr><th>Linha</th><th style="text-align:right">Real YTD</th><th style="text-align:right">Orçado YTD</th><th style="text-align:right">%</th><th style="text-align:center">Status</th></tr></thead><tbody>';
     dreRows.forEach(label=>{
       const row=orcData.dre.find(r=>r.label===label);
       if(!row)return;
-      const real=row.acum_real||0,bp=row.acum_bp||0;
+      // Somar meses: row.real e row.bp são objetos {mes: valor}
+      let real=0,bp=0;
+      if(row.real&&typeof row.real==='object'){mesesReal.forEach(m=>{real+=(row.real[m]||0)});} else {real=row.acum_real||0;}
+      if(row.bp&&typeof row.bp==='object'){mesesReal.forEach(m=>{bp+=(row.bp[m]||0)});} else {bp=row.acum_bp||0;}
       const pct=bp?((real/bp)*100).toFixed(0):'--';
       const isGood=label.includes('Custo')||label.includes('Despesa')?real<=bp:real>=bp;
       const emoji=pct==='--'?'➖':isGood?'✅':'⚠️';
