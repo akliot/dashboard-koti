@@ -767,8 +767,8 @@ function renderVisaoGeral(d,dc){
   // Spark 1: Receita vs Despesa
   const spk1Ent=m6.map(m=>d.porMes[m]?.entrada||0);
   const spk1Sai=m6.map(m=>-(d.porMes[m]?.saida||0));
-  const spk1Max=Math.max(...spk1Ent)*1.15;
-  const spk1Min=Math.min(...spk1Sai)*1.15;
+  const spk1Max=Math.max(...spk1Ent)*1.35;
+  const spk1Min=Math.min(...spk1Sai)*1.35;
   charts.spkRD=new Chart(document.getElementById('sparkRecDesp'),{type:'bar',data:{
     labels:m6.map(mesNome),
     datasets:[{data:spk1Ent,backgroundColor:'#3DDC9788',borderRadius:4},
