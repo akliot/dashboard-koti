@@ -111,7 +111,40 @@ tr:hover td{background:rgba(59,130,246,.05)}
 .concil-stat .num{font-size:22px;font-weight:700}.concil-stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .fin-detail-table{max-height:420px;overflow-y:auto}
 .fin-detail-table thead{position:sticky;top:0;background:var(--card);z-index:1}
-@media(max-width:768px){.header{padding:12px}.content{padding:12px}.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.kpi-value{font-size:18px}}
+/* Visão Geral — Premium Design */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+#page-visao-geral{font-family:'DM Sans',system-ui,sans-serif}
+#page-visao-geral .vg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+#page-visao-geral .vg-kpi{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:22px 20px;position:relative;overflow:hidden;transition:all .3s ease}
+#page-visao-geral .vg-kpi:hover{box-shadow:0 0 24px rgba(74,144,255,.08);border-color:rgba(255,255,255,.12)}
+#page-visao-geral .vg-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:16px 16px 0 0}
+#page-visao-geral .vg-kpi.bar-blue::before{background:#4A90FF}
+#page-visao-geral .vg-kpi.bar-green::before{background:#3DDC97}
+#page-visao-geral .vg-kpi.bar-red::before{background:#FF6B6B}
+#page-visao-geral .vg-kpi.bar-cyan::before{background:#2DD4BF}
+#page-visao-geral .vg-kpi.bar-yellow::before{background:#FFB547}
+#page-visao-geral .vg-kpi.bar-purple::before{background:#A78BFA}
+#page-visao-geral .vg-lbl{text-transform:uppercase;letter-spacing:1px;font-size:11px;font-weight:500;color:rgba(255,255,255,.5);margin-bottom:10px}
+#page-visao-geral .vg-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;margin-bottom:6px}
+#page-visao-geral .vg-sub{font-size:12px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:5px}
+#page-visao-geral .vg-sparks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+#page-visao-geral .vg-spark{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px 18px;transition:all .3s ease}
+#page-visao-geral .vg-spark:hover{border-color:rgba(255,255,255,.12)}
+#page-visao-geral .vg-spark h4{font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:8px}
+#page-visao-geral .vg-alerts{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+#page-visao-geral .vg-alert{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 18px;border-left:4px solid;font-size:13px;color:rgba(255,255,255,.7);transition:all .3s ease;line-height:1.5}
+#page-visao-geral .vg-alert.a-red{border-left-color:#FF6B6B}
+#page-visao-geral .vg-alert.a-yellow{border-left-color:#FFB547}
+#page-visao-geral .vg-alert.a-green{border-left-color:#3DDC97}
+#page-visao-geral .vg-alert strong{color:#EAF0FA}
+#page-visao-geral .vg-dre{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:20px 22px}
+#page-visao-geral .vg-dre h4{font-size:12px;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+#page-visao-geral .vg-dre table{width:100%;border-collapse:collapse;font-size:13px}
+#page-visao-geral .vg-dre th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.06)}
+#page-visao-geral .vg-dre td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'JetBrains Mono',monospace;font-size:12px}
+#page-visao-geral .vg-dre td:first-child{font-family:'DM Sans',sans-serif;font-weight:600;color:#EAF0FA}
+#page-visao-geral .vg-dre .dre-total td{font-weight:700;border-top:2px solid rgba(255,255,255,.1)}
+@media(max-width:768px){.header{padding:12px}.content{padding:12px}.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.kpi-value{font-size:18px}#page-visao-geral .vg-grid,#page-visao-geral .vg-sparks{grid-template-columns:1fr 1fr}}
 #loginScreen{display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)}
 #loginBox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px;text-align:center}
 #loginBox h2{font-size:20px;margin-bottom:6px}
@@ -179,41 +212,16 @@ tr:hover td{background:rgba(59,130,246,.05)}
   </div>
   <div id="dashboardPages" style="display:none">
 
-    <!-- VISÃO GERAL -->
+    <!-- VISÃO GERAL (Premium) -->
     <div class="page active" id="page-visao-geral">
-      <div class="kpi-row" id="kpi-geral"></div>
-      <div class="chart-card" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <h3 style="margin:0" id="saldoTitle">Saldo por Conta Bancária</h3>
-          <div class="periodo-btns" id="saldoContaBtns">
-            <button onclick="setSaldoContaMode('d1',this)" class="active">Atual (D-1)</button>
-            <button onclick="setSaldoContaMode('periodo',this)">Fim do período</button>
-          </div>
-        </div>
-        <div class="saldo-grid" id="saldoGrid"></div>
+      <div class="vg-grid" id="vg-kpis"></div>
+      <div class="vg-sparks" id="vg-sparks">
+        <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div></div>
+        <div class="vg-spark"><h4>Evolução Caixa (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div></div>
+        <div class="vg-spark"><h4>Margem % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div></div>
       </div>
-      <div class="chart-row">
-        <div class="chart-card">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
-            <h3 style="margin:0">Entradas vs Saídas (Mensal)</h3>
-            <div class="periodo-btns" id="fluxoModBtns">
-              <button onclick="setFluxoMod('total',this)" class="active">Total</button>
-              <button onclick="setFluxoMod('sk',this)">SK</button>
-              <button onclick="setFluxoMod('fd',this)">FD</button>
-            </div>
-          </div>
-          <div class="chart-container"><canvas id="chartGeralFluxo"></canvas></div>
-        </div>
-        <div class="chart-card"><h3>Variação de Caixa</h3><div class="chart-container"><canvas id="chartVariacaoCaixa"></canvas></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>PMR / PMP Mensal (dias)</h3><div class="chart-container"><canvas id="chartPmrPmp"></canvas></div></div>
-        <div class="chart-card"><h3>Saldo Acumulado</h3><div class="chart-container"><canvas id="chartSaldoAcum"></canvas></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Top Categorias (Despesas)</h3><div class="chart-container"><canvas id="chartTopCatDesp"></canvas></div></div>
-        <div class="chart-card"><h3>Top Categorias (Receitas)</h3><div class="chart-container"><canvas id="chartTopCatRec"></canvas></div></div>
-      </div>
+      <div class="vg-alerts" id="vg-alerts"></div>
+      <div class="vg-dre" id="vg-dre"></div>
     </div>
 
     <!-- FLUXO DE CAIXA -->
@@ -592,6 +600,7 @@ function setFluxoMod(mode,el){
 
 function renderFluxoMod(){
   if(!_fluxoModData)return;
+  if(!document.getElementById('chartGeralFluxo'))return;
   if(charts.gFluxo){charts.gFluxo.destroy();delete charts.gFluxo}
   const{meses,porMesFD}=_fluxoModData;
   const m=_fluxoModMode;
@@ -638,6 +647,7 @@ function setSaldoContaMode(mode,el){
 
 function renderSaldoGrid(){
   const gridEl=document.getElementById('saldoGrid');
+  if(!gridEl)return;
   const titleEl=document.getElementById('saldoTitle');
 
   if(_saldoContaMode==='d1'){
@@ -692,125 +702,113 @@ const cOpts=f=>({responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{col
 const dOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}},datalabels:{display:ctx=>{const d=ctx.dataset.data;const t=d.reduce((a,b)=>a+b,0);return d[ctx.dataIndex]/t>0.05},color:'#fff',font:{size:9,weight:600},formatter:(v)=>fmtK(v)}}};
 const hBarOpts=(f)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#1e293b'}}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtK(v)}}});
 
-// ============ VISÃO GERAL ============
+// ============ VISÃO GERAL (Premium) ============
 function renderVisaoGeral(d){
   const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
-  const dataRef=(dadosFiltrados.saldos_bancarios||[])[0]?.data||'';
-  document.getElementById('kpi-geral').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Saldo Bancário (D-1)</div><div class="kpi-value ${saldoTotal>=0?'green':'red'}">${fmt(saldoTotal)}</div><div class="kpi-sub">Ref: ${dataRef} (conciliado)</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Entradas (período)</div><div class="kpi-value green">${fmt(d.tE)}</div><div class="kpi-sub">${d.ent.length} lançamentos</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Saídas (período)</div><div class="kpi-value red">${fmt(d.tS)}</div><div class="kpi-sub">${d.sai.length} lançamentos</div></div>
-    <div class="kpi-card"><div class="kpi-label">Previsão (Saldo+Receber-Pagar)</div><div class="kpi-value cyan">${fmt(saldoTotal+d.abRec-d.abPag)}</div></div>`;
 
-  // PMR e PMP — média ponderada pelo valor
-  const calcPrazo=(lancs,tipo,statusF)=>{
-    let somaReal=0,somaContr=0,somaValor=0;let n=0;
-    lancs.filter(l=>l.tipo===tipo&&l.status===statusF&&l.data_pagamento&&l.data_emissao).forEach(l=>{
-      const pag=parseDate(l.data_pagamento),emi=parseDate(l.data_emissao),venc=parseDate(l.data_vencimento);
-      if(!pag||!emi)return;
-      const real=Math.round((pag-emi)/(86400000));
-      const contr=venc?Math.round((venc-emi)/(86400000)):real;
-      if(real>=0&&real<=120){
-        const v=l.valor;
-        somaReal+=real*v;somaContr+=contr*v;somaValor+=v;n++;
-      }
-    });
-    if(!n||!somaValor)return null;
-    const media=Math.round(somaReal/somaValor);
-    const mediaC=Math.round(somaContr/somaValor);
-    return{real:media,contratual:mediaC,diff:media-mediaC,n};
-  };
-  const pmr=calcPrazo(dadosFiltrados.lancamentos,'entrada','RECEBIDO');
-  const pmp=calcPrazo(dadosFiltrados.lancamentos,'saida','PAGO');
-  let kpiExtra='';
-  if(pmr){
-    const diffLabel=pmr.diff>0?`Atraso: +${pmr.diff}d`:pmr.diff<0?`Antecipa: ${Math.abs(pmr.diff)}d`:'No prazo';
-    kpiExtra+=`<div class="kpi-card"><div class="kpi-label">PMR (Recebimento)</div><div class="kpi-value blue">${pmr.real} dias</div><div class="kpi-sub">Contratual: ${pmr.contratual}d · ${diffLabel}</div></div>`;
-  }
-  if(pmp){
-    const diffLabel=pmp.diff>0?`Atraso: +${pmp.diff}d`:pmp.diff<0?`Antecipa: ${Math.abs(pmp.diff)}d`:'No prazo';
-    kpiExtra+=`<div class="kpi-card"><div class="kpi-label">PMP (Pagamento)</div><div class="kpi-value purple">${pmp.real} dias</div><div class="kpi-sub">Contratual: ${pmp.contratual}d · ${diffLabel}</div></div>`;
-  }
-  if(kpiExtra)document.getElementById('kpi-geral').innerHTML+=kpiExtra;
-
-  renderSaldoGrid();
-
+  // Mês corrente vs anterior
   const meses=Object.keys(d.porMes).sort();
-  // Entradas vs Saídas separado por FD/SK
-  const porMesFD={};
-  dadosFiltrados.lancamentos.forEach(l=>{
-    const m=toYM(l.data);if(!m)return;
-    if(!porMesFD[m])porMesFD[m]={ent_fd:0,ent_sk:0,sai_fd:0,sai_sk:0};
-    const fd=l.modalidade==='FD';
-    if(l.tipo==='entrada'){if(fd)porMesFD[m].ent_fd+=l.valor;else porMesFD[m].ent_sk+=l.valor}
-    else{if(fd)porMesFD[m].sai_fd+=l.valor;else porMesFD[m].sai_sk+=l.valor}
-  });
-  _fluxoModData={meses,porMesFD};_fluxoModMode='total';
-  renderFluxoMod();
+  const mesAtual=meses[meses.length-1]||'';
+  const mesAnt=meses[meses.length-2]||'';
+  const recMes=d.porMes[mesAtual]?.entrada||0;
+  const recMesAnt=d.porMes[mesAnt]?.entrada||0;
+  const despMes=d.porMes[mesAtual]?.saida||0;
+  const resultado=d.tE-d.tS;
+  const margem=d.tE>0?(resultado/d.tE*100).toFixed(1):'0';
+  const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100).toFixed(0):'--';
 
-  // Variação de Caixa — barras de resultado mensal (entradas - saídas)
-  const varCaixa=meses.map(m=>(d.porMes[m].entrada||0)-(d.porMes[m].saida||0));
-  const varColors=varCaixa.map(v=>v>=0?'#22c55ecc':'#ef4444cc');
-  charts.varCaixa=new Chart(document.getElementById('chartVariacaoCaixa'),{type:'line',data:{
-    labels:meses.map(mesNome),
-    datasets:[{label:'Resultado',data:varCaixa,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,
-      pointBackgroundColor:varColors,pointRadius:5,pointBorderColor:varColors}]
-  },options:cOpts('currency')});
+  // Inadimplência
+  const vRec=dadosFiltrados.lancamentos.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const pctInad=d.tE>0?(vRec/d.tE*100):0;
+  const corInad=pctInad>15?'bar-red':pctInad>5?'bar-yellow':'bar-green';
+  const corInadTxt=pctInad>15?'#FF6B6B':pctInad>5?'#FFB547':'#3DDC97';
 
-  // PMR / PMP mensal — dados pré-calculados pela API (ponderado por valor)
-  const pmrPmpApi=dadosOriginal.pmr_pmp_mensal||[];
-  if(pmrPmpApi.length){
-    const pmrMeses=pmrPmpApi.map(r=>r.mes);
-    const pmrData=pmrPmpApi.map(r=>r.pmr);
-    const pmpData=pmrPmpApi.map(r=>r.pmp);
-    charts.pmrPmp=new Chart(document.getElementById('chartPmrPmp'),{type:'line',data:{
-      labels:pmrMeses.map(mesNome),
-      datasets:[
-        {label:'PMR (Recebimento)',data:pmrData,borderColor:'#3b82f6',backgroundColor:'#3b82f622',tension:.3,pointRadius:4,spanGaps:true},
-        {label:'PMP (Pagamento)',data:pmpData,borderColor:'#ef4444',backgroundColor:'#ef444422',tension:.3,pointRadius:4,spanGaps:true}
-      ]
-    },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'d'},grid:{color:'#1e293b'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:true,anchor:'end',align:'top',offset:2,font:{size:10,weight:'bold'},color:ctx=>ctx.dataset.borderColor,formatter:v=>v!=null?v+'d':''},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+' dias'}}}}});
-  }
+  // Runway
+  const mesesArr=meses.slice(-3);
+  const avgDesp=mesesArr.length>0?mesesArr.reduce((s,m)=>(d.porMes[m]?.saida||0)+s,0)/mesesArr.length:0;
+  const runway=avgDesp>0?saldoTotal/avgDesp:99;
+  const runwayTxt=runway>99?'99+':runway.toFixed(1);
+  const corRunway=runway>=6?'bar-green':runway>=3?'bar-yellow':'bar-red';
+  const corRunwayTxt=runway>=6?'#3DDC97':runway>=3?'#FFB547':'#FF6B6B';
 
-  // Saldo Bancário Real — usa historico_conciliacao (mensal)
-  const projFiltro=document.getElementById('filterProjeto').value;
+  // Headcount
+  const hc=(dadosOriginal.rh_resumo?.headcount_atual)||'--';
+
+  // Saldo anterior
   const hist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
-  if(!projFiltro&&hist.length>0){
-    // Agrupar por mês: soma dos saldos de todas as contas (excluir Renata Patelli)
-    const porMesSaldo={};
-    hist.forEach(h=>{
-      if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;
-      const m=h.data.substring(0,7);
-      porMesSaldo[m]=(porMesSaldo[m]||0)+h.saldo_atual;
-    });
-    const mesesSaldo=Object.keys(porMesSaldo).sort();
-    const saldoArr=mesesSaldo.map(m=>porMesSaldo[m]);
-    // Adicionar saldo D-1 atual como último ponto
-    const saldoAtual=(dadosFiltrados.saldos_bancarios||[]).filter(s=>!s.nome.toUpperCase().includes('RENATA PATELLI')).reduce((s,b)=>s+b.saldo,0);
-    const meAtual=new Date().toISOString().substring(0,7);
-    if(!porMesSaldo[meAtual]){mesesSaldo.push(meAtual);saldoArr.push(saldoAtual)}
-    else{saldoArr[saldoArr.length-1]=saldoAtual}// Atualizar mês corrente com D-1
-    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
-      labels:mesesSaldo.map(mesNome),
-      datasets:[{label:'Saldo Bancário Real',data:saldoArr,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.3,
-        pointBackgroundColor:saldoArr.map(v=>v>=0?'#22c55e':'#ef4444'),pointRadius:4}]
-    },options:cOpts('currency')});
-  } else if(projFiltro){
-    // Com filtro de projeto: resultado acumulado do projeto
-    let ac=0;const saldoPeriodo=meses.map(m=>{ac+=(d.porMes[m].entrada-d.porMes[m].saida);return ac});
-    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{
-      labels:meses.map(mesNome),
-      datasets:[{label:'Resultado Acumulado (projeto)',data:saldoPeriodo,borderColor:'#a855f7',backgroundColor:'#a855f722',fill:true,tension:.3}]
-    },options:cOpts('currency')});
-  } else {
-    // Sem histórico: fallback vazio
-    charts.sAcum=new Chart(document.getElementById('chartSaldoAcum'),{type:'line',data:{labels:[],datasets:[{label:'Sem dados',data:[]}]},options:cOpts('currency')});
-  }
+  let saldoAnt=0;
+  if(hist.length){const pm={};hist.forEach(h=>{const m=h.data.substring(0,7);pm[m]=(pm[m]||0)+h.saldo_atual});const ms=Object.keys(pm).sort();if(ms.length>=2)saldoAnt=pm[ms[ms.length-2]]||0;}
+  const varSaldo=saldoAnt?((saldoTotal-saldoAnt)/Math.abs(saldoAnt)*100).toFixed(0):'--';
 
-  const tD=Object.entries(d.gruposDesp).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
-  charts.tCatD=new Chart(document.getElementById('chartTopCatDesp'),{type:'doughnut',data:{labels:tD.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tD.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
-  const tR=Object.entries(d.gruposRec).sort((a,b)=>b[1].valor-a[1].valor).slice(0,8);
-  charts.tCatR=new Chart(document.getElementById('chartTopCatRec'),{type:'doughnut',data:{labels:tR.map(e=>e[1].nome.substring(0,30)),datasets:[{data:tR.map(e=>e[1].valor),backgroundColor:cores}]},options:dOpts});
+  // KPIs
+  document.getElementById('vg-kpis').innerHTML=`
+    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita Mês</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs mês anterior ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div></div>
+    <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div></div>
+    <div class="vg-kpi bar-cyan"><div class="vg-lbl">Caixa Total</div><div class="vg-val" style="color:#2DD4BF">${fmt(saldoTotal)}</div><div class="vg-sub">${varSaldo!=='--'?(Number(varSaldo)>=0?'↑':'↓')+Math.abs(varSaldo)+'% vs mês ant':'--'}</div></div>
+    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Runway</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses</div></div>
+    <div class="vg-kpi ${corInad}"><div class="vg-lbl">Inadimplência</div><div class="vg-val" style="color:${corInadTxt}">${fmt(vRec)}</div><div class="vg-sub">${pctInad.toFixed(1)}% da receita</div></div>
+    <div class="vg-kpi bar-purple"><div class="vg-lbl">Headcount</div><div class="vg-val" style="color:#A78BFA">${hc}</div><div class="vg-sub">funcionários</div></div>`;
+
+  // Sparklines (últimos 6 meses)
+  const sparkOpts={responsive:true,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{enabled:false}},elements:{point:{radius:0}}};
+  const m6=meses.slice(-6);
+
+  // Spark 1: Receita vs Despesa
+  charts.spkRD=new Chart(document.getElementById('sparkRecDesp'),{type:'bar',data:{
+    labels:m6.map(mesNome),
+    datasets:[{data:m6.map(m=>d.porMes[m]?.entrada||0),backgroundColor:'#3DDC9788',borderRadius:4},
+              {data:m6.map(m=>-(d.porMes[m]?.saida||0)),backgroundColor:'#FF6B6B88',borderRadius:4}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+
+  // Spark 2: Evolução Caixa
+  const histC=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  const pmS={};histC.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);pmS[m]=(pmS[m]||0)+h.saldo_atual});
+  const m6c=Object.keys(pmS).sort().slice(-6);
+  charts.spkCx=new Chart(document.getElementById('sparkCaixa'),{type:'line',data:{
+    labels:m6c.map(mesNome),
+    datasets:[{data:m6c.map(m=>pmS[m]),borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+
+  // Spark 3: Margem %
+  const mrgData=m6.map(m=>{const e=d.porMes[m]?.entrada||0,s=d.porMes[m]?.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  charts.spkMg=new Chart(document.getElementById('sparkMargem'),{type:'line',data:{
+    labels:m6.map(mesNome),
+    datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
+      segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
+
+  // Alertas automáticos
+  const alerts=[];
+  if(pctInad>10)alerts.push({cls:'a-red',txt:`<strong>Inadimplência alta:</strong> ${fmt(vRec)} atrasado (${pctInad.toFixed(1)}% da receita)`});
+  if(runway<4)alerts.push({cls:'a-red',txt:`<strong>Runway crítico:</strong> ${runwayTxt} meses de caixa. Ação urgente necessária.`});
+  if(recMesAnt>0&&recMes<recMesAnt*0.8)alerts.push({cls:'a-yellow',txt:`<strong>Receita caiu ${Math.abs(varRec)}%</strong> em relação ao mês anterior (${fmt(recMesAnt)} → ${fmt(recMes)})`});
+  // Projetos com margem negativa
+  const projsNeg=Object.values(d.porProj||{}).filter(p=>p.entrada>50000&&(p.entrada-p.saida)<0);
+  if(projsNeg.length)alerts.push({cls:'a-yellow',txt:`<strong>${projsNeg.length} projeto(s) com margem negativa</strong> (receita > R$ 50K): ${projsNeg.slice(0,3).map(p=>p.nome).join(', ')}`});
+  // Orçamento
+  if(orcData&&orcData.dre){const rb=orcData.dre.find(r=>r.label==='Receita Bruta');if(rb){const real=rb.acum_real||0,bp=rb.acum_bp||0;if(bp>0&&real>bp*1.1)alerts.push({cls:'a-green',txt:`<strong>Receita ${((real/bp-1)*100).toFixed(0)}% acima do orçado</strong> (Real: ${fmtK(real)} vs BP: ${fmtK(bp)})`});}}
+  const alertsEl=document.getElementById('vg-alerts');
+  if(alerts.length){alertsEl.innerHTML=alerts.slice(0,4).map(a=>`<div class="vg-alert ${a.cls}">${a.txt}</div>`).join('');alertsEl.style.display=''}
+  else{alertsEl.style.display='none'}
+
+  // Mini DRE
+  let dreHtml='<h4>Mini DRE — YTD</h4>';
+  if(orcData&&orcData.dre){
+    const dreRows=['Receita Bruta','Custos Operacionais','Despesas Gerais e Adm','EBITDA','Lucro Líquido'];
+    dreHtml+='<table><thead><tr><th>Linha</th><th style="text-align:right">Real YTD</th><th style="text-align:right">Orçado YTD</th><th style="text-align:right">%</th><th style="text-align:center">Status</th></tr></thead><tbody>';
+    dreRows.forEach(label=>{
+      const row=orcData.dre.find(r=>r.label===label);
+      if(!row)return;
+      const real=row.acum_real||0,bp=row.acum_bp||0;
+      const pct=bp?((real/bp)*100).toFixed(0):'--';
+      const isGood=label.includes('Custo')||label.includes('Despesa')?real<=bp:real>=bp;
+      const emoji=pct==='--'?'➖':isGood?'✅':'⚠️';
+      const cls=label==='EBITDA'||label==='Lucro Líquido'?'dre-total':'';
+      dreHtml+=`<tr class="${cls}"><td>${label}</td><td style="text-align:right;color:${real>=0?'#3DDC97':'#FF6B6B'}">${fmtK(real)}</td><td style="text-align:right;color:rgba(255,255,255,.5)">${fmtK(bp)}</td><td style="text-align:right">${pct}%</td><td style="text-align:center">${emoji}</td></tr>`;
+    });
+    dreHtml+='</tbody></table>';
+  } else {dreHtml+='<p style="color:rgba(255,255,255,.4);font-size:13px">Dados orçamentários não disponíveis</p>';}
+  document.getElementById('vg-dre').innerHTML=dreHtml;
 }
 
 // ============ CONCILIAÇÃO BANCÁRIA (aba própria) ============
