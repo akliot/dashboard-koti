@@ -27,6 +27,50 @@ Após qualquer alteração:
 
 NUNCA perguntar "quer commitar?" ou "quer que eu faça push?" — sempre fazer automaticamente.
 
+## Rotação de Chaves (trimestral)
+
+### 1. GCP Service Account Key
+```bash
+# Gerar nova key
+gcloud iam service-accounts keys create new-key.json \
+  --iam-account=SA_EMAIL@dashboard-koti-omie.iam.gserviceaccount.com
+
+# Atualizar GitHub Secret (base64)
+cat new-key.json | base64 | pbcopy
+# GitHub → Settings → Secrets → Actions → GCP_SA_KEY → Update
+
+# Atualizar Secret Manager
+gcloud secrets versions add GCP_SA_KEY --data-file=new-key.json --project=dashboard-koti-omie
+
+# Remover key antiga
+gcloud iam service-accounts keys list --iam-account=SA_EMAIL@dashboard-koti-omie.iam.gserviceaccount.com
+gcloud iam service-accounts keys delete KEY_ID --iam-account=SA_EMAIL@dashboard-koti-omie.iam.gserviceaccount.com
+```
+
+### 2. Telegram Bot Token
+1. Abrir @BotFather no Telegram → `/revoke` → selecionar o bot
+2. Copiar novo token
+3. Atualizar Secret Manager:
+   ```bash
+   printf '%s' "NOVO_TOKEN" | gcloud secrets versions add TELEGRAM_BOT_TOKEN --data-file=- --project=dashboard-koti-omie
+   ```
+
+### 3. Anthropic API Key
+1. Regenerar em https://console.anthropic.com/settings/keys
+2. Atualizar Secret Manager:
+   ```bash
+   printf '%s' "NOVA_KEY" | gcloud secrets versions add ANTHROPIC_API_KEY --data-file=- --project=dashboard-koti-omie
+   ```
+
+### Após qualquer rotação
+```bash
+# Redeploy Cloud Run para pegar novos secrets
+gcloud run deploy bot-telegram \
+  --image=gcr.io/dashboard-koti-omie/bot-telegram \
+  --region=southamerica-east1 \
+  --project=dashboard-koti-omie
+```
+
 ## Regras gerais
 - Sempre consultar a skill relevante antes de implementar
 - Nunca usar `info.dAlt` como data de pagamento (usar ListarMovimentos)
