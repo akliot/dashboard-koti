@@ -201,7 +201,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
   <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa <span class="regime-badge caixa">Caixa</span></button>
   <button class="tab" data-tab="financeiro">Financeiro <span class="regime-badge caixa">Caixa</span></button>
   <button class="tab" data-tab="conciliacao">Conciliação FD <span class="regime-badge competencia">Competência</span></button>
-  <button class="tab" data-tab="vendas">Vendas e Clientes <span class="regime-badge caixa">Caixa</span></button>
+  <button class="tab" data-tab="vendas">Vendas <span class="regime-badge caixa">Caixa</span></button>
   <button class="tab" data-tab="projetos">Projetos <span class="regime-badge competencia">Competência</span></button>
   <button class="tab" data-tab="orcamento">Real vs Orçado <span class="regime-badge competencia">Competência</span></button>
   <button class="tab" data-tab="rh">RH</button>
@@ -319,16 +319,6 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="chart-row">
         <div class="chart-card"><h3>Top Clientes (por Receita)</h3><div class="chart-container"><canvas id="chartTopClientes"></canvas></div></div>
         <div class="chart-card"><h3>Top Projetos (por Receita)</h3><div class="chart-container"><canvas id="chartTopProjVendas"></canvas></div></div>
-      </div>
-      <h3 style="font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:28px 0 14px;padding-top:20px;border-top:1px solid var(--border)">Análise de Clientes</h3>
-      <div class="kpi-row" id="kpi-clientes"></div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Novos Clientes por Mês</h3><div class="chart-container"><canvas id="chartClientesMes"></canvas></div></div>
-        <div class="chart-card"><h3>Clientes por Estado</h3><div class="chart-container"><canvas id="chartEstados"></canvas></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><h3>Tipo de Pessoa</h3><div class="chart-container"><canvas id="chartTipoPessoa"></canvas></div></div>
-        <div class="chart-card"><h3>Status</h3><div class="chart-container"><canvas id="chartStatusCliente"></canvas></div></div>
       </div>
     </div>
 
@@ -1298,23 +1288,7 @@ function renderVendas(d){
 }
 
 // ============ CLIENTES ============
-function renderClientes(){
-  // Clientes usa dados agregados da API (não filtra por data — é o cadastro completo)
-  const c=dadosOriginal.clientes;if(!c)return;
-  document.getElementById('kpi-clientes').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Total</div><div class="kpi-value blue">${fmtNum(c.total_clientes)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Ativos</div><div class="kpi-value green">${fmtNum(c.ativos)}</div><div class="kpi-sub">${(c.ativos/c.total_clientes*100).toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">PJ</div><div class="kpi-value purple">${fmtNum(c.pessoa_juridica)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">PF</div><div class="kpi-value cyan">${fmtNum(c.pessoa_fisica)}</div></div>`;
-  // Filtrar últimos 12 meses (evita spike de importação em meses antigos)
-  const allM=Object.keys(c.por_mes_cadastro).sort();
-  const m=allM.slice(-12);
-  charts.cMes=new Chart(document.getElementById('chartClientesMes'),{type:'bar',data:{labels:m.map(mesNome),datasets:[{label:'Novos',data:m.map(x=>c.por_mes_cadastro[x]),backgroundColor:'#a855f788',borderColor:'#a855f7',borderWidth:1}]},options:cOpts('number')});
-  const est=Object.entries(c.por_estado);
-  charts.est=new Chart(document.getElementById('chartEstados'),{type:'bar',data:{labels:est.map(e=>e[0]),datasets:[{data:est.map(e=>e[1]),backgroundColor:cores}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'right',formatter:v=>fmtNum(v)}}}});
-  charts.tp=new Chart(document.getElementById('chartTipoPessoa'),{type:'doughnut',data:{labels:['PJ','PF'],datasets:[{data:[c.pessoa_juridica,c.pessoa_fisica],backgroundColor:['#a855f7','#06b6d4']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});
-  charts.sc=new Chart(document.getElementById('chartStatusCliente'),{type:'doughnut',data:{labels:['Ativos','Inativos'],datasets:[{data:[c.ativos,c.inativos],backgroundColor:['#22c55e','#ef4444']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});
-}
+function renderClientes(){}
 
 // ============ PROJETOS ============
 function renderProjetos(dc){
