@@ -64,7 +64,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .content{padding:20px 24px}
 .page{display:none}.page.active{display:block}
-.regime-badge{display:inline-block;font-size:10px;font-weight:600;padding:3px 10px;border-radius:12px;letter-spacing:.3px;opacity:.75;float:right;margin-bottom:8px}
+.regime-badge{display:inline-block;font-size:8px;font-weight:600;padding:2px 6px;border-radius:8px;letter-spacing:.3px;opacity:.7;margin-left:6px;vertical-align:middle}
 .regime-badge.caixa{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
 .regime-badge.competencia{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.25)}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
@@ -195,12 +195,12 @@ tr:hover td{background:rgba(59,130,246,.05)}
 </div>
 <div class="tabs" id="tabsContainer" style="display:none">
   <button class="tab active" data-tab="visao-geral">Visão Geral</button>
-  <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
-  <button class="tab" data-tab="financeiro">Financeiro</button>
-  <button class="tab" data-tab="conciliacao">Conciliação FD</button>
-  <button class="tab" data-tab="vendas">Vendas e Clientes</button>
-  <button class="tab" data-tab="projetos">Projetos</button>
-  <button class="tab" data-tab="orcamento">Real vs Orçado</button>
+  <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa <span class="regime-badge caixa">Caixa</span></button>
+  <button class="tab" data-tab="financeiro">Financeiro <span class="regime-badge caixa">Caixa</span></button>
+  <button class="tab" data-tab="conciliacao">Conciliação FD <span class="regime-badge competencia">Competência</span></button>
+  <button class="tab" data-tab="vendas">Vendas e Clientes <span class="regime-badge caixa">Caixa</span></button>
+  <button class="tab" data-tab="projetos">Projetos <span class="regime-badge competencia">Competência</span></button>
+  <button class="tab" data-tab="orcamento">Real vs Orçado <span class="regime-badge competencia">Competência</span></button>
   <button class="tab" data-tab="rh">RH</button>
 </div>
 <div class="content">
@@ -225,7 +225,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- FLUXO DE CAIXA -->
     <div class="page" id="page-fluxo-caixa">
-      <span class="regime-badge caixa">Regime Caixa</span>
+
       <div class="kpi-row" id="kpi-fluxo"></div>
       <div id="aging-section" style="display:none">
         <div class="kpi-row" id="kpi-inadimplencia"></div>
@@ -258,7 +258,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- FINANCEIRO (detalhado) -->
     <div class="page" id="page-financeiro">
-      <span class="regime-badge caixa">Regime Caixa</span>
+
       <div class="kpi-row" id="kpi-financeiro"></div>
       <div class="chart-row">
         <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal)</h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div></div>
@@ -282,7 +282,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- CONCILIAÇÃO BANCÁRIA -->
     <div class="page" id="page-conciliacao">
-      <span class="regime-badge competencia">Regime Competência</span>
+
       <div class="kpi-row" id="kpi-concilFD"></div>
       <div class="chart-row">
         <div class="chart-card" style="flex:3"><h3>Conciliação Faturamento Direto</h3>
@@ -297,7 +297,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- VENDAS -->
     <div class="page" id="page-vendas">
-      <span class="regime-badge caixa">Regime Caixa</span>
+
       <div class="kpi-row" id="kpi-vendas"></div>
       <div class="chart-row">
         <div class="chart-card"><h3>Vendas por Mês</h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div></div>
@@ -321,7 +321,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- ORÇAMENTO -->
     <div class="page" id="page-orcamento">
-      <span class="regime-badge competencia">Regime Competência</span>
+
       <div style="background:var(--card);border-bottom:1px solid var(--border);padding:16px 20px 12px;margin:-20px -20px 16px">
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
           <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Período:</label>
@@ -354,7 +354,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
 
     <!-- PROJETOS -->
     <div class="page" id="page-projetos">
-      <span class="regime-badge competencia">Regime Competência</span>
+
       <div class="kpi-row" id="kpi-projetos"></div>
       <div class="chart-row">
         <div class="chart-card"><h3>Top Projetos por Receita</h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjRec"></canvas></div></div>
