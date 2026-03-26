@@ -72,6 +72,7 @@ FROM `dashboard-koti-omie.studio_koti.lancamentos`;
 2. sync_log `success` mas sem dados: problema na API Omie — verificar painel Omie
 3. Dados existem no BQ mas dashboard vazio: verificar Cloud Function `api_dashboard` e CORS
 4. Dashboard RH vazio: verificar se `rh_data.enc` existe e está atualizado — rodar `extract_rh.py`
+5. Visão Geral headcount "--": `rh_data.enc` não está acessível ou decriptação falhou
 
 ---
 
@@ -91,6 +92,7 @@ Comparar com Omie → Financeiro → Contas a Pagar/Receber.
 2. Se persiste: verificar `data_pagamento` via ListarMovimentos (nunca `info.dAlt`)
 3. Folha inconsistente: verificar se `extract_rh.py` está filtrando subtotais corretamente
 4. Custo total errado: `custo_total` = coluna 24 da planilha − rescisão (PJ sem encargos, CLT com)
+5. Transferências: verificado que não há categorias de transferência nos dados (CONTAS_IGNORAR filtra contas fictícias)
 
 ---
 
@@ -156,5 +158,35 @@ dk = hashlib.pbkdf2_hmac('sha256', b'NOVA_SENHA', b'koti2026_salt_', 10000)
 print(dk.hex())
 ```
 2. Atualizar `PASS_HASH` em `dashboard_bq.html`
-3. Re-encriptar `rh_data.enc` com nova senha (rodar `extract_rh.py` após alterar senha no script)
+3. Re-encriptar `rh_data.enc` com nova senha (alterar no `extract_rh.py` e rodar)
 4. Atualizar senha hardcoded em `dashboard_rh.html` (`decryptRH` call)
+5. Atualizar senha no `dashboard_bq.html` (`decryptFile` call para headcount na Visão Geral)
+
+---
+
+## 9. Bot mostrando departamento em vez de nome
+
+**Sintoma:** Bot retorna nome de departamento (COMERCIAL, ARQUITETURA) em vez do funcionário.
+
+**Causa:** LLM gerou SQL com GROUP BY departamento ou sem campo nome.
+
+**Resolução:**
+1. Verificar se `extract_rh.py` está filtrando subtotais de departamento:
+```bash
+source .env && python3 extract_rh.py
+```
+2. O `bot_telegram.py` já tem pós-processamento que injeta `nome` e remove GROUP BY
+3. Se persistir: reforçar exemplos no SQL_SYSTEM_PROMPT do bot
+
+---
+
+## 10. Bot calculando encargos fictícios
+
+**Sintoma:** Bot mostra custo_total muito acima de salário + benefícios, mencionando INSS/FGTS.
+
+**Causa:** LLM inventa encargos para justificar o valor do `custo_total`.
+
+**Resolução:**
+1. Verificar se `custo_total` no BQ está correto: `= coluna 24 planilha - rescisão`
+2. O FORMAT_PROMPT já proíbe menção de encargos (empresa PJ)
+3. Se persistir: verificar se a planilha não mudou o cálculo da coluna 24
