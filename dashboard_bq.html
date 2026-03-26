@@ -749,7 +749,7 @@ function renderVisaoGeral(d){
     <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita Mês</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs mês anterior ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div></div>
     <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div></div>
     <div class="vg-kpi bar-cyan"><div class="vg-lbl">Caixa Total</div><div class="vg-val" style="color:#2DD4BF">${fmt(saldoTotal)}</div><div class="vg-sub">${varSaldo!=='--'?(Number(varSaldo)>=0?'↑':'↓')+Math.abs(varSaldo)+'% vs mês ant':'--'}</div></div>
-    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Runway</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses</div></div>
+    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Meses de Caixa</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses de operação</div></div>
     <div class="vg-kpi ${corInad}"><div class="vg-lbl">Inadimplência</div><div class="vg-val" style="color:${corInadTxt}">${fmt(vRec)}</div><div class="vg-sub">${pctInad.toFixed(1)}% da receita</div></div>
     <div class="vg-kpi bar-purple"><div class="vg-lbl">Headcount</div><div class="vg-val" style="color:#A78BFA">${hc}</div><div class="vg-sub">funcionários</div></div>`;
 
@@ -785,7 +785,7 @@ function renderVisaoGeral(d){
   // Alertas automáticos
   const alerts=[];
   if(pctInad>10)alerts.push({cls:'a-red',txt:`<strong>Inadimplência alta:</strong> ${fmt(vRec)} atrasado (${pctInad.toFixed(1)}% da receita)`});
-  if(runway<4)alerts.push({cls:'a-red',txt:`<strong>Runway crítico:</strong> ${runwayTxt} meses de caixa. Ação urgente necessária.`});
+  if(runway<4)alerts.push({cls:'a-red',txt:`<strong>Caixa crítico:</strong> apenas ${runwayTxt} meses de operação. Ação urgente necessária.`});
   if(recMesAnt>0&&recMes<recMesAnt*0.8)alerts.push({cls:'a-yellow',txt:`<strong>Receita caiu ${Math.abs(varRec)}%</strong> em relação ao mês anterior (${fmt(recMesAnt)} → ${fmt(recMes)})`});
   // Projetos com margem negativa
   const projsNeg=Object.values(d.porProj||{}).filter(p=>p.entrada>50000&&(p.entrada-p.saida)<0);
