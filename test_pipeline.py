@@ -255,5 +255,69 @@ class TestIsSafeSql(unittest.TestCase):
         self.assertFalse(self._check("UPDATE `studio_koti.lancamentos` SET valor=0"))
 
 
+class TestDreMapValidation(unittest.TestCase):
+    """Testa validação do DRE_MAP do extract_bp_bq."""
+
+    def test_validate_dre_map_all_match(self):
+        """Quando labels batem, retorna 0 mismatches."""
+        import extract_bp_bq as bp
+
+        class FakeWS:
+            def __init__(self, mapping):
+                self._mapping = mapping
+            def cell(self, row, column):
+                class C:
+                    def __init__(self, v):
+                        self.value = v
+                return C(self._mapping.get((row, column)))
+
+        # Montar fake worksheets separadas para Real e BP
+        real_mapping = {}
+        bp_mapping = {}
+        for real_row, bp_row, label, section, level in bp.DRE_MAP:
+            if real_row is not None:
+                real_mapping[(real_row, 2)] = label
+            if bp_row is not None:
+                bp_mapping[(bp_row, 2)] = label
+
+        ws_real = FakeWS(real_mapping)
+        ws_bp = FakeWS(bp_mapping)
+        self.assertEqual(bp.validate_dre_map(ws_real, ws_bp), 0)
+
+    def test_validate_dre_map_some_mismatch(self):
+        """Quando labels não batem, retorna contagem de mismatches."""
+        import extract_bp_bq as bp
+
+        class FakeWS:
+            def cell(self, row, column):
+                class C:
+                    def __init__(self):
+                        self.value = "ERRADO"
+                return C()
+
+        ws = FakeWS()
+        mismatches = bp.validate_dre_map(ws, ws)
+        self.assertGreater(mismatches, 0)
+
+    def test_dre_map_structure(self):
+        """DRE_MAP tem a estrutura correta (5 campos por entrada)."""
+        import extract_bp_bq as bp
+        for entry in bp.DRE_MAP:
+            self.assertEqual(len(entry), 5, f"Entry should have 5 fields: {entry}")
+            real_row, bp_row, label, section, level = entry
+            self.assertIsInstance(label, str)
+            self.assertIn(level, (0, 1, 2))
+
+    def test_dre_map_has_receita_bruta(self):
+        """DRE_MAP deve começar com Receita Bruta."""
+        import extract_bp_bq as bp
+        self.assertEqual(bp.DRE_MAP[0][2], "Receita Bruta")
+
+    def test_dre_map_has_lucro_liquido(self):
+        """DRE_MAP deve terminar com Lucro Líquido."""
+        import extract_bp_bq as bp
+        self.assertEqual(bp.DRE_MAP[-1][2], "Lucro Líquido")
+
+
 if __name__ == "__main__":
     unittest.main()

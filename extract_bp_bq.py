@@ -84,6 +84,25 @@ def read_val(ws, row: int | None, col: int) -> float:
     return round(v, 2) if isinstance(v, (int, float)) else 0
 
 
+def validate_dre_map(ws_real, ws_bp) -> int:
+    """Valida que os labels do DRE_MAP correspondem às células da planilha.
+    Retorna o número de mismatches encontrados."""
+    # Labels esperados na coluna A (ou B) de cada aba, indexados por row
+    mismatches = 0
+    for real_row, bp_row, label, section, level in DRE_MAP:
+        for ws, row, aba in [(ws_real, real_row, "Realizado"), (ws_bp, bp_row, "BP")]:
+            if row is None:
+                continue
+            # Label geralmente está na coluna 2 (B) ou 3 (C), testar ambas
+            cell_b = ws.cell(row=row, column=2).value
+            cell_c = ws.cell(row=row, column=3).value
+            cell_val = str(cell_b or "").strip() if cell_b else str(cell_c or "").strip()
+            if cell_val and label.lower() not in cell_val.lower() and cell_val.lower() not in label.lower():
+                print(f"  ⚠ WARNING: {aba} row {row} esperado '{label}', encontrado '{cell_val}'")
+                mismatches += 1
+    return mismatches
+
+
 def extract_to_bq(filepath: str) -> None:
     """Extrai dados da planilha BP e carrega no BigQuery."""
     from openpyxl import load_workbook
@@ -93,6 +112,14 @@ def extract_to_bq(filepath: str) -> None:
 
     ws_real = wb["Realizado"]
     ws_bp = wb["BP"]
+
+    # Validar DRE_MAP contra labels da planilha
+    mismatches = validate_dre_map(ws_real, ws_bp)
+    if mismatches > 3:
+        print(f"  ❌ ERRO: {mismatches} labels não batem com a planilha. Abortando.")
+        sys.exit(1)
+    elif mismatches > 0:
+        print(f"  ⚠ {mismatches} label(s) com divergência — continuando com cautela")
 
     # Detectar meses com dados reais (Receita Bruta != 0)
     meses_com_real: set[str] = set()
