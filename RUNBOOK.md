@@ -6,18 +6,16 @@
 
 **Diagnóstico:**
 ```bash
-# Ver últimos runs no GitHub Actions
 gh run list --workflow=sync_omie_bq.yml --limit=5
-
-# Ver logs do run que falhou
 gh run view <RUN_ID> --log-failed
 ```
 
 **Resolução:**
-1. Re-rodar manualmente: GitHub → Actions → Sync Omie → BigQuery → Run workflow
-2. Se erro de autenticação: verificar se os secrets `OMIE_APP_KEY` e `OMIE_APP_SECRET` estão válidos em Settings → Secrets
-3. Se erro de quota/timeout: aguardar e re-rodar (a API Omie tem rate limit)
-4. Se erro de BQ: verificar se a SA tem permissão `BigQuery Data Editor`
+1. Re-rodar: GitHub → Actions → Sync Omie → BigQuery → Run workflow
+2. Erro de autenticação: verificar secrets `OMIE_APP_KEY`, `OMIE_APP_SECRET` em Settings → Secrets
+3. Erro de quota/timeout: aguardar e re-rodar (API Omie tem rate limit, retry automático 2x)
+4. Erro de BQ: verificar se a SA tem `BigQuery Data Editor`
+5. Erro de DRE_MAP (>3 labels mismatch): planilha BP mudou de estrutura → atualizar `DRE_MAP` em `extract_bp_bq.py`
 
 ---
 
@@ -27,26 +25,29 @@ gh run view <RUN_ID> --log-failed
 
 **Diagnóstico:**
 ```bash
-# Ver logs do Cloud Run
+# Logs do Cloud Run
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=bot-telegram" \
   --limit=30 --format="value(textPayload)" --project=dashboard-koti-omie
 
-# Ver status do serviço
+# Status do serviço
 gcloud run services describe bot-telegram --region=southamerica-east1 --project=dashboard-koti-omie
 ```
 
 **Resolução:**
-1. Forçar nova revisão (redeploy):
+1. Redeploy:
 ```bash
 gcloud builds submit --tag gcr.io/dashboard-koti-omie/bot-telegram --project=dashboard-koti-omie
-gcloud run deploy bot-telegram \
-  --image=gcr.io/dashboard-koti-omie/bot-telegram \
-  --region=southamerica-east1 \
-  --project=dashboard-koti-omie
+gcloud run deploy bot-telegram --image=gcr.io/dashboard-koti-omie/bot-telegram \
+  --region=southamerica-east1 --project=dashboard-koti-omie
 ```
-2. Se erro de secret: verificar se `TELEGRAM_BOT_TOKEN` e `ANTHROPIC_API_KEY` existem no Secret Manager
-3. Se webhook desconfigurado: o bot re-registra automaticamente ao iniciar
-4. Dev local (emergência): `source .env && python3 bot_telegram.py --local`
+2. Erro de secret: verificar `TELEGRAM_BOT_TOKEN` e `ANTHROPIC_API_KEY` no Secret Manager:
+```bash
+gcloud secrets list --project=dashboard-koti-omie
+gcloud secrets versions access latest --secret=TELEGRAM_BOT_TOKEN --project=dashboard-koti-omie | head -c5
+```
+3. Webhook desconfigurado: o bot re-registra automaticamente ao iniciar (auto-discover via K_SERVICE)
+4. Emergência local: `source .env && python3 bot_telegram.py --local`
+5. Deploy automático falhou: verificar GitHub Actions → Deploy Bot → Cloud Run
 
 ---
 
@@ -56,20 +57,21 @@ gcloud run deploy bot-telegram \
 
 **Diagnóstico:**
 ```sql
--- No BigQuery, verificar último sync
+-- Último sync
 SELECT status, started_at, finished_at, duration_seconds
 FROM `dashboard-koti-omie.studio_koti.sync_log`
 ORDER BY started_at DESC LIMIT 5;
 
--- Verificar se há lançamentos recentes
+-- Lançamentos recentes
 SELECT COUNT(*) as total, MAX(data_emissao) as ultimo
 FROM `dashboard-koti-omie.studio_koti.lancamentos`;
 ```
 
 **Resolução:**
-1. Se sync_log mostra `failed`: ver item 1
-2. Se sync_log mostra `success` mas sem dados: problema na API Omie — verificar manualmente no painel Omie
-3. Se dados existem no BQ mas dashboard não mostra: verificar a Cloud Function `api_dashboard` e CORS
+1. sync_log `failed`: ver item 1
+2. sync_log `success` mas sem dados: problema na API Omie — verificar painel Omie
+3. Dados existem no BQ mas dashboard vazio: verificar Cloud Function `api_dashboard` e CORS
+4. Dashboard RH vazio: verificar se `rh_data.enc` existe e está atualizado — rodar `extract_rh.py`
 
 ---
 
@@ -78,56 +80,81 @@ FROM `dashboard-koti-omie.studio_koti.lancamentos`;
 **Sintoma:** Valores no dashboard diferem do Omie.
 
 **Diagnóstico:**
-1. Identificar o lançamento divergente (número do documento)
-2. Comparar no BQ:
 ```sql
 SELECT * FROM `dashboard-koti-omie.studio_koti.lancamentos`
 WHERE numero_documento = 'XXXX';
 ```
-3. Comparar com o Omie (Financeiro → Contas a Pagar/Receber)
+Comparar com Omie → Financeiro → Contas a Pagar/Receber.
 
 **Resolução:**
-1. Se o dado no BQ está desatualizado: re-rodar sync (GitHub Actions → Run workflow)
-2. Se o sync não corrige: verificar se o campo `data_pagamento` está sendo populado via ListarMovimentos (nunca usar `info.dAlt`)
-3. Sync faz WRITE_TRUNCATE — re-rodar sempre traz snapshot completo atualizado
+1. Re-rodar sync (WRITE_TRUNCATE = snapshot completo)
+2. Se persiste: verificar `data_pagamento` via ListarMovimentos (nunca `info.dAlt`)
+3. Folha inconsistente: verificar se `extract_rh.py` está filtrando subtotais corretamente
+4. Custo total errado: `custo_total` = coluna 24 da planilha − rescisão (PJ sem encargos, CLT com)
 
 ---
 
 ## 5. Novo acesso ao bot
 
-**Sintoma:** Usuário envia mensagem e recebe "Acesso não autorizado".
+**Sintoma:** Usuário recebe "Acesso não autorizado".
 
-**Como pegar o chat_id:**
+**Pegar chat_id:**
 ```bash
-# Nos logs do Cloud Run, procurar a tentativa negada
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=bot-telegram AND textPayload:\"Acesso negado\"" \
   --limit=5 --format="value(textPayload)" --project=dashboard-koti-omie
 ```
-O log mostra: `Acesso negado para chat_id=XXXXXXXX`
 
 **Adicionar acesso:**
-1. Editar `AUTHORIZED_CHAT_IDS` no Cloud Run:
 ```bash
-gcloud run services update bot-telegram \
-  --region=southamerica-east1 \
+gcloud run services update bot-telegram --region=southamerica-east1 \
   --update-env-vars="^||^AUTHORIZED_CHAT_IDS=8107744840,8230872349,NOVO_ID" \
   --project=dashboard-koti-omie
 ```
-2. Atualizar também no `deploy_bot.yml` para persistir em futuros deploys
+Atualizar também em `.github/workflows/deploy_bot.yml` para persistir.
 
 ---
 
 ## 6. Novo exec (acesso à folha/saldos)
 
-**Sintoma:** Usuário autorizado mas recebe "Acesso restrito à diretoria" ao perguntar sobre folha ou saldos.
+**Sintoma:** Usuário autorizado recebe "Acesso restrito à diretoria".
 
 **Adicionar como exec:**
-1. Editar `EXEC_CHAT_IDS` no Cloud Run:
 ```bash
-gcloud run services update bot-telegram \
-  --region=southamerica-east1 \
+gcloud run services update bot-telegram --region=southamerica-east1 \
   --set-env-vars="EXEC_CHAT_IDS=8230872349,NOVO_ID" \
   --project=dashboard-koti-omie
 ```
-2. Atualizar também no `deploy_bot.yml` para persistir em futuros deploys
-3. O `ADMIN_CHAT_ID` (8107744840) é automaticamente exec — não precisa estar no `EXEC_CHAT_IDS`
+Atualizar em `deploy_bot.yml`. O `ADMIN_CHAT_ID` (8107744840) é automaticamente exec.
+
+---
+
+## 7. Atualizar dados RH
+
+**Quando:** Nova planilha de folha disponível.
+
+**Procedimento:**
+1. Colocar `Folha de Pagamentos 2026.xlsx` em `~/Downloads/`
+2. Rodar:
+```bash
+unset GOOGLE_APPLICATION_CREDENTIALS && source .env && python3 extract_rh.py
+```
+3. Commit e push do `rh_data.enc`:
+```bash
+git add rh_data.enc && git commit -m "data: update rh_data.enc" && git push
+```
+4. `rh_data.json` é local only (`.gitignore`) — nunca commitar
+
+---
+
+## 8. Alterar senha do dashboard
+
+**Procedimento:**
+1. Gerar novo hash PBKDF2 (login):
+```python
+import hashlib
+dk = hashlib.pbkdf2_hmac('sha256', b'NOVA_SENHA', b'koti2026_salt_', 10000)
+print(dk.hex())
+```
+2. Atualizar `PASS_HASH` em `dashboard_bq.html`
+3. Re-encriptar `rh_data.enc` com nova senha (rodar `extract_rh.py` após alterar senha no script)
+4. Atualizar senha hardcoded em `dashboard_rh.html` (`decryptRH` call)
