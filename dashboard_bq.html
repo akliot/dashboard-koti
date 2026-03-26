@@ -233,6 +233,16 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-fluxo"></div>
       <p class="chart-note" style="margin-bottom:16px">Todos os valores por regime de caixa (data de pagamento)</p>
+      <div class="chart-card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <h3 style="margin:0" id="saldoTitle">Saldo por Conta Bancária</h3>
+          <div class="periodo-btns" id="saldoContaBtns">
+            <button onclick="setSaldoContaMode('d1',this)" class="active">Atual (D-1)</button>
+            <button onclick="setSaldoContaMode('periodo',this)">Fim do período</button>
+          </div>
+        </div>
+        <div class="saldo-grid" id="saldoGrid"></div>
+      </div>
       <div id="aging-section" style="display:none">
         <div class="kpi-row" id="kpi-inadimplencia"></div>
         <div class="chart-row">
@@ -254,16 +264,6 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="chart-row">
         <div class="chart-card"><h3>Custos: Cascata por Tipo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartCustosStack"></canvas></div><p class="chart-note">Custo Direto (2.01) + SG&A (2.02-2.04) + Outros → Total</p></div>
         <div class="chart-card"><h3>Receitas: Realizado vs A Realizar <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartReceitasStack"></canvas></div><p class="chart-note">Recebido vs pendente (A Vencer + Atrasado)</p></div>
-      </div>
-      <div class="chart-card" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <h3 style="margin:0" id="saldoTitle">Saldo por Conta Bancária</h3>
-          <div class="periodo-btns" id="saldoContaBtns">
-            <button onclick="setSaldoContaMode('d1',this)" class="active">Atual (D-1)</button>
-            <button onclick="setSaldoContaMode('periodo',this)">Fim do período</button>
-          </div>
-        </div>
-        <div class="saldo-grid" id="saldoGrid"></div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
