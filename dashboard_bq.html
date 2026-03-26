@@ -241,6 +241,13 @@ tr:hover td{background:rgba(74,144,255,.04)}
         </div>
       </div>
       <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1"><h3>Receita vs Despesa (Mensal) <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoRecDesp"></canvas></div><p class="chart-note">Entradas e saídas por mês (data de pagamento)</p></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><h3>Evolução do Saldo (Acumulado) <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoSaldo"></canvas></div><p class="chart-note">Entradas − saídas acumuladas no período filtrado</p></div>
+        <div class="chart-card"><h3>Variação de Caixa % <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartFluxoVarCaixa"></canvas></div><p class="chart-note">(Entrada − Saída) ÷ Entrada × 100 por mês</p></div>
+      </div>
+      <div class="chart-row">
         <div class="chart-card"><h3>Despesas por Grupo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div><p class="chart-note">Grupos de categoria (2 primeiros níveis do plano de contas)</p></div>
         <div class="chart-card"><h3>Receitas por Grupo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div><p class="chart-note">1.04 desmembrado em Fat. Direto e Financiamento</p></div>
       </div>
@@ -954,7 +961,32 @@ function renderFluxoCaixa(d){
     <div class="kpi-card"><div class="kpi-label">Resultado</div><div class="kpi-value ${d.tE-d.tS>=0?'green':'red'}">${fmt(d.tE-d.tS)}</div><div class="kpi-sub">Realizado: ${fmt(d.rec-d.pag)} · A realizar: ${fmt(d.abRec-d.abPag)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Margem</div><div class="kpi-value blue">${d.tE>0?((d.tE-d.tS)/d.tE*100).toFixed(1):'0'}%</div></div>`;
 
-  // Charts — barras horizontais simples por grupo (como original)
+  // Charts — Receita vs Despesa, Saldo Acumulado, Variação %
+  const fMeses=Object.keys(d.porMes).sort();
+  const fEnt=fMeses.map(m=>d.porMes[m]?.entrada||0);
+  const fSai=fMeses.map(m=>d.porMes[m]?.saida||0);
+
+  charts.fRecDesp=new Chart(document.getElementById('chartFluxoRecDesp'),{type:'bar',data:{
+    labels:fMeses.map(mesNome),
+    datasets:[
+      {label:'Entrada',data:fEnt,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},
+      {label:'Saída',data:fSai,backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
+
+  let sAcum=0;
+  const fSaldo=fMeses.map((m,i)=>{sAcum+=fEnt[i]-fSai[i];return sAcum});
+  charts.fSaldo=new Chart(document.getElementById('chartFluxoSaldo'),{type:'line',data:{
+    labels:fMeses.map(mesNome),
+    datasets:[{label:'Saldo Acumulado',data:fSaldo,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:fSaldo.map(v=>v>=0?'#22c55e':'#ef4444')}]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
+
+  const fVar=fMeses.map((m,i)=>fEnt[i]>0?Math.round((fEnt[i]-fSai[i])/fEnt[i]*100):0);
+  charts.fVarCaixa=new Chart(document.getElementById('chartFluxoVarCaixa'),{type:'bar',data:{
+    labels:fMeses.map(mesNome),
+    datasets:[{label:'Margem %',data:fVar,backgroundColor:fVar.map(v=>v>=0?'#22c55e88':'#ef444488'),borderColor:fVar.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1}]
+  },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>v+'%'}}}});
+
+  // Charts — barras horizontais simples por grupo
   const dG=Object.entries(d.gruposDesp).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
   charts.dGrupo=new Chart(document.getElementById('chartDespGrupo'),{type:'bar',data:{labels:dG.map(e=>e[1].nome.substring(0,25)),datasets:[{data:dG.map(e=>e[1].valor),backgroundColor:cores}]},options:hBarOpts()});
   const rG=Object.entries(d.gruposRec).filter(e=>e[1].valor>0).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
