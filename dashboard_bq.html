@@ -352,6 +352,12 @@ tr:hover td{background:rgba(59,130,246,.05)}
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
+          <h3>Margem por Projeto (&gt; R$ 70K)</h3>
+          <div class="chart-container" style="height:360px"><canvas id="chartMargemScatter"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column:1/-1">
           <h3>Detalhamento por Projeto</h3>
           <input type="text" class="search-input" id="projetoBusca" placeholder="🔍 Buscar projeto..." oninput="filtrarProjetos()">
           <div class="proj-table" id="projetoDetalhe"></div>
@@ -1217,6 +1223,24 @@ function renderProjetos(dc){
   charts.tPR=new Chart(document.getElementById('chartTopProjRec'),{type:'bar',data:{labels:topR.map(e=>e[1].nome.substring(0,35)),datasets:[{data:topR.map(e=>e[1].entrada),backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1}]},options:hBarOpts()});
   const topD=projs.filter(e=>e[1].saida>0).sort((a,b)=>b[1].saida-a[1].saida).slice(0,10);
   charts.tPD=new Chart(document.getElementById('chartTopProjDesp'),{type:'bar',data:{labels:topD.map(e=>e[1].nome.substring(0,35)),datasets:[{data:topD.map(e=>e[1].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:hBarOpts()});
+  // Scatter: Margem por Projeto (receita >= 70K)
+  const scatterData=projs.filter(e=>e[1].entrada>=70000).map(([id,p])=>{
+    const mg=p.entrada>0?((p.entrada-p.saida)/p.entrada*100):0;
+    const color=mg>=20?'#22c55e':mg>=0?'#eab308':'#ef4444';
+    const maxRec=Math.max(...projs.filter(e=>e[1].entrada>=70000).map(e=>e[1].entrada),1);
+    const radius=6+Math.round((p.entrada/maxRec)*12);
+    return{x:p.entrada,y:Math.round(mg*10)/10,nome:p.nome,despesa:p.saida,color,radius};
+  });
+  if(scatterData.length>0){
+    const refLines={id:'refLines',afterDraw:function(chart){const yScale=chart.scales.y,ctx=chart.ctx,left=chart.chartArea.left,right=chart.chartArea.right;
+      [[0,'#ef4444','Break-even'],[20,'#22c55e','Margem 20%']].forEach(function(ref){
+        const yPx=yScale.getPixelForValue(ref[0]);if(yPx<chart.chartArea.top||yPx>chart.chartArea.bottom)return;
+        ctx.save();ctx.setLineDash([6,4]);ctx.strokeStyle=ref[1]+'66';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();
+        ctx.fillStyle=ref[1]+'99';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText(ref[2],left+4,yPx-5);ctx.restore();
+      });}};
+    charts.mScatter=new Chart(document.getElementById('chartMargemScatter'),{type:'scatter',data:{datasets:[{data:scatterData.map(d=>({x:d.x,y:d.y})),backgroundColor:scatterData.map(d=>d.color+'cc'),borderColor:scatterData.map(d=>d.color),borderWidth:1.5,pointRadius:scatterData.map(d=>d.radius),pointHoverRadius:scatterData.map(d=>d.radius+3)}]},plugins:[refLines],options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){const d=scatterData[ctx.dataIndex];return[d.nome,'Receita: R$ '+(d.x/1000).toFixed(0)+'K','Despesa: R$ '+(d.despesa/1000).toFixed(0)+'K','Margem: '+d.y+'%']}}}},scales:{x:{title:{display:true,text:'Receita (R$)',color:'#94a3b8',font:{size:11}},ticks:{color:'#94a3b8',callback:v=>'R$ '+(v/1000).toFixed(0)+'K'},grid:{color:'#33415522'}},y:{title:{display:true,text:'Margem %',color:'#94a3b8',font:{size:11}},ticks:{color:'#94a3b8',callback:v=>v+'%'},grid:{color:'#33415522'}}}}});
+  }
+
   allProjData=projs.sort((a,b)=>(b[1].entrada-b[1].saida)-(a[1].entrada-a[1].saida)).map(([id,p])=>({id,...p}));
   document.getElementById('projetoBusca').value='';
   renderProjetoTabela(allProjData);
