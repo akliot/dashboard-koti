@@ -398,7 +398,7 @@ let dadosOriginal=null, dadosFiltrados=null, charts={}, allProjData=[];
 
 const fmt=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v);
 const fmtNum=v=>new Intl.NumberFormat('pt-BR').format(v);
-const fmtK=v=>v>=1e6?`R$ ${(v/1e6).toFixed(1)}M`:v>=1e3?`R$ ${(v/1e3).toFixed(0)}K`:fmt(v);
+const fmtK=v=>{const a=Math.abs(v),s=v<0?'-':'';return a>=1e6?`${s}R$ ${(a/1e6).toFixed(1)}M`:a>=1e3?`${s}R$ ${(a/1e3).toFixed(0)}K`:fmt(v)};
 const fmtM=v=>Math.abs(v)>=1e5?`${(v/1e6).toFixed(1)}M`:Math.abs(v)>=1e3?`${(v/1e3).toFixed(0)}K`:fmtNum(v);
 const mesNome=k=>{const[y,m]=k.split('-');return['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]+'/'+y.slice(2)};
 const cores=['#3b82f6','#22c55e','#ef4444','#eab308','#a855f7','#06b6d4','#f97316','#ec4899','#14b8a6','#8b5cf6','#f59e0b','#10b981','#6366f1','#84cc16','#e11d48'];
