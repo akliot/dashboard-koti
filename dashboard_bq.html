@@ -220,6 +220,13 @@ tr:hover td{background:rgba(59,130,246,.05)}
     <div class="page" id="page-fluxo-caixa">
       <span class="regime-badge caixa">Regime Caixa</span>
       <div class="kpi-row" id="kpi-fluxo"></div>
+      <div id="aging-section" style="display:none">
+        <div class="kpi-row" id="kpi-inadimplencia"></div>
+        <div class="chart-row">
+          <div class="chart-card"><h3>Aging — Contas a Receber Atrasadas</h3><div class="chart-container" style="height:200px"><canvas id="chartAging"></canvas></div></div>
+          <div class="chart-card"><h3>Top 10 Inadimplentes</h3><div id="tblInadimplentes" style="max-height:280px;overflow-y:auto"></div></div>
+        </div>
+      </div>
       <div class="chart-row">
         <div class="chart-card"><h3>Despesas por Grupo</h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div></div>
         <div class="chart-card"><h3>Receitas por Grupo</h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div></div>
@@ -942,6 +949,58 @@ function renderFluxoCaixa(d){
 
   // Tabela
   renderFluxoTabela(d);
+
+  // Aging / Inadimplência
+  renderAging(d);
+}
+
+function renderAging(d){
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const atrasados=dadosFiltrados.lancamentos.filter(l=>{
+    if(l.tipo!=='entrada')return false;
+    if(l.status!=='ATRASADO')return false;
+    return true;
+  });
+  if(!atrasados.length){document.getElementById('aging-section').style.display='none';return}
+  document.getElementById('aging-section').style.display='block';
+
+  const totalAtrasado=atrasados.reduce((s,l)=>s+l.valor,0);
+  const pctFat=d.tE>0?(totalAtrasado/d.tE*100):0;
+  const corInad=pctFat>15?'red':pctFat>5?'yellow':'green';
+  document.getElementById('kpi-inadimplencia').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Inadimplência</div><div class="kpi-value ${corInad}">${fmt(totalAtrasado)}</div><div class="kpi-sub">${pctFat.toFixed(1)}% do faturamento total</div></div>
+    <div class="kpi-card"><div class="kpi-label">Títulos Atrasados</div><div class="kpi-value yellow">${atrasados.length}</div></div>`;
+
+  // Aging buckets
+  const buckets=[{label:'1-30 dias',min:1,max:30,val:0},{label:'31-60 dias',min:31,max:60,val:0},{label:'61-90 dias',min:61,max:90,val:0},{label:'90+ dias',min:91,max:9999,val:0}];
+  atrasados.forEach(l=>{
+    const venc=new Date(l.data_vencimento);
+    const dias=Math.floor((hoje-venc)/(86400000));
+    const b=buckets.find(b=>dias>=b.min&&dias<=b.max);
+    if(b)b.val+=l.valor;
+  });
+  const agingColors=['#eab30888','#f9731688','#ef444488','#ef4444cc'];
+  if(charts.aging)charts.aging.destroy();
+  charts.aging=new Chart(document.getElementById('chartAging'),{type:'bar',data:{labels:buckets.map(b=>b.label),datasets:[{data:buckets.map(b=>b.val),backgroundColor:agingColors,borderColor:agingColors.map(c=>c.replace('88','').replace('cc','')),borderWidth:1}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#e2e8f0',font:{size:10,weight:500},formatter:v=>fmtK(v)}},scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8'},grid:{color:'#1e293b'}}}}});
+
+  // Top 10 inadimplentes
+  const porCli={};
+  atrasados.forEach(l=>{
+    const k=l.cliente_nome||'Sem nome';
+    if(!porCli[k])porCli[k]={valor:0,qtd:0,maxDias:0};
+    porCli[k].valor+=l.valor;
+    porCli[k].qtd++;
+    const venc=new Date(l.data_vencimento);
+    const dias=Math.floor((hoje-venc)/86400000);
+    if(dias>porCli[k].maxDias)porCli[k].maxDias=dias;
+  });
+  const top10=Object.entries(porCli).sort((a,b)=>b[1].valor-a[1].valor).slice(0,10);
+  let h='<table><thead><tr><th>Cliente</th><th style="text-align:right">Valor</th><th style="text-align:right">Dias</th><th style="text-align:right">Títulos</th></tr></thead><tbody>';
+  top10.forEach(([nome,d])=>{
+    h+=`<tr><td>${nome.substring(0,30)}</td><td style="text-align:right;color:var(--red)">${fmt(d.valor)}</td><td style="text-align:right">${d.maxDias}d</td><td style="text-align:right">${d.qtd}</td></tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('tblInadimplentes').innerHTML=h;
 }
 
 function renderFluxoTabela(d){
