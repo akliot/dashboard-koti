@@ -220,7 +220,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="vg-grid" id="vg-kpis"></div>
       <div class="vg-sparks" id="vg-sparks">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
-        <div class="vg-spark"><h4>Evolução Caixa (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div></div>
+        <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
         <div class="vg-spark"><h4>Margem Líquida % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div><p class="chart-note">Competência. (Receita − Despesa) ÷ Receita × 100</p></div>
         <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="sparkVarCaixa"></canvas></div><p class="chart-note">Caixa. (Entradas − Saídas) ÷ Entradas × 100</p></div>
       </div>
@@ -777,9 +777,10 @@ function renderVisaoGeral(d,dc){
               {data:spk1Sai,backgroundColor:'#FF6B6B88',borderRadius:4}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk1Max,suggestedMin:spk1Min}}}});
 
-  // Spark 2: Evolução Caixa (saldo acumulado a partir dos lançamentos)
-  let acum=0;
-  const caixaAcum=m6.map(m=>{const e=d.porMes[m]?.entrada||0,s=d.porMes[m]?.saida||0;acum+=e-s;return acum});
+  // Spark 2: Evolução Caixa (saldo bancário real do historico_conciliacao)
+  const histSp=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  const spSaldo={};histSp.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);spSaldo[m]=(spSaldo[m]||0)+h.saldo_atual});
+  const caixaAcum=m6.map(m=>spSaldo[m]||0);
   const spk2Max=Math.max(...caixaAcum)*1.15;
   charts.spkCx=new Chart(document.getElementById('sparkCaixa'),{type:'line',data:{
     labels:m6.map(mesNome),
