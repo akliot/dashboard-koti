@@ -362,7 +362,7 @@ tr:hover td{background:rgba(59,130,246,.05)}
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
-          <h3>Margem por Projeto (&gt; R$ 70K)</h3>
+          <h3>Receita vs Margem % (projetos com faturamento &gt; R$ 70K)</h3>
           <div class="chart-container" style="height:360px"><canvas id="chartMargemScatter"></canvas></div>
         </div>
       </div>
@@ -1306,7 +1306,7 @@ function renderProjetos(dc){
   const topD=projs.filter(e=>e[1].saida>0).sort((a,b)=>b[1].saida-a[1].saida).slice(0,10);
   charts.tPD=new Chart(document.getElementById('chartTopProjDesp'),{type:'bar',data:{labels:topD.map(e=>e[1].nome.substring(0,35)),datasets:[{data:topD.map(e=>e[1].saida),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}]},options:hBarOpts()});
   // Scatter: Margem por Projeto (receita >= 70K)
-  const scatterData=projs.filter(e=>e[1].entrada>=70000).map(([id,p])=>{
+  const scatterData=projs.filter(e=>e[1].entrada>=70000&&!/\bsk\b|studio koti/i.test(e[1].nome)).map(([id,p])=>{
     const mg=p.entrada>0?((p.entrada-p.saida)/p.entrada*100):0;
     const color=mg>=20?'#22c55e':mg>=0?'#eab308':'#ef4444';
     const maxRec=Math.max(...projs.filter(e=>e[1].entrada>=70000).map(e=>e[1].entrada),1);
