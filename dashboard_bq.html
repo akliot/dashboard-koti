@@ -199,12 +199,12 @@ tr:hover td{background:rgba(74,144,255,.04)}
 </div>
 <div class="tabs" id="tabsContainer" style="display:none">
   <button class="tab active" data-tab="visao-geral">Visão Geral</button>
-  <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa <span class="regime-badge caixa">Caixa</span></button>
-  <button class="tab" data-tab="financeiro">Financeiro <span class="regime-badge competencia">Competência</span></button>
-  <button class="tab" data-tab="conciliacao">Conciliação FD <span class="regime-badge competencia">Competência</span></button>
-  <button class="tab" data-tab="vendas">Vendas <span class="regime-badge caixa">Caixa</span></button>
-  <button class="tab" data-tab="projetos">Projetos <span class="regime-badge competencia">Competência</span></button>
-  <button class="tab" data-tab="orcamento">Real vs Orçado <span class="regime-badge competencia">Competência</span></button>
+  <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
+  <button class="tab" data-tab="financeiro">Financeiro</button>
+  <button class="tab" data-tab="conciliacao">Conciliação FD</button>
+  <button class="tab" data-tab="vendas">Vendas</button>
+  <button class="tab" data-tab="projetos">Projetos</button>
+  <button class="tab" data-tab="orcamento">Real vs Orçado</button>
   <button class="tab" data-tab="rh">RH</button>
 </div>
 <div class="content">
@@ -235,17 +235,17 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div id="aging-section" style="display:none">
         <div class="kpi-row" id="kpi-inadimplencia"></div>
         <div class="chart-row">
-          <div class="chart-card"><h3>Aging — Contas a Receber Atrasadas</h3><div class="chart-container" style="height:200px"><canvas id="chartAging"></canvas></div><p class="chart-note">Dias de atraso = hoje − data de vencimento</p></div>
-          <div class="chart-card"><h3>Top 10 Inadimplentes</h3><div id="tblInadimplentes" style="max-height:280px;overflow-y:auto"></div></div>
+          <div class="chart-card"><h3>Aging — Contas a Receber Atrasadas <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container" style="height:200px"><canvas id="chartAging"></canvas></div><p class="chart-note">Dias de atraso = hoje − data de vencimento</p></div>
+          <div class="chart-card"><h3>Top 10 Inadimplentes <span class="regime-badge caixa">Caixa</span></h3><div id="tblInadimplentes" style="max-height:280px;overflow-y:auto"></div></div>
         </div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Despesas por Grupo</h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div><p class="chart-note">Grupos de categoria (2 primeiros níveis do plano de contas)</p></div>
-        <div class="chart-card"><h3>Receitas por Grupo</h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div><p class="chart-note">1.04 desmembrado em Fat. Direto e Financiamento</p></div>
+        <div class="chart-card"><h3>Despesas por Grupo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartDespGrupo"></canvas></div><p class="chart-note">Grupos de categoria (2 primeiros níveis do plano de contas)</p></div>
+        <div class="chart-card"><h3>Receitas por Grupo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartRecGrupo"></canvas></div><p class="chart-note">1.04 desmembrado em Fat. Direto e Financiamento</p></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Custos: Cascata por Tipo</h3><div class="chart-container"><canvas id="chartCustosStack"></canvas></div><p class="chart-note">Custo Direto (2.01) + SG&A (2.02-2.04) + Outros → Total</p></div>
-        <div class="chart-card"><h3>Receitas: Realizado vs A Realizar</h3><div class="chart-container"><canvas id="chartReceitasStack"></canvas></div><p class="chart-note">Recebido vs pendente (A Vencer + Atrasado)</p></div>
+        <div class="chart-card"><h3>Custos: Cascata por Tipo <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartCustosStack"></canvas></div><p class="chart-note">Custo Direto (2.01) + SG&A (2.02-2.04) + Outros → Total</p></div>
+        <div class="chart-card"><h3>Receitas: Realizado vs A Realizar <span class="regime-badge caixa">Caixa</span></h3><div class="chart-container"><canvas id="chartReceitasStack"></canvas></div><p class="chart-note">Recebido vs pendente (A Vencer + Atrasado)</p></div>
       </div>
       <div class="chart-card" style="margin-bottom:20px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -260,7 +260,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-            <h3 style="margin:0">Fluxo por Categoria</h3>
+            <h3 style="margin:0">Fluxo por Categoria <span class="regime-badge caixa">Caixa</span></h3>
             <div class="periodo-btns" id="fluxoVisaoBtns">
               <button onclick="setFluxoVisao('consolidado',this)" class="active">Consolidado</button>
               <button onclick="setFluxoVisao('mensal',this)">Mês a mês</button>
@@ -276,22 +276,22 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-financeiro"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal)</h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div><p class="chart-note">Regime de competência (data de vencimento, exclui atrasados)</p></div>
-        <div class="chart-card"><h3>Resultado Mensal (Receita - Custos - Despesas)</h3><div class="chart-container"><canvas id="chartFinResultado"></canvas></div><p class="chart-note">Competência. Verde = lucro, vermelho = prejuízo</p></div>
+        <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal) <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div><p class="chart-note">Regime de competência (data de vencimento, exclui atrasados)</p></div>
+        <div class="chart-card"><h3>Resultado Mensal <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartFinResultado"></canvas></div><p class="chart-note">Competência. Verde = lucro, vermelho = prejuízo</p></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Despesas s/ Custo Direto (% da Receita Mensal)</h3><div class="chart-container"><canvas id="chartFinFinanceiras"></canvas></div><p class="chart-note">SG&A + Outros como % da receita mensal</p></div>
-        <div class="chart-card"><h3>Composição de Saídas</h3><div class="chart-container"><canvas id="chartFinComposicao"></canvas></div><p class="chart-note">Distribuição por grupo de despesa no período</p></div>
+        <div class="chart-card"><h3>Despesas s/ Custo Direto (% Receita) <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartFinFinanceiras"></canvas></div><p class="chart-note">SG&A + Outros como % da receita mensal</p></div>
+        <div class="chart-card"><h3>Composição de Saídas <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartFinComposicao"></canvas></div><p class="chart-note">Distribuição por grupo de despesa no período</p></div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
-          <h3>Detalhamento Mês a Mês</h3>
+          <h3>Detalhamento Mês a Mês <span class="regime-badge competencia">Competência</span></h3>
           <div class="fin-detail-table" id="finDetailTable"></div>
         </div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Contas a Receber vs Pagar</h3><div class="chart-container"><canvas id="chartReceberPagar"></canvas></div><p class="chart-note">Posição de caixa futuro por mês</p></div>
-        <div class="chart-card"><h3>A Vencer vs Atrasado (Receber / Pagar)</h3><div class="chart-container"><canvas id="chartVencidos"></canvas></div><p class="chart-note">Títulos pendentes por status e tipo</p></div>
+        <div class="chart-card"><h3>Contas a Receber vs Pagar <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartReceberPagar"></canvas></div><p class="chart-note">Posição de caixa futuro por mês</p></div>
+        <div class="chart-card"><h3>A Vencer vs Atrasado <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartVencidos"></canvas></div><p class="chart-note">Títulos pendentes por status e tipo</p></div>
       </div>
     </div>
 
@@ -300,10 +300,10 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-concilFD"></div>
       <div class="chart-row">
-        <div class="chart-card" style="flex:3"><h3>Conciliação Faturamento Direto</h3>
+        <div class="chart-card" style="flex:3"><h3>Conciliação Faturamento Direto <span class="regime-badge competencia">Competência</span></h3>
           <div class="chart-container" id="concilFDContainer"><canvas id="chartConcilFD"></canvas></div>
         </div>
-        <div class="chart-card" style="flex:2"><h3>Saldo FD por Projeto</h3>
+        <div class="chart-card" style="flex:2"><h3>Saldo FD por Projeto <span class="regime-badge competencia">Competência</span></h3>
           <div class="chart-container" id="saldoFDContainer"><canvas id="chartSaldoFD"></canvas></div>
         </div>
       </div>
@@ -315,12 +315,12 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-vendas"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Vendas por Mês</h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div><p class="chart-note">Competência (data de vencimento)</p></div>
-        <div class="chart-card"><h3>Pedidos por Etapa</h3><div class="chart-container"><canvas id="chartEtapas"></canvas></div><p class="chart-note">Pipeline de vendas atual</p></div>
+        <div class="chart-card"><h3>Vendas por Mês <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div><p class="chart-note">Competência (data de vencimento)</p></div>
+        <div class="chart-card"><h3>Pedidos por Etapa <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartEtapas"></canvas></div><p class="chart-note">Pipeline de vendas atual</p></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Top Clientes (por Receita)</h3><div class="chart-container"><canvas id="chartTopClientes"></canvas></div><p class="chart-note">Top 10 clientes por valor de entrada no período</p></div>
-        <div class="chart-card"><h3>Top Projetos (por Receita)</h3><div class="chart-container"><canvas id="chartTopProjVendas"></canvas></div><p class="chart-note">Top 10 projetos por valor de entrada no período</p></div>
+        <div class="chart-card"><h3>Top Clientes (por Receita) <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartTopClientes"></canvas></div><p class="chart-note">Top 10 clientes por valor de entrada no período</p></div>
+        <div class="chart-card"><h3>Top Projetos (por Receita) <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartTopProjVendas"></canvas></div><p class="chart-note">Top 10 projetos por valor de entrada no período</p></div>
       </div>
     </div>
 
@@ -341,16 +341,16 @@ tr:hover td{background:rgba(74,144,255,.04)}
       </div>
       <div class="kpi-row" id="kpi-orcamento"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Receita Bruta: Real vs Orçado</h3><div class="chart-container"><canvas id="chartOrcReceita"></canvas></div><p class="chart-note">Real da planilha BP vs Business Plan</p></div>
-        <div class="chart-card"><h3>EBITDA: Real vs Orçado</h3><div class="chart-container"><canvas id="chartOrcEbitda"></canvas></div><p class="chart-note">EBITDA = Receita − Custos − SG&A</p></div>
+        <div class="chart-card"><h3>Receita Bruta: Real vs Orçado <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartOrcReceita"></canvas></div><p class="chart-note">Real da planilha BP vs Business Plan</p></div>
+        <div class="chart-card"><h3>EBITDA: Real vs Orçado <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartOrcEbitda"></canvas></div><p class="chart-note">EBITDA = Receita − Custos − SG&A</p></div>
       </div>
       <div class="chart-row">
         <div class="chart-card"><h3 id="wfTitle">Waterfall: Variação Acumulada</h3><div class="chart-container" style="height:350px"><canvas id="chartOrcWaterfall"></canvas></div></div>
-        <div class="chart-card"><h3>% Atingimento por Linha</h3><div class="chart-container" style="height:350px"><canvas id="chartOrcAtingimento"></canvas></div></div>
+        <div class="chart-card"><h3>% Atingimento por Linha <span class="regime-badge competencia">Competência</span></h3><div class="chart-container" style="height:350px"><canvas id="chartOrcAtingimento"></canvas></div></div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
-          <h3>DRE Comparativo Detalhado</h3>
+          <h3>DRE Comparativo Detalhado <span class="regime-badge competencia">Competência</span></h3>
           <div class="proj-table" id="orcTabela"></div>
           <input type="hidden" id="orcPeriodo" value="acumulado">
         </div>
@@ -362,19 +362,19 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-projetos"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Top Projetos por Receita</h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjRec"></canvas></div><p class="chart-note">Dados all-time dos projetos ativos no período</p></div>
-        <div class="chart-card"><h3>Top Projetos por Despesa</h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjDesp"></canvas></div><p class="chart-note">Dados all-time dos projetos ativos no período</p></div>
+        <div class="chart-card"><h3>Top Projetos por Receita <span class="regime-badge competencia">Competência</span></h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjRec"></canvas></div><p class="chart-note">Dados all-time dos projetos ativos no período</p></div>
+        <div class="chart-card"><h3>Top Projetos por Despesa <span class="regime-badge competencia">Competência</span></h3><div class="chart-container" style="height:320px"><canvas id="chartTopProjDesp"></canvas></div><p class="chart-note">Dados all-time dos projetos ativos no período</p></div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
-          <h3>Receita vs Margem % (projetos com faturamento &gt; R$ 70K)</h3>
+          <h3>Receita vs Margem % (&gt; R$ 70K) <span class="regime-badge competencia">Competência</span></h3>
           <div class="chart-container" style="height:360px"><canvas id="chartMargemScatter"></canvas></div>
           <p class="chart-note">Dados acumulados all-time do projeto. Filtro de datas seleciona quais projetos exibir.</p>
         </div>
       </div>
       <div class="chart-row">
         <div class="chart-card" style="grid-column:1/-1">
-          <h3>Detalhamento por Projeto</h3>
+          <h3>Detalhamento por Projeto <span class="regime-badge competencia">Competência</span></h3>
           <input type="text" class="search-input" id="projetoBusca" placeholder="🔍 Buscar projeto..." oninput="filtrarProjetos()">
           <div class="proj-table" id="projetoDetalhe"></div>
           <p class="chart-note">Competência, dados all-time. SK = Studio Koti, FD = Faturamento Direto</p>
