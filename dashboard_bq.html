@@ -65,6 +65,7 @@ body{font-family:'DM Sans',system-ui,-apple-system,sans-serif;background:var(--b
 .tab:hover{color:#e2e8f0}.tab.active{color:#3b82f6;border-bottom-color:#3b82f6}
 .content{padding:20px 24px}
 .page{display:none}.page.active{display:block}
+.chart-note{font-size:11px;color:rgba(255,255,255,.35);margin-top:8px;line-height:1.6;font-style:italic}
 .regime-badge{display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:8px;letter-spacing:.3px;opacity:.7;margin-left:6px;vertical-align:middle}
 .regime-badge.caixa{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
 .regime-badge.competencia{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.25)}
@@ -218,9 +219,9 @@ tr:hover td{background:rgba(74,144,255,.04)}
     <div class="page active" id="page-visao-geral">
       <div class="vg-grid" id="vg-kpis"></div>
       <div class="vg-sparks" id="vg-sparks">
-        <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div></div>
+        <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
         <div class="vg-spark"><h4>Evolução Caixa (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div></div>
-        <div class="vg-spark"><h4>Resultado Operacional % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div></div>
+        <div class="vg-spark"><h4>Resultado Operacional % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div><p class="chart-note">Regime de competência. (Receita − Despesa) ÷ Receita × 100</p></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
       <div class="vg-dre" id="vg-dre"></div>
@@ -230,10 +231,11 @@ tr:hover td{background:rgba(74,144,255,.04)}
     <div class="page" id="page-fluxo-caixa">
 
       <div class="kpi-row" id="kpi-fluxo"></div>
+      <p class="chart-note" style="margin-bottom:16px">Todos os valores por regime de caixa (data de pagamento)</p>
       <div id="aging-section" style="display:none">
         <div class="kpi-row" id="kpi-inadimplencia"></div>
         <div class="chart-row">
-          <div class="chart-card"><h3>Aging — Contas a Receber Atrasadas</h3><div class="chart-container" style="height:200px"><canvas id="chartAging"></canvas></div></div>
+          <div class="chart-card"><h3>Aging — Contas a Receber Atrasadas</h3><div class="chart-container" style="height:200px"><canvas id="chartAging"></canvas></div><p class="chart-note">Dias de atraso = hoje − data de vencimento</p></div>
           <div class="chart-card"><h3>Top 10 Inadimplentes</h3><div id="tblInadimplentes" style="max-height:280px;overflow-y:auto"></div></div>
         </div>
       </div>
@@ -274,7 +276,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-financeiro"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal)</h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div></div>
+        <div class="chart-card"><h3>Receita vs Custo Direto vs SG&amp;A (Mensal)</h3><div class="chart-container"><canvas id="chartFinStack"></canvas></div><p class="chart-note">Regime de competência (data de vencimento, exclui atrasados)</p></div>
         <div class="chart-card"><h3>Resultado Mensal (Receita - Custos - Despesas)</h3><div class="chart-container"><canvas id="chartFinResultado"></canvas></div></div>
       </div>
       <div class="chart-row">
@@ -367,7 +369,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
         <div class="chart-card" style="grid-column:1/-1">
           <h3>Receita vs Margem % (projetos com faturamento &gt; R$ 70K)</h3>
           <div class="chart-container" style="height:360px"><canvas id="chartMargemScatter"></canvas></div>
-          <p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:8px">Dados acumulados do projeto inteiro • Filtro de datas seleciona quais projetos exibir</p>
+          <p class="chart-note">Dados acumulados all-time do projeto. Filtro de datas seleciona quais projetos exibir.</p>
         </div>
       </div>
       <div class="chart-row">
@@ -375,6 +377,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
           <h3>Detalhamento por Projeto</h3>
           <input type="text" class="search-input" id="projetoBusca" placeholder="🔍 Buscar projeto..." oninput="filtrarProjetos()">
           <div class="proj-table" id="projetoDetalhe"></div>
+          <p class="chart-note">Competência, dados all-time. SK = Studio Koti, FD = Faturamento Direto</p>
         </div>
       </div>
     </div>
@@ -750,11 +753,11 @@ function renderVisaoGeral(d,dc){
 
   // KPIs
   document.getElementById('vg-kpis').innerHTML=`
-    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita Mês</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs mês anterior ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div></div>
-    <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div></div>
+    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita Mês</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs mês anterior ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div><p class="chart-note">Caixa (data de pagamento)</p></div>
+    <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div><p class="chart-note">Competência (exclui atrasados)</p></div>
     <div class="vg-kpi bar-cyan"><div class="vg-lbl">Caixa Total</div><div class="vg-val" style="color:#2DD4BF">${fmt(saldoTotal)}</div><div class="vg-sub">${varSaldo!=='--'?(Number(varSaldo)>=0?'↑':'↓')+Math.abs(varSaldo)+'% vs mês ant':'--'}</div></div>
-    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Meses de Caixa</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses de operação</div></div>
-    <div class="vg-kpi ${corInad}"><div class="vg-lbl">Inadimplência</div><div class="vg-val" style="color:${corInadTxt}">${fmt(vRec)}</div><div class="vg-sub">${pctInad.toFixed(1)}% da receita</div></div>
+    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Meses de Caixa</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses de operação</div><p class="chart-note">Saldo ÷ média despesas 3m</p></div>
+    <div class="vg-kpi ${corInad}"><div class="vg-lbl">Inadimplência</div><div class="vg-val" style="color:${corInadTxt}">${fmt(vRec)}</div><div class="vg-sub">${pctInad.toFixed(1)}% da receita</div><p class="chart-note">Atrasados ÷ receita do período</p></div>
     <div class="vg-kpi bar-purple"><div class="vg-lbl">Headcount</div><div class="vg-val" style="color:#A78BFA">${hc}</div><div class="vg-sub">funcionários</div></div>`;
 
   // Sparklines (últimos 6 meses)
