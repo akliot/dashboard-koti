@@ -1354,10 +1354,14 @@ function filtrarProjetos(){
 
 function renderProjetoTabela(data){
   let h='<table><thead><tr><th>Projeto</th><th style="text-align:right">Receita SK</th><th style="text-align:right">Receita FD</th><th style="text-align:right">Despesas SK</th><th style="text-align:right">Despesas FD</th><th style="text-align:right">Resultado</th><th style="text-align:right">Margem</th></tr></thead><tbody>';
+  let tEntSk=0,tEntFd=0,tSaiSk=0,tSaiFd=0;
   data.forEach(p=>{
+    tEntSk+=p.ent_sk||0;tEntFd+=p.ent_fd||0;tSaiSk+=p.sai_sk||0;tSaiFd+=p.sai_fd||0;
     const recTotal=p.entrada,r=p.entrada-p.saida,mg=recTotal>0?(r/recTotal*100).toFixed(1):p.saida>0?'-100':'0';
     h+=`<tr><td>${p.nome}</td><td style="text-align:right" class="valor-entrada">${p.ent_sk?fmt(p.ent_sk):'-'}</td><td style="text-align:right" class="valor-entrada">${p.ent_fd?fmt(p.ent_fd):'-'}</td><td style="text-align:right" class="valor-saida">${p.sai_sk?fmt(p.sai_sk):'-'}</td><td style="text-align:right" class="valor-saida">${p.sai_fd?fmt(p.sai_fd):'-'}</td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}"><strong>${fmt(r)}</strong></td><td style="text-align:right;color:${r>=0?'var(--green)':'var(--red)'}">${mg}%</td></tr>`;
   });
+  const tRec=tEntSk+tEntFd,tSai=tSaiSk+tSaiFd,tRes=tRec-tSai,tMg=tRec>0?(tRes/tRec*100).toFixed(1):'0';
+  h+=`<tr style="font-weight:700;border-top:2px solid var(--accent)"><td>TOTAL</td><td style="text-align:right" class="valor-entrada">${fmt(tEntSk)}</td><td style="text-align:right" class="valor-entrada">${fmt(tEntFd)}</td><td style="text-align:right" class="valor-saida">${fmt(tSaiSk)}</td><td style="text-align:right" class="valor-saida">${fmt(tSaiFd)}</td><td style="text-align:right;color:${tRes>=0?'var(--green)':'var(--red)'}">${fmt(tRes)}</td><td style="text-align:right;color:${tRes>=0?'var(--green)':'var(--red)'}">${tMg}%</td></tr>`;
   h+=`</tbody></table>`;
   if(!data.length) h='<p style="text-align:center;color:var(--muted);padding:24px">Nenhum projeto encontrado</p>';
   document.getElementById('projetoDetalhe').innerHTML=h;
