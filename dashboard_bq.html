@@ -131,7 +131,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
 #page-visao-geral .vg-lbl{text-transform:uppercase;letter-spacing:1px;font-size:11px;font-weight:500;color:rgba(255,255,255,.5);margin-bottom:10px}
 #page-visao-geral .vg-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;margin-bottom:6px}
 #page-visao-geral .vg-sub{font-size:12px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:5px}
-#page-visao-geral .vg-sparks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+#page-visao-geral .vg-sparks{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
 #page-visao-geral .vg-spark{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px 18px;transition:all .3s ease}
 #page-visao-geral .vg-spark:hover{border-color:rgba(255,255,255,.12)}
 #page-visao-geral .vg-spark h4{font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:8px}
@@ -221,7 +221,8 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="vg-sparks" id="vg-sparks">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
         <div class="vg-spark"><h4>Evolução Caixa (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div></div>
-        <div class="vg-spark"><h4>Resultado Operacional % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div><p class="chart-note">Regime de competência. (Receita − Despesa) ÷ Receita × 100</p></div>
+        <div class="vg-spark"><h4>Margem Líquida % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div><p class="chart-note">Competência. (Receita − Despesa) ÷ Receita × 100</p></div>
+        <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="sparkVarCaixa"></canvas></div><p class="chart-note">Caixa. (Entradas − Saídas) ÷ Entradas × 100</p></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
       <div class="vg-dre" id="vg-dre"></div>
@@ -794,6 +795,15 @@ function renderVisaoGeral(d,dc){
     datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk3Max}}}});
+
+  // Spark 4: Variação de Caixa % (regime caixa)
+  const vcData=m6.map(m=>{const pm=d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  const spk4Max=Math.max(...vcData.map(Math.abs))*1.35;
+  charts.spkVC=new Chart(document.getElementById('sparkVarCaixa'),{type:'line',data:{
+    labels:m6.map(mesNome),
+    datasets:[{data:vcData,borderColor:'#2DD4BF',backgroundColor:'#2DD4BF22',fill:true,tension:.4,
+      segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}}]
+  },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk4Max,suggestedMin:-spk4Max}}}});
 
   // Alertas automáticos
   const alerts=[];
