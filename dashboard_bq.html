@@ -761,22 +761,19 @@ function renderVisaoGeral(d,dc){
               {data:m6.map(m=>-(d.porMes[m]?.saida||0)),backgroundColor:'#FF6B6B88',borderRadius:4}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
 
-  // Spark 2: Evolução Caixa
-  const histC=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
-  const pmS={};histC.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);pmS[m]=(pmS[m]||0)+h.saldo_atual});
-  const m6c=Object.keys(pmS).sort().slice(-6);
+  // Spark 2: Evolução Caixa (saldo acumulado a partir dos lançamentos)
+  let acum=0;
+  const caixaAcum=m6.map(m=>{const e=d.porMes[m]?.entrada||0,s=d.porMes[m]?.saida||0;acum+=e-s;return acum});
   charts.spkCx=new Chart(document.getElementById('sparkCaixa'),{type:'line',data:{
-    labels:m6c.map(mesNome),
-    datasets:[{data:m6c.map(m=>pmS[m]),borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
+    labels:m6.map(mesNome),
+    datasets:[{data:caixaAcum,borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
 
-  // Spark 3: Resultado Operacional % (competência)
+  // Spark 3: Resultado Operacional % (competência, mesmos 6 meses)
   const dcPM=dc?dc.porMes:{};
-  const m6dc=Object.keys(dcPM).sort().slice(-6);
-  const mrgM6=m6dc.length>=3?m6dc:m6;
-  const mrgData=mrgM6.map(m=>{const pm=dcPM[m]||d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  const mrgData=m6.map(m=>{const pm=dcPM[m]||d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
   charts.spkMg=new Chart(document.getElementById('sparkMargem'),{type:'line',data:{
-    labels:mrgM6.map(mesNome),
+    labels:m6.map(mesNome),
     datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false}}}});
