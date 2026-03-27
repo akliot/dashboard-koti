@@ -218,11 +218,14 @@ tr:hover td{background:rgba(74,144,255,.04)}
     <!-- VISÃO GERAL (Premium) -->
     <div class="page active" id="page-visao-geral">
       <div class="vg-grid" id="vg-kpis"></div>
-      <div class="vg-sparks" id="vg-sparks">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
-        <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
-        <div class="vg-spark"><h4>EBITDA (6m) <div class="periodo-btns" style="display:inline-flex;margin-left:6px;vertical-align:middle"><button onclick="setEbitdaMode('real',this)" class="active" style="font-size:9px;padding:2px 6px">Imp Real</button><button onclick="setEbitdaMode('teorico',this)" style="font-size:9px;padding:2px 6px">Imp 11%</button></div></h4><div style="height:120px"><canvas id="sparkEbitda"></canvas></div><p class="chart-note" id="ebitdaNote">Competência D-1. ISS + COFINS deslocados 1 mês.</p></div>
         <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="sparkVarCaixa"></canvas></div><p class="chart-note">Caixa. (Entradas − Saídas) ÷ Entradas × 100</p></div>
+        <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px">
+        <div class="vg-spark"><h4>Faturamento (6m)</h4><div style="height:120px"><canvas id="sparkFat"></canvas></div><p class="chart-note">Competência. Receita bruta mensal</p></div>
+        <div class="vg-spark"><h4>EBITDA (6m) <div class="periodo-btns" style="display:inline-flex;margin-left:6px;vertical-align:middle"><button onclick="setEbitdaMode('real',this)" class="active" style="font-size:9px;padding:2px 6px">Imp Real</button><button onclick="setEbitdaMode('teorico',this)" style="font-size:9px;padding:2px 6px">Imp 11%</button></div></h4><div style="height:120px"><canvas id="sparkEbitda"></canvas></div><p class="chart-note" id="ebitdaNote">Competência D-1. ISS + COFINS deslocados 1 mês.</p></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
       <div class="vg-dre" id="vg-dre"></div>
@@ -852,6 +855,14 @@ function renderVisaoGeral(d,dc){
     datasets:[{data:vcData,borderColor:'#2DD4BF',backgroundColor:'#2DD4BF22',fill:true,tension:.4,
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk4Max,suggestedMin:-spk4Max}}}});
+
+  // Spark 5: Faturamento (competência)
+  const fatData=m6.map(m=>dcPM[m]?.entrada||d.porMes[m]?.entrada||0);
+  const spk5Max=Math.max(...fatData)*1.15;
+  charts.spkFat=new Chart(document.getElementById('sparkFat'),{type:'bar',data:{
+    labels:m6.map(mesNome),
+    datasets:[{data:fatData,backgroundColor:'#4A90FF88',borderColor:'#4A90FF',borderWidth:1,borderRadius:4}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk5Max}}}});
 
   // Alertas automáticos
   const alerts=[];
