@@ -6,6 +6,7 @@
 <title>Dashboard — Studio Koti</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script>
 // URL da API — BigQuery Cloud Function ou servidor local
 // Altere para a URL da Cloud Function após deploy
@@ -196,6 +197,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
   </div>
   <button class="btn-filter" onclick="aplicarFiltros()">Aplicar</button>
   <button class="btn-filter secondary" onclick="limparFiltros()">Limpar</button>
+  <button class="btn-filter" onclick="gerarRelatorioPDF()" style="margin-left:auto;background:transparent;border:1px solid #334155;color:#94a3b8;transition:all .2s" onmouseover="this.style.borderColor='#4A90FF';this.style.color='#EAF0FA';this.style.boxShadow='0 0 12px rgba(74,144,255,.15)'" onmouseout="this.style.borderColor='#334155';this.style.color='#94a3b8';this.style.boxShadow='none'">📄 Relatório</button>
 </div>
 <div class="tabs" id="tabsContainer" style="display:none">
   <button class="tab active" data-tab="visao-geral">Visão Geral</button>
@@ -2038,6 +2040,275 @@ async function showApp(){
     document.getElementById('loadingState').querySelector('p').innerHTML=
       `Não foi possível carregar dados da API.<br><code style="background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px">${API_URL}</code><br><br><span style="color:var(--muted);font-size:12px">${e.message}</span>`;
   }
+}
+
+// ============ RELATÓRIO PDF ============
+function gerarRelatorioPDF(){
+  if(!dadosFiltrados||!dadosOriginal){alert('Dados não carregados.');return}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210;
+  const BG='#0a0e17',CARD='#0F1420',MUTED='#94a3b8',WHITE='#EAF0FA',GREEN='#3DDC97',RED='#FF6B6B',BLUE='#4A90FF',CYAN='#2DD4BF',YELLOW='#FFB547';
+  const de=document.getElementById('filterDe').value,ate=document.getElementById('filterAte').value;
+  const agora=new Date();
+  const dataStr=agora.toLocaleDateString('pt-BR');
+  const horaStr=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const periodoStr=`${de} a ${ate}`;
+
+  // Recompute key metrics
+  const d=compute(),dc=computeCompetencia();
+  const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
+  const meses=Object.keys(d.porMes).sort();
+  const mesHoje=`${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  let mesAtual=meses.includes(mesHoje)?mesHoje:meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
+  const mesIdx=meses.indexOf(mesAtual);
+  const mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  const recMes=d.porMes[mesAtual]?.entrada||0;
+  const recMesAnt=d.porMes[mesAnt]?.entrada||0;
+  const despMes=d.porMes[mesAtual]?.saida||0;
+  const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100):0;
+
+  // Receita operacional (competência)
+  const _recOpExcluir=new Set(['1.01.99','1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
+  const _dcL=dc?dc.L:dadosFiltrados.lancamentos;
+  const recOpPorMes={};let recOpTotal=0,despOpTotal=0;
+  _dcL.forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;if(l.tipo==='entrada'&&!_recOpExcluir.has(l.categoria)){recOpPorMes[m]=(recOpPorMes[m]||0)+l.valor;recOpTotal+=l.valor}if(l.tipo==='saida'){despOpTotal+=l.valor}});
+  const resultado=recOpTotal-despOpTotal;
+  const margem=recOpTotal>0?(resultado/recOpTotal*100).toFixed(1):'0';
+
+  // EBITDA (simplified — use last computed sparkline data)
+  const sgaSet=new Set(['2.02','2.03','2.04','2.10']);
+  const impostosPorMes={};
+  _dcL.filter(l=>l.tipo==='saida'&&(l.categoria==='2.06.07'||l.categoria==='2.06.04')).forEach(l=>{const mV=toYM(l.data_vencimento||l.data);if(!mV)return;const[y,mo]=mV.split('-').map(Number);const mR=mo===1?`${y-1}-12`:`${y}-${String(mo-1).padStart(2,'0')}`;impostosPorMes[mR]=(impostosPorMes[mR]||0)+l.valor});
+  const custoPorMesP={},sgaPorMesP={};
+  _dcL.filter(l=>l.tipo==='saida').forEach(l=>{const g=(l.categoria||'').split('.').slice(0,2).join('.');const m=toYM(l.data_vencimento||l.data);if(!m)return;if(g==='2.01')custoPorMesP[m]=(custoPorMesP[m]||0)+l.valor;else if(sgaSet.has(g))sgaPorMesP[m]=(sgaPorMesP[m]||0)+l.valor});
+  let ebitdaTotal=0;
+  const m6=meses.filter(m=>m<=mesAtual).slice(-6);
+  const m6imp=m6.filter(m=>impostosPorMes[m]>0);
+  const somaImpR=m6imp.reduce((s,m)=>s+(impostosPorMes[m]||0),0);
+  const somaRecI=m6imp.reduce((s,m)=>s+(recOpPorMes[m]||0),0);
+  const taxaM=somaRecI>0?somaImpR/somaRecI:0.03;
+  m6.forEach(m=>{const rec=recOpPorMes[m]||0;const imp=impostosPorMes[m]!=null?impostosPorMes[m]:rec*taxaM;ebitdaTotal+=rec-imp-(custoPorMesP[m]||0)-(sgaPorMesP[m]||0)});
+  const ebitdaMargem=recOpTotal>0?(ebitdaTotal/recOpTotal*100).toFixed(1):'0';
+
+  // Inadimplência
+  const vRec=dadosFiltrados.lancamentos.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const pctInad=recOpTotal>0?(vRec/recOpTotal*100):0;
+
+  // Runway
+  const mesesArr=meses.slice(-3);
+  const avgDesp=mesesArr.length>0?mesesArr.reduce((s,m)=>(d.porMes[m]?.saida||0)+s,0)/mesesArr.length:0;
+  const runway=avgDesp>0?saldoTotal/avgDesp:99;
+  const runwayTxt=runway>99?'99+':runway.toFixed(1);
+
+  // Helpers
+  function bg(page){doc.setFillColor(10,14,23);doc.rect(0,0,W,H,'F')}
+  function footer(pg){doc.setFontSize(7);doc.setTextColor(148,163,184);doc.text(`Gerado em ${dataStr} às ${horaStr} — Studio Koti — Confidencial`,W/2,H-5,{align:'center'});doc.text(`${pg}/3`,W-10,H-5)}
+  function drawBox(x,y,w,h){doc.setFillColor(15,20,32);doc.roundedRect(x,y,w,h,3,3,'F');doc.setDrawColor(51,65,85);doc.roundedRect(x,y,w,h,3,3,'S')}
+  function setC(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);doc.setTextColor(r,g,b)}
+
+  // ============ PAGE 1 — Resumo Executivo ============
+  bg(1);
+  // Title
+  doc.setFontSize(20);setC(WHITE);doc.setFont('helvetica','bold');
+  doc.text('STUDIO KOTI',15,18);
+  doc.setFontSize(12);setC(MUTED);doc.setFont('helvetica','normal');
+  doc.text('Relatório Financeiro',15,26);
+  doc.setFontSize(9);doc.text(`${dataStr} · Período: ${periodoStr}`,15,33);
+
+  // 4 KPI boxes
+  const kW=64,kH=32,kY=40,kGap=6,kX0=15;
+  // Receita Mês
+  drawBox(kX0,kY,kW,kH);
+  doc.setFontSize(8);setC(MUTED);doc.setFont('helvetica','normal');doc.text('RECEITA MÊS',kX0+5,kY+9);
+  doc.setFontSize(16);setC(BLUE);doc.setFont('helvetica','bold');doc.text(fmtK(recMes),kX0+5,kY+20);
+  doc.setFontSize(8);setC(varRec>=0?GREEN:RED);doc.text(`${varRec>=0?'↑':'↓'}${Math.abs(varRec).toFixed(0)}% vs mês ant.`,kX0+5,kY+27);
+
+  // EBITDA
+  const kX1=kX0+kW+kGap;
+  drawBox(kX1,kY,kW,kH);
+  doc.setFontSize(8);setC(MUTED);doc.setFont('helvetica','normal');doc.text('EBITDA (6M)',kX1+5,kY+9);
+  doc.setFontSize(16);setC(ebitdaTotal>=0?GREEN:RED);doc.setFont('helvetica','bold');doc.text(fmtK(ebitdaTotal),kX1+5,kY+20);
+  doc.setFontSize(8);setC(MUTED);doc.text(`Margem ${ebitdaMargem}%`,kX1+5,kY+27);
+
+  // Caixa Total
+  const kX2=kX1+kW+kGap;
+  drawBox(kX2,kY,kW,kH);
+  doc.setFontSize(8);setC(MUTED);doc.setFont('helvetica','normal');doc.text('CAIXA TOTAL',kX2+5,kY+9);
+  doc.setFontSize(16);setC(CYAN);doc.setFont('helvetica','bold');doc.text(fmtK(saldoTotal),kX2+5,kY+20);
+  doc.setFontSize(8);setC(MUTED);doc.text(`${runwayTxt} meses de operação`,kX2+5,kY+27);
+
+  // Inadimplência
+  const kX3=kX2+kW+kGap;
+  drawBox(kX3,kY,kW,kH);
+  const inadSem=pctInad>15?'🔴':pctInad>5?'🟡':'🟢';
+  doc.setFontSize(8);setC(MUTED);doc.setFont('helvetica','normal');doc.text('INADIMPLÊNCIA',kX3+5,kY+9);
+  doc.setFontSize(16);setC(pctInad>15?RED:pctInad>5?YELLOW:GREEN);doc.setFont('helvetica','bold');doc.text(fmtK(vRec),kX3+5,kY+20);
+  doc.setFontSize(8);doc.text(`${inadSem} ${pctInad.toFixed(1)}% da receita`,kX3+5,kY+27);
+
+  // Alertas
+  let aY=80;
+  doc.setFontSize(11);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Alertas',15,aY);aY+=6;
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  const alertas=[];
+  if(pctInad>10)alertas.push({c:RED,t:`Inadimplência alta: ${fmt(vRec)} atrasado (${pctInad.toFixed(1)}% da receita)`});
+  if(runway<4)alertas.push({c:RED,t:`Caixa crítico: apenas ${runwayTxt} meses de operação`});
+  if(recMesAnt>0&&recMes<recMesAnt*0.8)alertas.push({c:YELLOW,t:`Receita caiu ${Math.abs(varRec).toFixed(0)}% em relação ao mês anterior`});
+  const projsNeg=Object.values(d.porProj||{}).filter(p=>p.entrada>50000&&(p.entrada-p.saida)<0);
+  if(projsNeg.length)alertas.push({c:YELLOW,t:`${projsNeg.length} projeto(s) com margem negativa (>R$50K)`});
+  if(!alertas.length)alertas.push({c:GREEN,t:'Nenhum alerta crítico no período.'});
+  alertas.forEach(a=>{
+    drawBox(15,aY,W-30,8);
+    doc.setFillColor(parseInt(a.c.slice(1,3),16),parseInt(a.c.slice(3,5),16),parseInt(a.c.slice(5,7),16));
+    doc.rect(15,aY,2,8,'F');
+    setC(WHITE);doc.text(a.t,22,aY+5.5);
+    aY+=11;
+  });
+
+  // Texto analítico
+  aY+=4;
+  doc.setFontSize(11);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Análise',15,aY);aY+=7;
+  doc.setFontSize(9);setC(MUTED);doc.setFont('helvetica','normal');
+  const linhas=[];
+  linhas.push(`A receita do mês foi de ${fmt(recMes)}, representando ${varRec>=0?'↑':'↓'}${Math.abs(varRec).toFixed(0)}% em relação ao mês anterior.`);
+  linhas.push(`O EBITDA operacional (6m) foi de ${fmt(ebitdaTotal)} (margem de ${ebitdaMargem}%).`);
+  linhas.push(`O caixa total é de ${fmt(saldoTotal)}, representando ${runwayTxt} meses de operação.`);
+  if(pctInad>10)linhas.push(`Atenção: inadimplência em ${pctInad.toFixed(1)}% (${fmt(vRec)}).`);
+  linhas.forEach(l=>{doc.text(l,15,aY);aY+=5.5});
+
+  footer(1);
+
+  // ============ PAGE 2 — DRE e Tendência ============
+  doc.addPage();bg(2);
+  doc.setFontSize(14);setC(WHITE);doc.setFont('helvetica','bold');doc.text('DRE e Tendência',15,18);
+  doc.setFontSize(9);setC(MUTED);doc.setFont('helvetica','normal');doc.text(`Período: ${periodoStr}`,15,25);
+
+  // Mini DRE table
+  let tY=33;
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Mini DRE — YTD (Competência)',15,tY);tY+=6;
+
+  const dreRows=['Receita Bruta','Impostos','Custos Operacionais','Despesas Gerais e Adm','EBITDA','Lucro Líquido'];
+  const cols=[15,95,145,195,235];// label, Real, Orçado, Var, Ating
+  const colW=[80,50,50,40,30];
+
+  // Header
+  doc.setFillColor(15,20,32);doc.rect(15,tY,W-30,7,'F');
+  doc.setFontSize(7);setC(MUTED);doc.setFont('helvetica','bold');
+  doc.text('Linha',cols[0]+2,tY+5);doc.text('Real YTD',cols[1]+2,tY+5);doc.text('Orçado YTD',cols[2]+2,tY+5);doc.text('Var R$',cols[3]+2,tY+5);doc.text('Ating.',cols[4]+2,tY+5);
+  tY+=8;
+
+  if(orcData&&orcData.dre){
+    const mesesReal=orcData.meses_com_real||[];
+    dreRows.forEach(label=>{
+      const row=orcData.dre.find(r=>r.label===label);if(!row)return;
+      let real=0,bp=0;
+      if(row.real&&typeof row.real==='object')mesesReal.forEach(m=>{real+=(row.real[m]||0)});else real=row.acum_real||0;
+      if(row.bp&&typeof row.bp==='object')mesesReal.forEach(m=>{bp+=(row.bp[m]||0)});else bp=row.acum_bp||0;
+      const varR=real-bp;
+      const ating=bp?((real/bp)*100).toFixed(0):'--';
+      const isBold=label==='EBITDA'||label==='Lucro Líquido';
+      if(isBold){doc.setFillColor(15,20,32);doc.rect(15,tY-1,W-30,7,'F')}
+      doc.setFontSize(8);doc.setFont('helvetica',isBold?'bold':'normal');
+      setC(WHITE);doc.text(label,cols[0]+2,tY+3);
+      setC(real>=0?GREEN:RED);doc.text(fmtK(real),cols[1]+2,tY+3);
+      setC(MUTED);doc.text(fmtK(bp),cols[2]+2,tY+3);
+      setC(varR>=0?GREEN:RED);doc.text(fmtK(varR),cols[3]+2,tY+3);
+      setC(ating!=='--'&&Number(ating)>=90?GREEN:Number(ating)>=70?YELLOW:RED);doc.text(ating+'%',cols[4]+2,tY+3);
+      tY+=7;
+    });
+  } else {
+    setC(MUTED);doc.setFontSize(8);doc.text('Dados de orçamento não disponíveis.',15,tY+3);tY+=10;
+  }
+
+  // Charts — Receita vs Despesa sparkline
+  tY+=6;
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Receita vs Despesa (6m)',15,tY);
+  tY+=3;
+  try{
+    const imgRD=charts.spkRD.toBase64Image('image/png',1);
+    doc.addImage(imgRD,'PNG',15,tY,120,45);
+  }catch(e){}
+
+  // EBITDA sparkline
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('EBITDA (6m)',155,tY-3);
+  try{
+    const imgEB=charts.spkEbitda.toBase64Image('image/png',1);
+    doc.addImage(imgEB,'PNG',155,tY,120,45);
+  }catch(e){}
+
+  footer(2);
+
+  // ============ PAGE 3 — Liquidez e Risco ============
+  doc.addPage();bg(3);
+  doc.setFontSize(14);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Liquidez e Risco',15,18);
+  doc.setFontSize(9);setC(MUTED);doc.setFont('helvetica','normal');doc.text(`Período: ${periodoStr}`,15,25);
+
+  // Saldo por Conta
+  let sY=33;
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Saldo por Conta Bancária',15,sY);sY+=7;
+  const saldos=(dadosFiltrados.saldos_bancarios||[]).filter(s=>s.saldo>0).sort((a,b)=>b.saldo-a.saldo);
+  doc.setFillColor(15,20,32);doc.rect(15,sY,140,7,'F');
+  doc.setFontSize(7);setC(MUTED);doc.setFont('helvetica','bold');doc.text('Conta',17,sY+5);doc.text('Saldo',120,sY+5,{align:'right'});sY+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  saldos.slice(0,10).forEach(s=>{
+    setC(WHITE);doc.text(s.nome.substring(0,40),17,sY+3);
+    setC(GREEN);doc.text(fmt(s.saldo),120,sY+3,{align:'right'});
+    sY+=6;
+  });
+  // Total
+  doc.setDrawColor(51,65,85);doc.line(15,sY,155,sY);sY+=2;
+  doc.setFont('helvetica','bold');setC(WHITE);doc.text('TOTAL',17,sY+3);
+  setC(CYAN);doc.text(fmt(saldoTotal),120,sY+3,{align:'right'});
+  sY+=6;
+
+  // Runway
+  sY+=4;
+  drawBox(15,sY,140,14);
+  doc.setFontSize(9);setC(MUTED);doc.setFont('helvetica','normal');doc.text('Runway:',20,sY+6);
+  doc.setFontSize(12);setC(runway>=6?GREEN:runway>=3?YELLOW:RED);doc.setFont('helvetica','bold');
+  doc.text(`${runwayTxt} meses de operação`,55,sY+6);
+  doc.setFontSize(8);setC(MUTED);doc.setFont('helvetica','normal');doc.text(`(saldo ${fmtK(saldoTotal)} ÷ média despesas 3m ${fmtK(avgDesp)})`,20,sY+11);
+  sY+=20;
+
+  // Aging
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Aging — Inadimplência',15,sY);sY+=7;
+  const hojeD=new Date();hojeD.setHours(0,0,0,0);
+  const atrasados=dadosFiltrados.lancamentos.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO'&&l.data_vencimento);
+  const buckets=[{label:'1-30 dias',min:1,max:30,val:0},{label:'31-60 dias',min:31,max:60,val:0},{label:'61-90 dias',min:61,max:90,val:0},{label:'90+ dias',min:91,max:9999,val:0}];
+  atrasados.forEach(l=>{const venc=new Date(l.data_vencimento);const dias=Math.floor((hojeD-venc)/86400000);const b=buckets.find(b=>dias>=b.min&&dias<=b.max);if(b)b.val+=l.valor});
+
+  doc.setFillColor(15,20,32);doc.rect(15,sY,140,7,'F');
+  doc.setFontSize(7);setC(MUTED);doc.setFont('helvetica','bold');doc.text('Faixa',17,sY+5);doc.text('Valor',120,sY+5,{align:'right'});sY+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  buckets.forEach(b=>{
+    setC(WHITE);doc.text(b.label,17,sY+3);
+    setC(b.val>0?RED:MUTED);doc.text(b.val>0?fmt(b.val):'-',120,sY+3,{align:'right'});
+    sY+=6;
+  });
+
+  // Top 5 Inadimplentes — right column
+  let rY=33;const rX=170;
+  doc.setFontSize(10);setC(WHITE);doc.setFont('helvetica','bold');doc.text('Top 5 Inadimplentes',rX,rY);rY+=7;
+  const porCli={};
+  atrasados.forEach(l=>{const k=l.cliente_nome||'Sem nome';if(!porCli[k])porCli[k]={valor:0,maxDias:0};porCli[k].valor+=l.valor;const venc=new Date(l.data_vencimento);const dias=Math.floor((hojeD-venc)/86400000);if(dias>porCli[k].maxDias)porCli[k].maxDias=dias});
+  const top5=Object.entries(porCli).sort((a,b)=>b[1].valor-a[1].valor).slice(0,5);
+
+  doc.setFillColor(15,20,32);doc.rect(rX,rY,115,7,'F');
+  doc.setFontSize(7);setC(MUTED);doc.setFont('helvetica','bold');doc.text('Cliente',rX+2,rY+5);doc.text('Valor',rX+80,rY+5,{align:'right'});doc.text('Dias',rX+105,rY+5,{align:'right'});rY+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  if(!top5.length){setC(GREEN);doc.text('Nenhum título atrasado.',rX+2,rY+3);rY+=6;}
+  else top5.forEach(([nome,info])=>{
+    setC(WHITE);doc.text(nome.substring(0,25),rX+2,rY+3);
+    setC(RED);doc.text(fmtK(info.valor),rX+80,rY+3,{align:'right'});
+    setC(YELLOW);doc.text(info.maxDias+'d',rX+105,rY+3,{align:'right'});
+    rY+=6;
+  });
+
+  footer(3);
+
+  // Save
+  const mesFile=mesAtual||agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0');
+  doc.save(`StudioKoti_Relatorio_${mesFile}.pdf`);
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
