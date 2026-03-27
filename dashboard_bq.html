@@ -221,7 +221,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
       <div class="vg-sparks" id="vg-sparks">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
         <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
-        <div class="vg-spark"><h4>Margem Líquida % (6m)</h4><div style="height:120px"><canvas id="sparkMargem"></canvas></div><p class="chart-note">Competência. (Receita − Despesa) ÷ Receita × 100</p></div>
+        <div class="vg-spark"><h4>EBITDA (6m) <div class="periodo-btns" style="display:inline-flex;margin-left:6px;vertical-align:middle"><button onclick="setEbitdaMode('real',this)" class="active" style="font-size:9px;padding:2px 6px">Imp Real</button><button onclick="setEbitdaMode('teorico',this)" style="font-size:9px;padding:2px 6px">Imp 11%</button></div></h4><div style="height:120px"><canvas id="sparkEbitda"></canvas></div><p class="chart-note" id="ebitdaNote">Competência D-1. ISS + COFINS deslocados 1 mês.</p></div>
         <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="sparkVarCaixa"></canvas></div><p class="chart-note">Caixa. (Entradas − Saídas) ÷ Entradas × 100</p></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
@@ -651,6 +651,8 @@ function renderFluxoMod(){
 }
 
 let _saldoContaMode='d1';
+let _ebitdaMode='real';
+function setEbitdaMode(mode,el){_ebitdaMode=mode;if(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));el.classList.add('active')}renderAll()}
 
 function setSaldoContaMode(mode,el){
   _saldoContaMode=mode;
@@ -794,15 +796,53 @@ function renderVisaoGeral(d,dc){
     datasets:[{data:caixaAcum,borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk2Max}}}});
 
-  // Spark 3: Resultado Operacional % (competência, mesmos 6 meses)
+  // Spark 3: EBITDA (competência)
   const dcPM=dc?dc.porMes:{};
-  const mrgData=m6.map(m=>{const pm=dcPM[m]||d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
-  const spk3Max=Math.max(...mrgData)*1.15;
-  charts.spkMg=new Chart(document.getElementById('sparkMargem'),{type:'line',data:{
+  const dcL=dc?dc.L:dadosFiltrados.lancamentos;
+  const sgaSet=new Set(['2.02','2.03','2.04','2.10']);
+  // Calcular impostos por mês (ISS 2.06.07 + COFINS 2.06.04, deslocados 1 mês)
+  const impostosPorMes={};
+  dcL.filter(l=>l.tipo==='saida'&&(l.categoria==='2.06.07'||l.categoria==='2.06.04')).forEach(l=>{
+    const mVenc=l.data_vencimento?l.data_vencimento.substring(0,7):null;
+    if(!mVenc)return;
+    // Deslocar 1 mês para trás
+    const [y,mo]=mVenc.split('-').map(Number);
+    const mReal=mo===1?`${y-1}-12`:`${y}-${String(mo-1).padStart(2,'0')}`;
+    impostosPorMes[mReal]=(impostosPorMes[mReal]||0)+l.valor;
+  });
+  // Custos e SGA por mês (competência)
+  const custoPorMes={},sgaPorMes={};
+  dcL.filter(l=>l.tipo==='saida').forEach(l=>{
+    const g=(l.categoria||'').split('.').slice(0,2).join('.');
+    const m=l.data_vencimento?l.data_vencimento.substring(0,7):null;
+    if(!m)return;
+    if(g==='2.01'){custoPorMes[m]=(custoPorMes[m]||0)+l.valor}
+    else if(sgaSet.has(g)){sgaPorMes[m]=(sgaPorMes[m]||0)+l.valor}
+  });
+  // Taxa média de impostos (6 meses) para estimar último mês
+  const m6imp=m6.filter(m=>impostosPorMes[m]>0);
+  const somaImpReal=m6imp.reduce((s,m)=>s+(impostosPorMes[m]||0),0);
+  const somaRecImp=m6imp.reduce((s,m)=>s+(dcPM[m]?.entrada||d.porMes[m]?.entrada||0),0);
+  const taxaMedia=somaRecImp>0?somaImpReal/somaRecImp:0.03;
+  // Calcular EBITDA por mês
+  const ebitdaData=m6.map(m=>{
+    const rec=dcPM[m]?.entrada||d.porMes[m]?.entrada||0;
+    let imp;
+    if(_ebitdaMode==='teorico'){imp=rec*0.11}
+    else{imp=impostosPorMes[m]!=null?impostosPorMes[m]:rec*taxaMedia}
+    const custo=custoPorMes[m]||0;
+    const sga=sgaPorMes[m]||0;
+    return Math.round(rec-imp-custo-sga);
+  });
+  const spk3Max=Math.max(...ebitdaData)*1.15;
+  const spk3Min=Math.min(...ebitdaData,0)*1.15;
+  charts.spkEbitda=new Chart(document.getElementById('sparkEbitda'),{type:'bar',data:{
     labels:m6.map(mesNome),
-    datasets:[{data:mrgData,borderColor:'#A78BFA',backgroundColor:'#A78BFA22',fill:true,tension:.4,
-      segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#A78BFA'}}]
-  },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk3Max}}}});
+    datasets:[{data:ebitdaData,backgroundColor:ebitdaData.map(v=>v>=0?'#3DDC9788':'#FF6B6B88'),borderColor:ebitdaData.map(v=>v>=0?'#3DDC97':'#FF6B6B'),borderWidth:1,borderRadius:4}]
+  },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk3Max,suggestedMin:spk3Min}}}});
+  // Nota dinâmica
+  const noteEl=document.getElementById('ebitdaNote');
+  if(noteEl){noteEl.textContent=_ebitdaMode==='teorico'?'Alíquota fixa de 11% sobre receita bruta.':`Competência D-1. ISS + COFINS deslocados 1 mês. ${m6imp.length<m6.length?'Último mês estimado ('+(taxaMedia*100).toFixed(1)+'%).':''}`}
 
   // Spark 4: Variação de Caixa % (regime caixa)
   const vcData=m6.map(m=>{const pm=d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
