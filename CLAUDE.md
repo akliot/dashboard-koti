@@ -1,5 +1,27 @@
 # Dashboard Koti — Claude Code Reference
 
+## ⚡ Primeira ação (leia antes de qualquer tarefa)
+
+Antes de fazer qualquer alteração, leia silenciosamente estes arquivos de contexto do Obsidian:
+
+```bash
+cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/00\ -\ Visão\ Geral.md
+cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/10\ -\ Lógica\ de\ Negócio.md
+cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/11\ -\ Backlog\ e\ Próximos\ Passos.md
+```
+
+Se a tarefa envolver um tema específico, leia também:
+- Pipeline/sync → `02 - Pipeline Sync.md`
+- BigQuery schema → `03 - Schema BigQuery.md`
+- Bot Telegram → `05 - Bot Telegram.md`
+- Troubleshooting → `08 - Troubleshooting.md`
+
+Todos em: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Software e Projetos/Dashboard Omie/`
+
+Não pergunte — leia silenciosamente e use o contexto para informar suas decisões.
+
+---
+
 ## Skills disponíveis
 - `.claude/skills/omie-api-reference.md` — Referência completa da API Omie
 - `.claude/skills/dashboard-patterns.md` — Padrões do dashboard HTML
