@@ -803,7 +803,7 @@ function renderVisaoGeral(d,dc){
   // Calcular impostos por mês (ISS 2.06.07 + COFINS 2.06.04, deslocados 1 mês)
   const impostosPorMes={};
   dcL.filter(l=>l.tipo==='saida'&&(l.categoria==='2.06.07'||l.categoria==='2.06.04')).forEach(l=>{
-    const mVenc=l.data_vencimento?l.data_vencimento.substring(0,7):null;
+    const mVenc=toYM(l.data_vencimento||l.data);
     if(!mVenc)return;
     // Deslocar 1 mês para trás
     const [y,mo]=mVenc.split('-').map(Number);
@@ -814,7 +814,7 @@ function renderVisaoGeral(d,dc){
   const custoPorMes={},sgaPorMes={};
   dcL.filter(l=>l.tipo==='saida').forEach(l=>{
     const g=(l.categoria||'').split('.').slice(0,2).join('.');
-    const m=l.data_vencimento?l.data_vencimento.substring(0,7):null;
+    const m=toYM(l.data_vencimento||l.data);
     if(!m)return;
     if(g==='2.01'){custoPorMes[m]=(custoPorMes[m]||0)+l.valor}
     else if(sgaSet.has(g)){sgaPorMes[m]=(sgaPorMes[m]||0)+l.valor}
