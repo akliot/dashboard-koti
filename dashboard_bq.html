@@ -224,7 +224,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
         <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px">
-        <div class="vg-spark"><h4>Faturamento (6m)</h4><div style="height:120px"><canvas id="sparkFat"></canvas></div><p class="chart-note">Competência. Exclui empréstimos e fat. direto</p></div>
+        <div class="vg-spark"><h4>Faturamento (6m)</h4><div style="height:120px"><canvas id="sparkFat"></canvas></div><p class="chart-note">Competência. Só receita operacional (exclui empréstimos, FD, devoluções, rendimentos)</p></div>
         <div class="vg-spark"><h4>EBITDA (6m) <div class="periodo-btns" style="display:inline-flex;margin-left:6px;vertical-align:middle"><button onclick="setEbitdaMode('real',this)" class="active" style="font-size:9px;padding:2px 6px">Imp Real</button><button onclick="setEbitdaMode('teorico',this)" style="font-size:9px;padding:2px 6px">Imp 11%</button></div></h4><div style="height:120px"><canvas id="sparkEbitda"></canvas></div><p class="chart-note" id="ebitdaNote">Competência D-1. ISS + COFINS deslocados 1 mês.</p></div>
       </div>
       <div class="vg-alerts" id="vg-alerts"></div>
@@ -856,8 +856,8 @@ function renderVisaoGeral(d,dc){
       segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk4Max,suggestedMin:-spk4Max}}}});
 
-  // Spark 5: Faturamento (competência, exclui empréstimos e fat. direto)
-  const fatExcluir=new Set(['1.04.02','1.04.03']);
+  // Spark 5: Faturamento (competência, só receita operacional)
+  const fatExcluir=new Set(['1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
   const fatPorMes={};
   dcL.filter(l=>l.tipo==='entrada'&&!fatExcluir.has(l.categoria)).forEach(l=>{
     const m=toYM(l.data_vencimento||l.data);if(!m)return;
