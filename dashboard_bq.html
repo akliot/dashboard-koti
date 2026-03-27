@@ -736,14 +736,23 @@ function renderVisaoGeral(d,dc){
   const recMes=d.porMes[mesAtual]?.entrada||0;
   const recMesAnt=d.porMes[mesAnt]?.entrada||0;
   const despMes=d.porMes[mesAtual]?.saida||0;
-  const resultado=dc?(dc.tE-dc.tS):(d.tE-d.tS);
-  const margemBase=dc?dc.tE:d.tE;
-  const margem=margemBase>0?(resultado/margemBase*100).toFixed(1):'0';
+
+  // Receita operacional por mês (competência, exclui empréstimos/FD/devoluções/rendimentos)
+  const _recOpExcluir=new Set(['1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
+  const _dcL=dc?dc.L:dadosFiltrados.lancamentos;
+  const recOpPorMes={};let recOpTotal=0,despOpTotal=0;
+  _dcL.forEach(l=>{
+    const m=toYM(l.data_vencimento||l.data);if(!m)return;
+    if(l.tipo==='entrada'&&!_recOpExcluir.has(l.categoria)){recOpPorMes[m]=(recOpPorMes[m]||0)+l.valor;recOpTotal+=l.valor}
+    if(l.tipo==='saida'){despOpTotal+=l.valor}
+  });
+  const resultado=recOpTotal-despOpTotal;
+  const margem=recOpTotal>0?(resultado/recOpTotal*100).toFixed(1):'0';
   const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100).toFixed(0):'--';
 
   // Inadimplência
   const vRec=dadosFiltrados.lancamentos.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
-  const pctInad=d.tE>0?(vRec/d.tE*100):0;
+  const pctInad=recOpTotal>0?(vRec/recOpTotal*100):0;
   const corInad=pctInad>15?'bar-red':pctInad>5?'bar-yellow':'bar-green';
   const corInadTxt=pctInad>15?'#FF6B6B':pctInad>5?'#FFB547':'#3DDC97';
 
@@ -825,11 +834,11 @@ function renderVisaoGeral(d,dc){
   // Taxa média de impostos (6 meses) para estimar último mês
   const m6imp=m6.filter(m=>impostosPorMes[m]>0);
   const somaImpReal=m6imp.reduce((s,m)=>s+(impostosPorMes[m]||0),0);
-  const somaRecImp=m6imp.reduce((s,m)=>s+(dcPM[m]?.entrada||d.porMes[m]?.entrada||0),0);
+  const somaRecImp=m6imp.reduce((s,m)=>s+(recOpPorMes[m]||0),0);
   const taxaMedia=somaRecImp>0?somaImpReal/somaRecImp:0.03;
-  // Calcular EBITDA por mês
+  // Calcular EBITDA por mês (receita operacional)
   const ebitdaData=m6.map(m=>{
-    const rec=dcPM[m]?.entrada||d.porMes[m]?.entrada||0;
+    const rec=recOpPorMes[m]||0;
     let imp;
     if(_ebitdaMode==='teorico'){imp=rec*0.11}
     else{imp=impostosPorMes[m]!=null?impostosPorMes[m]:rec*taxaMedia}
