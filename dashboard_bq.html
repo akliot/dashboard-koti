@@ -413,6 +413,24 @@ const cores=['#3b82f6','#22c55e','#ef4444','#eab308','#a855f7','#06b6d4','#f9731
 const parseDate=d=>{try{const[dd,mm,yy]=d.split('/');return new Date(yy,mm-1,dd)}catch{return null}};
 const toYM=d=>{try{const[dd,mm,yy]=d.split('/');return `${yy}-${mm}`}catch{return null}};
 
+// YoY: mesmo mês do ano anterior
+function getYoYMonth(mes){const[y,m]=mes.split('-');return(parseInt(y)-1)+'-'+m}
+
+// porMes global (todos os lançamentos, sem filtro de data) — para YoY
+let _allPorMes=null;
+function getAllPorMes(){
+  if(_allPorMes)return _allPorMes;
+  _allPorMes={};(dadosOriginal.lancamentos||[]).forEach(l=>{const m=toYM(l.data);if(!m)return;if(!_allPorMes[m])_allPorMes[m]={entrada:0,saida:0};_allPorMes[m][l.tipo==='entrada'?'entrada':'saida']+=l.valor});
+  return _allPorMes;
+}
+// finMesAll global (competência, sem filtro) — para YoY financeiro
+let _allFinMesAll=null;
+function getAllFinMesAll(){
+  if(_allFinMesAll)return _allFinMesAll;
+  _allFinMesAll={};(dadosOriginal.lancamentos||[]).filter(l=>l.status!=='ATRASADO').forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;if(!_allFinMesAll[m])_allFinMesAll[m]={receita:0,saida:0};if(l.tipo==='entrada')_allFinMesAll[m].receita+=l.valor;else _allFinMesAll[m].saida+=l.valor});
+  return _allFinMesAll;
+}
+
 // Classificação de categorias - usa o grupo (X.YY) para agrupar
 function getGrupo(cod){
   if(!cod || cod==='None') return null;
@@ -708,7 +726,7 @@ function renderSaldoGrid(){
   }
 }
 
-function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={}}
+function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};_allPorMes=null;_allFinMesAll=null}
 
 function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
 
@@ -792,10 +810,12 @@ function renderVisaoGeral(d,dc){
   const spk1Sai=m6.map(m=>-(d.porMes[m]?.saida||0));
   const spk1Max=Math.max(...spk1Ent)*1.35;
   const spk1Min=Math.min(...spk1Sai)*1.35;
+  const spk1YoY=m6.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];return pm?pm.entrada:null});
   charts.spkRD=new Chart(document.getElementById('sparkRecDesp'),{type:'bar',data:{
     labels:m6.map(mesNome),
     datasets:[{data:spk1Ent,backgroundColor:'#3DDC9788',borderRadius:4},
-              {data:spk1Sai,backgroundColor:'#FF6B6B88',borderRadius:4}]
+              {data:spk1Sai,backgroundColor:'#FF6B6B88',borderRadius:4},
+              {type:'line',data:spk1YoY,borderColor:'rgba(255,255,255,.2)',borderDash:[3,3],borderWidth:1.5,pointRadius:0,tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}}]
   },options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk1Max,suggestedMin:spk1Min}}}});
 
   // Spark 2: Evolução Caixa (saldo bancário real do historico_conciliacao)
@@ -859,10 +879,12 @@ function renderVisaoGeral(d,dc){
   // Spark 4: Variação de Caixa % (regime caixa)
   const vcData=m6.map(m=>{const pm=d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
   const spk4Max=Math.max(...vcData.map(Math.abs))*1.35;
+  const vcYoY=m6.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];if(!pm)return null;const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):null});
   charts.spkVC=new Chart(document.getElementById('sparkVarCaixa'),{type:'line',data:{
     labels:m6.map(mesNome),
     datasets:[{data:vcData,borderColor:'#2DD4BF',backgroundColor:'#2DD4BF22',fill:true,tension:.4,
-      segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}}]
+      segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}},
+      {data:vcYoY,borderColor:'rgba(255,255,255,.2)',borderDash:[3,3],borderWidth:1.5,pointRadius:0,tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}}]
   },options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk4Max,suggestedMin:-spk4Max}}}});
 
   // Spark 5: Faturamento (competência, só receita operacional)
@@ -1032,11 +1054,16 @@ function renderFluxoCaixa(d){
   const fEnt=fMeses.map(m=>d.porMes[m]?.entrada||0);
   const fSai=fMeses.map(m=>d.porMes[m]?.saida||0);
 
+  const fYoYEnt=fMeses.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];return pm?pm.entrada:null});
+  const fYoYSai=fMeses.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];return pm?pm.saida:null});
+  const yoyLine={type:'line',borderDash:[5,5],borderColor:'#ffffff33',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#ffffff33',tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}};
   charts.fRecDesp=new Chart(document.getElementById('chartFluxoRecDesp'),{type:'bar',data:{
     labels:fMeses.map(mesNome),
     datasets:[
       {label:'Entrada',data:fEnt,backgroundColor:'#22c55e88',borderColor:'#22c55e',borderWidth:1},
-      {label:'Saída',data:fSai,backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1}
+      {label:'Saída',data:fSai,backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1},
+      {label:'Receita Ano Ant.',data:fYoYEnt,...yoyLine},
+      {label:'Despesa Ano Ant.',data:fYoYSai,...yoyLine}
     ]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
 
   // Resultado mensal em R$ (entrada - saída)
@@ -1325,6 +1352,7 @@ function renderFinanceiro(d){
   outrosGrupos.slice(0,4).forEach((g,i)=>{
     datasets.push({label:g[1].nome.substring(0,25),data:meses.map(m=>g[1].porMes[m]||0),backgroundColor:cores[i+4]+'88',borderColor:cores[i+4],borderWidth:1});
   });
+  datasets.push({type:'line',label:'Receita Ano Ant.',data:meses.map(m=>{const fm=getAllFinMesAll()[getYoYMonth(m)];return fm?fm.receita:null}),borderDash:[5,5],borderColor:'#ffffff33',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#ffffff33',tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}});
   charts.finStack=new Chart(document.getElementById('chartFinStack'),{type:'bar',data:{labels:meses.map(mesNome),datasets},
     options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#cbd5e1',font:{size:8,weight:500},anchor:'end',align:'top',offset:2,formatter:v=>fmtM(v)}}}});
 
@@ -1405,7 +1433,8 @@ function renderVendas(d){
     <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value purple">${fmt(ent.length>0?totalVendas/ent.length:0)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Média Mensal</div><div class="kpi-value cyan">${fmt(totalVendas/nMeses)}</div></div>`;
 
-  charts.vMes=new Chart(document.getElementById('chartVendasMes'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Receita',data:meses.map(m=>porMes[m].entrada||0),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1,yAxisID:'y'},{label:'Despesa',data:meses.map(m=>porMes[m].saida||0),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1,yAxisID:'y'}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{position:'left',ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
+  const vYoY=meses.map(m=>{const pm=getAllFinMesAll()[getYoYMonth(m)];return pm?pm.receita:null});
+  charts.vMes=new Chart(document.getElementById('chartVendasMes'),{type:'bar',data:{labels:meses.map(mesNome),datasets:[{label:'Receita',data:meses.map(m=>porMes[m].entrada||0),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1,yAxisID:'y'},{label:'Despesa',data:meses.map(m=>porMes[m].saida||0),backgroundColor:'#ef444488',borderColor:'#ef4444',borderWidth:1,yAxisID:'y'},{type:'line',label:'Receita Ano Ant.',data:vYoY,borderDash:[5,5],borderColor:'#ffffff33',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#ffffff33',tension:.3,fill:false,spanGaps:false,order:0,yAxisID:'y',datalabels:{display:false}}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{position:'left',ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
 
   // Etapas dos pedidos (API data, não filtrada por data)
   const v=dadosOriginal.vendas;
