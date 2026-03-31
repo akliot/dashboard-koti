@@ -5,10 +5,13 @@
 Antes de fazer qualquer alteração, leia silenciosamente estes arquivos de contexto do Obsidian:
 
 ```bash
+cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Aprendizados\ Técnicos.md
 cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/00\ -\ Visão\ Geral.md
 cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/10\ -\ Lógica\ de\ Negócio.md
 cat ~/Library/Mobile\ Documents/iCloud~md~obsidian/Documents/Software\ e\ Projetos/Dashboard\ Omie/11\ -\ Backlog\ e\ Próximos\ Passos.md
 ```
+
+> **Aprendizados Técnicos.md** é o arquivo central de lições cross-projeto. Leia SEMPRE antes de mudanças de segurança, deploy ou arquitetura.
 
 Se a tarefa envolver um tema específico, leia também:
 - Pipeline/sync → `02 - Pipeline Sync.md`
@@ -103,10 +106,13 @@ Estes arquivos foram deletados — não recriar:
 - **Exec features**: queries de folha sempre mostram nome individual (nunca só departamento)
 - **SQL pós-processamento**: injeta `nome` em queries de folha se LLM omitir, remove GROUP BY departamento indevido
 
-## Criptografia
-- **Login dashboard**: PBKDF2 + SHA-256 com salt `koti2026_salt_`, 10.000 iterações. Senha: `koti2025`
-- **rh_data.enc**: AES-256-GCM + PBKDF2 com 100.000 iterações, salt aleatório. Mesma senha `koti2025`
-- `rh_data.json` está no `.gitignore` — nunca commitar em texto plano
+## Criptografia e Autenticação
+- **Login dashboard**: PBKDF2 + SHA-256, salt `koti2026_salt_`, 100.000 iterações
+- **API key**: derivada da senha em runtime via PBKDF2, salt `koti2026_api_key_salt`, 100K iter. Nunca hardcoded no HTML.
+- **Cloud Function**: valida header `X-API-Key` via env var `DASHBOARD_API_KEY`. Sem key → 401.
+- **rh_data.enc**: AES-256-GCM + PBKDF2 com 100.000 iterações, salt aleatório
+- `rh_data.json` está no `.gitignore` e foi removido do histórico git — nunca commitar em texto plano
+- **Senha**: NÃO documentar senhas em plaintext neste arquivo. Usar `getpass.getpass()` para gerar hashes.
 
 ## Folha de pagamento (RH)
 - Maioria dos funcionários é **PJ** — encargos trabalhistas NÃO existem
