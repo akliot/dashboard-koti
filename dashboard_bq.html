@@ -1075,7 +1075,7 @@ function renderFluxoCaixa(d){
   charts.fVarCaixa=new Chart(document.getElementById('chartFluxoVarCaixa'),{type:'bar',data:{
     labels:fMeses.map(mesNome),
     datasets:[{label:'Resultado',data:fRes,backgroundColor:fRes.map(v=>v>=0?'#22c55e88':'#ef444488'),borderColor:fRes.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1}]
-  },options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
+  },options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16,bottom:16}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'end':'start',align:ctx=>ctx.dataset.data[ctx.dataIndex]>=0?'top':'bottom',offset:2,formatter:v=>fmtK(v)}}}});
 
   // Saldo bancário real (historico_conciliacao)
   const fHist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
