@@ -17,8 +17,8 @@ const API_URL = window.DASHBOARD_API_URL
         ? '/api/dashboard'
         : 'https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard');
 
-// API Key para autenticação na Cloud Function
-const DASHBOARD_API_KEY = 'f429143b3f35e4a4912c392333b2540b5bcaec25ea4e1d25adf5c7b4e9a9f955';
+// API Key derivada em runtime via PBKDF2 (nunca hardcoded)
+let DASHBOARD_API_KEY = '';
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -1989,15 +1989,16 @@ function _renderRH_legacy(){
     </div>`;
 }
 
-const PASS_HASH='c80b2708ab237f12b62bd4e3c362bb3bacbf74a72d4d559de2b25d18afd9a346';
+const PASS_HASH='def920b941308f5cd61d8a23f6a8a16dae09f334b6b1c0c091451f52c9b4b9d3';
 const PASS_SALT='koti2026_salt_';
-const PASS_ITERATIONS=10000;
+const API_KEY_SALT='koti2026_api_key_salt';
+const PASS_ITERATIONS=100000;
 
-async function pbkdf2Hash(password){
+async function pbkdf2Hash(password,salt){
   if(!window.crypto||!window.crypto.subtle) return null;
   const enc=new TextEncoder();
   const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(PASS_SALT),iterations:PASS_ITERATIONS,hash:'SHA-256'},keyMaterial,256);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt||PASS_SALT),iterations:PASS_ITERATIONS,hash:'SHA-256'},keyMaterial,256);
   return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
@@ -2007,13 +2008,15 @@ async function doLogin(){
     if(!pass){document.getElementById('loginError').style.display='block';return;}
     let ok=false;
     try{
-      const hash=await pbkdf2Hash(pass);
+      const hash=await pbkdf2Hash(pass,PASS_SALT);
       ok=hash&&hash===PASS_HASH;
     }catch(e){
       ok=false;
     }
     if(ok){
+      DASHBOARD_API_KEY=await pbkdf2Hash(pass,API_KEY_SALT);
       sessionStorage.setItem('sk_auth','1');
+      sessionStorage.setItem('sk_api_key',DASHBOARD_API_KEY);
       showApp();
     } else {
       document.getElementById('loginError').style.display='block';
@@ -2315,7 +2318,11 @@ function gerarRelatorioPDF(){
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
-  if(sessionStorage.getItem('sk_auth')==='1'){showApp()}
+  if(sessionStorage.getItem('sk_auth')==='1'){
+    DASHBOARD_API_KEY=sessionStorage.getItem('sk_api_key')||'';
+    if(DASHBOARD_API_KEY){showApp()}
+    else{sessionStorage.removeItem('sk_auth');document.getElementById('loginPass').focus()}
+  }
   else document.getElementById('loginPass').focus();
 });
 </script>
