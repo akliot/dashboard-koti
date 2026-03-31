@@ -171,6 +171,87 @@ class TestApiDashboardOptions(unittest.TestCase):
         self.assertEqual(headers["Access-Control-Allow-Methods"], "GET")
 
 
+class TestCheckAuth(unittest.TestCase):
+    """Testa autenticação via API key."""
+
+    def setUp(self):
+        self._orig_key = api_bq.DASHBOARD_API_KEY
+
+    def tearDown(self):
+        api_bq.DASHBOARD_API_KEY = self._orig_key
+
+    def _mock_request(self, headers=None):
+        req = MagicMock()
+        req.headers = headers or {}
+        return req
+
+    def test_sem_key_configurada_aceita_tudo(self):
+        """Se DASHBOARD_API_KEY vazia, aceita qualquer request."""
+        api_bq.DASHBOARD_API_KEY = ""
+        req = self._mock_request()
+        self.assertTrue(api_bq._check_auth(req))
+
+    def test_key_correta_via_x_api_key(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = self._mock_request({"X-API-Key": "test_key_123"})
+        self.assertTrue(api_bq._check_auth(req))
+
+    def test_key_correta_via_bearer(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = self._mock_request({"Authorization": "Bearer test_key_123"})
+        self.assertTrue(api_bq._check_auth(req))
+
+    def test_key_errada_retorna_false(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = self._mock_request({"X-API-Key": "wrong_key"})
+        self.assertFalse(api_bq._check_auth(req))
+
+    def test_sem_header_retorna_false(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = self._mock_request({})
+        self.assertFalse(api_bq._check_auth(req))
+
+    def test_bearer_sem_prefixo_falha(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = self._mock_request({"Authorization": "test_key_123"})
+        self.assertFalse(api_bq._check_auth(req))
+
+
+class TestApiDashboardAuth(unittest.TestCase):
+    """Testa que api_dashboard retorna 401 sem autenticação."""
+
+    def setUp(self):
+        self._orig_key = api_bq.DASHBOARD_API_KEY
+
+    def tearDown(self):
+        api_bq.DASHBOARD_API_KEY = self._orig_key
+
+    def test_401_sem_key(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = MagicMock()
+        req.method = "GET"
+        req.headers = {"Origin": "https://akliot.github.io"}
+        body, status, headers = api_bq.api_dashboard(req)
+        self.assertEqual(status, 401)
+        self.assertIn("unauthorized", body)
+
+    def test_options_nao_exige_key(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = MagicMock()
+        req.method = "OPTIONS"
+        req.headers = {"Origin": "https://akliot.github.io"}
+        body, status, headers = api_bq.api_dashboard(req)
+        self.assertEqual(status, 204)
+
+    def test_cors_inclui_api_key_header(self):
+        api_bq.DASHBOARD_API_KEY = "test_key_123"
+        req = MagicMock()
+        req.method = "OPTIONS"
+        req.headers = {"Origin": "https://akliot.github.io"}
+        body, status, headers = api_bq.api_dashboard(req)
+        self.assertIn("X-API-Key", headers["Access-Control-Allow-Headers"])
+
+
 class TestBuildJsonStructure(unittest.TestCase):
     """Testa estrutura do JSON retornado (requer BigQuery acessível)."""
 

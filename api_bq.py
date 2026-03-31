@@ -27,6 +27,7 @@ from google.cloud import bigquery
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "dashboard-koti-omie")
 BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
+DASHBOARD_API_KEY = os.environ.get("DASHBOARD_API_KEY", "")
 ALLOWED_ORIGINS = [
     "https://akliot.github.io",
     "http://localhost:8080",
@@ -371,6 +372,24 @@ def _cors_origin(request):
     return ALLOWED_ORIGINS[0]
 
 
+def _check_auth(request) -> bool:
+    """Verifica API key no header. Se DASHBOARD_API_KEY não configurada, aceita tudo."""
+    if not DASHBOARD_API_KEY:
+        return True  # Backward compat: sem key configurada = dev local
+
+    # Modo 1: header X-API-Key
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key and api_key == DASHBOARD_API_KEY:
+        return True
+
+    # Modo 2: Bearer token
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer ") and auth[7:] == DASHBOARD_API_KEY:
+        return True
+
+    return False
+
+
 def api_dashboard(request):
     """Entry point para Cloud Function (HTTP trigger)."""
     cors = _cors_origin(request)
@@ -379,7 +398,7 @@ def api_dashboard(request):
         headers = {
             "Access-Control-Allow-Origin": cors,
             "Access-Control-Allow-Methods": "GET",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, X-API-Key, Authorization",
             "Access-Control-Max-Age": "3600",
         }
         return ("", 204, headers)
@@ -387,8 +406,13 @@ def api_dashboard(request):
     headers = {
         "Access-Control-Allow-Origin": cors,
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",
     }
+
+    # --- Autenticação ---
+    if not _check_auth(request):
+        return (json.dumps({"error": "unauthorized"}), 401, headers)
+
+    headers["Cache-Control"] = "private, max-age=300"
 
     try:
         data = build_json()

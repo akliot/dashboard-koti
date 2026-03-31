@@ -9,7 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script>
 // URL da API — BigQuery Cloud Function ou servidor local
-// Altere para a URL da Cloud Function após deploy
 // URL da API BigQuery
 const API_URL = window.DASHBOARD_API_URL
   || (window.location.protocol === 'file:'
@@ -17,6 +16,9 @@ const API_URL = window.DASHBOARD_API_URL
       : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? '/api/dashboard'
         : 'https://us-central1-dashboard-koti-omie.cloudfunctions.net/api_dashboard');
+
+// API Key para autenticação na Cloud Function
+const DASHBOARD_API_KEY = 'f429143b3f35e4a4912c392333b2540b5bcaec25ea4e1d25adf5c7b4e9a9f955';
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -2027,7 +2029,8 @@ async function showApp(){
   document.getElementById('loadingState').querySelector('p').textContent='Conectando ao BigQuery...';
 
   try{
-    const resp=await fetch(API_URL);
+    const resp=await fetch(API_URL,{headers:{'X-API-Key':DASHBOARD_API_KEY}});
+    if(resp.status===401) throw new Error('Não autorizado — API key inválida');
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     dadosOriginal=await resp.json();
     // Carregar orçamento da API (se disponível no mesmo payload) ou tentar BP
