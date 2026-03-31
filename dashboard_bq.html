@@ -1080,10 +1080,10 @@ function renderFluxoCaixa(d){
   // Saldo bancário real (historico_conciliacao)
   const fHist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
   const fSaldoMap={};fHist.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);fSaldoMap[m]=(fSaldoMap[m]||0)+h.saldo_atual});
-  const fSaldo=fMeses.map(m=>fSaldoMap[m]||0);
+  const fSaldo=[];let lastReal=null;for(let i=0;i<fMeses.length;i++){const m=fMeses[i];if(fSaldoMap[m]!==undefined){fSaldo.push(fSaldoMap[m]);lastReal=fSaldoMap[m]}else if(lastReal!==null){lastReal+=fEnt[i]-fSai[i];fSaldo.push(lastReal)}else{fSaldo.push(0)}}
   charts.fSaldo=new Chart(document.getElementById('chartFluxoSaldo'),{type:'line',data:{
     labels:fMeses.map(mesNome),
-    datasets:[{label:'Saldo Bancário',data:fSaldo,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:fSaldo.map(v=>v>=0?'#22c55e':'#ef4444')}]
+    datasets:[{label:'Saldo Bancário',data:fSaldo,borderColor:'#3b82f6',backgroundColor:'#3b82f622',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:fMeses.map((m,i)=>fSaldoMap[m]!==undefined?(fSaldo[i]>=0?'#22c55e':'#ef4444'):'#94a3b8'),borderDash:[],segment:{borderDash:ctx=>{const i=ctx.p0DataIndex;return fSaldoMap[fMeses[i+1]]===undefined?[6,3]:undefined}}}]
   },options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{display:false},datalabels:{display:true,color:'#cbd5e1',font:{size:9},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(v)}}}});
 
   // Charts — barras horizontais simples por grupo
