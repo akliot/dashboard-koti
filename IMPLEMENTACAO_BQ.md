@@ -256,15 +256,23 @@ Puxa tudo da API Omie mas só escreve o que mudou no BigQuery.
 
 Origins desconhecidos recebem fallback para `akliot.github.io`. Servidor local mantém `*` para conveniência.
 
+**API Key** — toda request GET precisa do header `X-API-Key` (ou `Authorization: Bearer <key>`):
+- Sem key → HTTP 401 `{"error": "unauthorized"}`
+- Key configurada via env var `DASHBOARD_API_KEY` na Cloud Function
+- Se env var vazia (dev local), aceita tudo (backward compat)
+- Cache-Control: `private` (não cachear em CDN/proxy)
+
 ### Deploy
 
 ```bash
 gcloud functions deploy api_dashboard \
   --gen2 --runtime python311 --trigger-http --allow-unauthenticated \
   --entry-point api_dashboard --source . \
-  --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=studio_koti \
+  --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=studio_koti,DASHBOARD_API_KEY=<SUA_KEY> \
   --region us-central1 --memory 512MB --timeout 60s
 ```
+
+> **Nota**: `--allow-unauthenticated` é mantido porque a autenticação é no nível da aplicação (API key no header). O browser não tem token IAM.
 
 ---
 
@@ -343,10 +351,10 @@ bq mk --dataset --location=US dashboard-koti-omie:nome_cliente
 gcloud functions deploy api_nome_cliente \
   --gen2 --runtime python311 --trigger-http --allow-unauthenticated \
   --entry-point api_dashboard --source . \
-  --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=nome_cliente \
+  --set-env-vars GCP_PROJECT_ID=dashboard-koti-omie,BQ_DATASET=nome_cliente,DASHBOARD_API_KEY=<GERAR_KEY> \
   --region us-central1 --memory 512MB --timeout 60s
 
-# 4. Dashboard: copiar HTML, PASS_HASH, CORS, GitHub Pages
+# 4. Dashboard: copiar HTML, PASS_HASH, DASHBOARD_API_KEY, CORS, GitHub Pages
 # 5. Bot: @BotFather, novo token, BQ_DATASET
 ```
 
@@ -359,6 +367,7 @@ gcloud functions deploy api_nome_cliente \
 | `OMIE_APP_KEY` / `OMIE_APP_SECRET` | sync | Sim |
 | `GCP_PROJECT_ID` | todos | Sim |
 | `BQ_DATASET` | todos | Não (default: `studio_koti`) |
+| `DASHBOARD_API_KEY` | api + dashboard | Sim (produção) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | local | Sim (local) |
 | `TELEGRAM_BOT_TOKEN` | bot + alerta sync | Sim (bot) |
 | `ANTHROPIC_API_KEY` | bot (Claude) | Sim se usar Claude |
