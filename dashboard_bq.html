@@ -747,17 +747,25 @@ const hBarOpts=(f)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,sc
 function renderVisaoGeral(d,dc){
   const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
 
-  // Mês corrente vs anterior — usar mês real (hoje) ou último mês com receita > 0
+  // Mês corrente vs anterior — último mês com dados no período filtrado
   const meses=Object.keys(d.porMes).sort();
   const hoje=new Date();
   const mesHoje=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-  // Usar mês atual se existe no dataset, senão o último mês com receita > 0
-  let mesAtual=meses.includes(mesHoje)?mesHoje:meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
+  // Último mês no período filtrado (prioriza último com receita > 0, senão último com qualquer dado)
+  let mesAtual=meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
   const mesIdx=meses.indexOf(mesAtual);
-  const mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  // Mês anterior: dentro do filtro se possível, senão busca do dataset completo
+  let mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  let recMesAnt=d.porMes[mesAnt]?.entrada||0;
+  if(!mesAnt&&mesAtual){
+    const[y,m]=mesAtual.split('-').map(Number);
+    mesAnt=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`;
+    const allPM=getAllPorMes();
+    recMesAnt=allPM[mesAnt]?.entrada||0;
+  }
   const recMes=d.porMes[mesAtual]?.entrada||0;
-  const recMesAnt=d.porMes[mesAnt]?.entrada||0;
   const despMes=d.porMes[mesAtual]?.saida||0;
+  const mesAtualLabel=mesAtual?mesNome(mesAtual):'';
 
   // Receita operacional por mês (competência, exclui empréstimos/FD/devoluções/rendimentos)
   const _recOpExcluir=new Set(['1.01.99','1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
@@ -797,7 +805,7 @@ function renderVisaoGeral(d,dc){
 
   // KPIs
   document.getElementById('vg-kpis').innerHTML=`
-    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita Mês</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs mês anterior ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div><p class="chart-note">Caixa (data de pagamento)</p></div>
+    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita ${mesAtualLabel||'Mês'}</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs ${mesAnt?mesNome(mesAnt):'mês anterior'} ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div><p class="chart-note">Caixa (data de pagamento)</p></div>
     <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div><p class="chart-note">Competência (exclui atrasados)</p></div>
     <div class="vg-kpi bar-cyan"><div class="vg-lbl">Caixa Total</div><div class="vg-val" style="color:#2DD4BF">${fmt(saldoTotal)}</div><div class="vg-sub">${varSaldo!=='--'?(Number(varSaldo)>=0?'↑':'↓')+Math.abs(varSaldo)+'% vs mês ant':'--'}</div></div>
     <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Meses de Caixa</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses de operação</div><p class="chart-note">Saldo ÷ média despesas 3m</p></div>
@@ -2065,12 +2073,17 @@ function gerarRelatorioPDF(){
   const d=compute(),dc=computeCompetencia();
   const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
   const meses=Object.keys(d.porMes).sort();
-  const mesHoje=`${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
-  let mesAtual=meses.includes(mesHoje)?mesHoje:meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
+  let mesAtual=meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
   const mesIdx=meses.indexOf(mesAtual);
-  const mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  let mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  let recMesAnt=d.porMes[mesAnt]?.entrada||0;
+  if(!mesAnt&&mesAtual){
+    const[y,m]=mesAtual.split('-').map(Number);
+    mesAnt=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`;
+    const allPM=getAllPorMes();
+    recMesAnt=allPM[mesAnt]?.entrada||0;
+  }
   const recMes=d.porMes[mesAtual]?.entrada||0;
-  const recMesAnt=d.porMes[mesAnt]?.entrada||0;
   const despMes=d.porMes[mesAtual]?.saida||0;
   const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100):0;
 
