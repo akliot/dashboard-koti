@@ -179,6 +179,36 @@ tr:hover td{background:rgba(74,144,255,.04)}
 .page-placeholder .ph-icon{font-size:40px}
 .page-placeholder h2{font-size:18px;font-weight:600;color:var(--text)}
 .page-placeholder p{font-size:13px;color:var(--muted)}
+/* === Aba Executivo — herda estilos .vg-* da Visão Geral === */
+#page-exec .vg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+#page-exec .vg-kpi{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:22px 20px;position:relative;overflow:hidden;transition:all .3s ease}
+#page-exec .vg-kpi:hover{box-shadow:0 0 24px rgba(74,144,255,.08);border-color:rgba(255,255,255,.12)}
+#page-exec .vg-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:16px 16px 0 0}
+#page-exec .vg-kpi.bar-blue::before{background:#4A90FF}
+#page-exec .vg-kpi.bar-green::before{background:#3DDC97}
+#page-exec .vg-kpi.bar-red::before{background:#FF6B6B}
+#page-exec .vg-kpi.bar-cyan::before{background:#2DD4BF}
+#page-exec .vg-kpi.bar-yellow::before{background:#FFB547}
+#page-exec .vg-kpi.bar-purple::before{background:#A78BFA}
+#page-exec .vg-lbl{text-transform:uppercase;letter-spacing:1px;font-size:11px;font-weight:500;color:rgba(255,255,255,.5);margin-bottom:10px}
+#page-exec .vg-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;margin-bottom:6px}
+#page-exec .vg-sub{font-size:12px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:5px}
+#page-exec .vg-spark{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px 18px;transition:all .3s ease}
+#page-exec .vg-spark:hover{border-color:rgba(255,255,255,.12)}
+#page-exec .vg-spark h4{font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:8px}
+#page-exec .vg-alerts{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+#page-exec .vg-alert{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 18px;border-left:4px solid;font-size:13px;color:rgba(255,255,255,.7);transition:all .3s ease;line-height:1.5}
+#page-exec .vg-alert.a-red{border-left-color:#FF6B6B}
+#page-exec .vg-alert.a-yellow{border-left-color:#FFB547}
+#page-exec .vg-alert.a-green{border-left-color:#3DDC97}
+#page-exec .vg-alert strong{color:#EAF0FA}
+#page-exec .vg-dre{background:#0F1420;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:20px 22px}
+#page-exec .vg-dre h4{font-size:12px;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+#page-exec .vg-dre table{width:100%;border-collapse:collapse;font-size:13px}
+#page-exec .vg-dre th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.06)}
+#page-exec .vg-dre td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'JetBrains Mono',monospace;font-size:12px}
+#page-exec .vg-dre td:first-child{font-family:'DM Sans',sans-serif;font-weight:600;color:#EAF0FA}
+#page-exec .vg-dre .dre-total td{font-weight:700;border-top:2px solid rgba(255,255,255,.1)}
 </style>
 </head>
 <body>
@@ -251,15 +281,23 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
     <!-- EXECUTIVO -->
     <div class="page active" id="page-exec">
-      <div style="padding:24px 0 8px">
-        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Executivo <span class="regime-badge regime-misto">Misto</span></h2>
-        <p style="font-size:13px;color:var(--muted)">Visão consolidada de saúde financeira — caixa real e competência.</p>
+      <div style="padding:20px 0 16px;display:flex;align-items:baseline;gap:10px">
+        <h2 style="font-size:20px;font-weight:700">Executivo</h2>
+        <span class="regime-badge regime-misto">Misto</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">Caixa real + competência</span>
       </div>
-      <div class="page-placeholder">
-        <div class="ph-icon">🚧</div>
-        <h2>Em construção</h2>
-        <p>Bloco 3 — reaproveitamento de componentes da Visão Geral</p>
+      <div class="vg-grid" id="exec-kpis"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
+        <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="exec-sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
+        <div class="vg-spark"><h4>Variação de Caixa % (6m)</h4><div style="height:120px"><canvas id="exec-sparkVarCaixa"></canvas></div><p class="chart-note">Caixa. (Entradas − Saídas) ÷ Entradas × 100</p></div>
+        <div class="vg-spark"><h4>Saldo Bancário (6m)</h4><div style="height:120px"><canvas id="exec-sparkCaixa"></canvas></div><p class="chart-note">Saldo real conciliado por mês</p></div>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px">
+        <div class="vg-spark"><h4>Faturamento (6m)</h4><div style="height:160px"><canvas id="exec-sparkFat"></canvas></div><p class="chart-note">Competência. Receita operacional (exclui empréstimos, FD, devoluções, rendimentos, receita a identificar)</p></div>
+        <div class="vg-spark"><h4>EBITDA (6m) <div class="periodo-btns" style="display:inline-flex;margin-left:6px;vertical-align:middle"><button onclick="setEbitdaMode('real',this)" class="active" style="font-size:9px;padding:2px 6px">Imp Real</button><button onclick="setEbitdaMode('teorico',this)" style="font-size:9px;padding:2px 6px">Imp 11%</button></div></h4><div style="height:160px"><canvas id="exec-sparkEbitda"></canvas></div><p class="chart-note" id="exec-ebitdaNote">Competência D-1. ISS + COFINS deslocados 1 mês.</p></div>
+      </div>
+      <div class="vg-alerts" id="exec-alerts"></div>
+      <div class="vg-dre" id="exec-dre"></div>
     </div>
 
     <!-- CAIXA -->
@@ -848,7 +886,7 @@ function renderSaldoGrid(){
 
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};_allPorMes=null;_allFinMesAll=null}
 
-function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH();renderExecutivo();renderCaixaNovo();renderResultado();renderProjetosFech();renderFDConcil();renderPessoasFolha()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH();renderExecutivo(d,dc);renderCaixaNovo();renderResultado();renderProjetosFech();renderFDConcil();renderPessoasFolha()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3be';
@@ -2448,7 +2486,104 @@ function gerarRelatorioPDF(){
 
 // ============ NOVAS ABAS EXECUTIVAS — skeleton (Bloco 2) ============
 // Cada funcao sera preenchida nos blocos seguintes. Placeholders visivos sao renderizados pelo HTML estatico.
-function renderExecutivo(){}
+function renderExecutivo(d,dc){
+  const saldoTotal=(dadosFiltrados.saldos_bancarios||[]).reduce((s,b)=>s+b.saldo,0);
+  const meses=Object.keys(d.porMes).sort();
+  let mesAtual=meses.filter(m=>(d.porMes[m]?.entrada||0)>0).pop()||meses[meses.length-1]||'';
+  const mesIdx=meses.indexOf(mesAtual);
+  let mesAnt=mesIdx>0?meses[mesIdx-1]:'';
+  let recMesAnt=d.porMes[mesAnt]?.entrada||0;
+  if(!mesAnt&&mesAtual){const[y,m]=mesAtual.split('-').map(Number);mesAnt=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`;recMesAnt=getAllPorMes()[mesAnt]?.entrada||0;}
+  const recMes=d.porMes[mesAtual]?.entrada||0;
+  const mesAtualLabel=mesAtual?mesNome(mesAtual):'';
+  const _recOpExcluir=new Set(['1.01.99','1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
+  const _dcL=dc?dc.L:dadosFiltrados.lancamentos;
+  const recOpPorMes={};let recOpTotal=0,despOpTotal=0;
+  _dcL.forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;if(l.tipo==='entrada'&&!_recOpExcluir.has(l.categoria)){recOpPorMes[m]=(recOpPorMes[m]||0)+l.valor;recOpTotal+=l.valor}if(l.tipo==='saida'){despOpTotal+=l.valor}});
+  const resultado=recOpTotal-despOpTotal;
+  const margem=recOpTotal>0?(resultado/recOpTotal*100).toFixed(1):'0';
+  const varRec=recMesAnt>0?((recMes-recMesAnt)/recMesAnt*100).toFixed(0):'--';
+  const vRec=dadosFiltrados.lancamentos.filter(l=>l.tipo==='entrada'&&l.status==='ATRASADO').reduce((s,l)=>s+l.valor,0);
+  const pctInad=recOpTotal>0?(vRec/recOpTotal*100):0;
+  const corInad=pctInad>15?'bar-red':pctInad>5?'bar-yellow':'bar-green';
+  const corInadTxt=pctInad>15?'#FF6B6B':pctInad>5?'#FFB547':'#3DDC97';
+  const mesesArr=meses.slice(-3);
+  const avgDesp=mesesArr.length>0?mesesArr.reduce((s,m)=>(d.porMes[m]?.saida||0)+s,0)/mesesArr.length:0;
+  const runway=avgDesp>0?saldoTotal/avgDesp:99;
+  const runwayTxt=runway>99?'99+':runway.toFixed(1);
+  const corRunway=runway>=6?'bar-green':runway>=3?'bar-yellow':'bar-red';
+  const corRunwayTxt=runway>=6?'#3DDC97':runway>=3?'#FFB547':'#FF6B6B';
+  const hist=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  let saldoAnt=0;
+  if(hist.length){const pm={};hist.forEach(h=>{const m=h.data.substring(0,7);pm[m]=(pm[m]||0)+h.saldo_atual});const ms=Object.keys(pm).sort();if(ms.length>=2)saldoAnt=pm[ms[ms.length-2]]||0;}
+  const varSaldo=saldoAnt?((saldoTotal-saldoAnt)/Math.abs(saldoAnt)*100).toFixed(0):'--';
+  document.getElementById('exec-kpis').innerHTML=`
+    <div class="vg-kpi bar-blue"><div class="vg-lbl">Receita ${mesAtualLabel||'Mês'}</div><div class="vg-val" style="color:#4A90FF">${fmt(recMes)}</div><div class="vg-sub">vs ${mesAnt?mesNome(mesAnt):'mês anterior'} ${varRec!=='--'?(Number(varRec)>=0?'↑':'↓')+Math.abs(varRec)+'%':'--'}</div><p class="chart-note">Caixa (data de pagamento)</p></div>
+    <div class="vg-kpi ${resultado>=0?'bar-green':'bar-red'}"><div class="vg-lbl">Resultado</div><div class="vg-val" style="color:${resultado>=0?'#3DDC97':'#FF6B6B'}">${fmt(resultado)}</div><div class="vg-sub">Margem ${margem}%</div><p class="chart-note">Competência (exclui atrasados)</p></div>
+    <div class="vg-kpi bar-cyan"><div class="vg-lbl">Caixa Total</div><div class="vg-val" style="color:#2DD4BF">${fmt(saldoTotal)}</div><div class="vg-sub">${varSaldo!=='--'?(Number(varSaldo)>=0?'↑':'↓')+Math.abs(varSaldo)+'% vs mês ant':'--'}</div></div>
+    <div class="vg-kpi ${corRunway}"><div class="vg-lbl">Meses de Caixa</div><div class="vg-val" style="color:${corRunwayTxt}">${runwayTxt}</div><div class="vg-sub">meses de operação</div><p class="chart-note">Saldo ÷ média despesas 3m</p></div>
+    <div class="vg-kpi ${corInad}"><div class="vg-lbl">Inadimplência</div><div class="vg-val" style="color:${corInadTxt}">${fmt(vRec)}</div><div class="vg-sub">${pctInad.toFixed(1)}% da receita</div><p class="chart-note">Atrasados ÷ receita do período</p></div>
+    <div class="vg-kpi bar-purple"><div class="vg-lbl">Headcount</div><div class="vg-val" style="color:#A78BFA">--</div><div class="vg-sub">funcionários</div></div>`;
+  const sparkDL={display:ctx=>ctx.dataset.data[ctx.dataIndex]!==0,color:'rgba(255,255,255,.6)',font:{family:'JetBrains Mono',size:9,weight:500},anchor:'end',align:'top',offset:2,formatter:v=>fmtK(Math.abs(v))};
+  const sparkOpts={responsive:true,maintainAspectRatio:false,scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},datalabels:sparkDL,tooltip:{enabled:false}},elements:{point:{radius:0}}};
+  const m6=meses.filter(m=>m<=mesAtual).slice(-6);
+  const spk1Ent=m6.map(m=>d.porMes[m]?.entrada||0);
+  const spk1Sai=m6.map(m=>-(d.porMes[m]?.saida||0));
+  const spk1Max=Math.max(...spk1Ent)*1.35;const spk1Min=Math.min(...spk1Sai)*1.35;
+  const spk1YoY=m6.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];return pm?pm.entrada:null});
+  charts.execSpkRD=new Chart(document.getElementById('exec-sparkRecDesp'),{type:'bar',data:{labels:m6.map(mesNome),datasets:[{data:spk1Ent,backgroundColor:'#3DDC9788',borderRadius:4},{data:spk1Sai,backgroundColor:'#FF6B6B88',borderRadius:4},{type:'line',data:spk1YoY,borderColor:'rgba(255,255,255,.2)',borderDash:[3,3],borderWidth:1.5,pointRadius:0,tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}}]},options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk1Max,suggestedMin:spk1Min}}}});
+  const histSp=(dadosOriginal.historico_conciliacao||[]).filter(h=>h.tipo==='mensal');
+  const spSaldo={};histSp.forEach(h=>{if(h.banco_nome&&h.banco_nome.toUpperCase().includes('RENATA PATELLI'))return;const m=h.data.substring(0,7);spSaldo[m]=(spSaldo[m]||0)+h.saldo_atual});
+  const caixaAcum=m6.map(m=>spSaldo[m]||0);
+  charts.execSpkCx=new Chart(document.getElementById('exec-sparkCaixa'),{type:'line',data:{labels:m6.map(mesNome),datasets:[{data:caixaAcum,borderColor:'#4A90FF',backgroundColor:'#4A90FF22',fill:true,tension:.4}]},options:{...sparkOpts,scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:Math.max(...caixaAcum)*1.15}}}});
+  const dcL=dc?dc.L:dadosFiltrados.lancamentos;
+  const sgaSet=new Set(['2.02','2.03','2.04','2.10']);
+  const impostosPorMes={};
+  dcL.filter(l=>l.tipo==='saida'&&(l.categoria==='2.06.07'||l.categoria==='2.06.04')).forEach(l=>{const mVenc=toYM(l.data_vencimento||l.data);if(!mVenc)return;const[y,mo]=mVenc.split('-').map(Number);const mReal=mo===1?`${y-1}-12`:`${y}-${String(mo-1).padStart(2,'0')}`;impostosPorMes[mReal]=(impostosPorMes[mReal]||0)+l.valor;});
+  const custoPorMes={},sgaPorMes={};
+  dcL.filter(l=>l.tipo==='saida').forEach(l=>{const g=(l.categoria||'').split('.').slice(0,2).join('.');const m=toYM(l.data_vencimento||l.data);if(!m)return;if(g==='2.01'){custoPorMes[m]=(custoPorMes[m]||0)+l.valor}else if(sgaSet.has(g)){sgaPorMes[m]=(sgaPorMes[m]||0)+l.valor}});
+  const m6imp=m6.filter(m=>impostosPorMes[m]>0);
+  const somaImpReal=m6imp.reduce((s,m)=>s+(impostosPorMes[m]||0),0);
+  const somaRecImp=m6imp.reduce((s,m)=>s+(recOpPorMes[m]||0),0);
+  const taxaMedia=somaRecImp>0?somaImpReal/somaRecImp:0.03;
+  const ebitdaData=m6.map(m=>{const rec=recOpPorMes[m]||0;let imp=_ebitdaMode==='teorico'?rec*0.11:(impostosPorMes[m]!=null?impostosPorMes[m]:rec*taxaMedia);return Math.round(rec-imp-(custoPorMes[m]||0)-(sgaPorMes[m]||0));});
+  const spk3Max=Math.max(...ebitdaData)*1.2;const spk3Min=Math.min(...ebitdaData,0)*1.2;
+  charts.execSpkEbitda=new Chart(document.getElementById('exec-sparkEbitda'),{type:'bar',data:{labels:m6.map(mesNome),datasets:[{data:ebitdaData,backgroundColor:ebitdaData.map(v=>v>=0?'#3DDC9788':'#FF6B6B88'),borderColor:ebitdaData.map(v=>v>=0?'#3DDC97':'#FF6B6B'),borderWidth:1,borderRadius:4}]},options:{...sparkOpts,layout:{padding:{top:25}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk3Max,suggestedMin:spk3Min}}}});
+  const execNoteEl=document.getElementById('exec-ebitdaNote');
+  if(execNoteEl)execNoteEl.textContent=_ebitdaMode==='teorico'?'Alíquota fixa de 11% sobre receita bruta.':`Competência D-1. ISS + COFINS deslocados 1 mês. ${m6imp.length<m6.length?'Último mês estimado ('+(taxaMedia*100).toFixed(1)+'%).':''}`;
+  const vcData=m6.map(m=>{const pm=d.porMes[m]||{};const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):0});
+  const spk4Max=Math.max(...vcData.map(Math.abs))*1.35;
+  const vcYoY=m6.map(m=>{const pm=getAllPorMes()[getYoYMonth(m)];if(!pm)return null;const e=pm.entrada||0,s=pm.saida||0;return e>0?Math.round((e-s)/e*100):null});
+  charts.execSpkVC=new Chart(document.getElementById('exec-sparkVarCaixa'),{type:'line',data:{labels:m6.map(mesNome),datasets:[{data:vcData,borderColor:'#2DD4BF',backgroundColor:'#2DD4BF22',fill:true,tension:.4,segment:{borderColor:ctx=>(ctx.p0.parsed.y<0||ctx.p1.parsed.y<0)?'#FF6B6B':'#2DD4BF'}},{data:vcYoY,borderColor:'rgba(255,255,255,.2)',borderDash:[3,3],borderWidth:1.5,pointRadius:0,tension:.3,fill:false,spanGaps:false,order:0,datalabels:{display:false}}]},options:{...sparkOpts,plugins:{...sparkOpts.plugins,datalabels:{...sparkDL,formatter:v=>v+'%'}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:spk4Max,suggestedMin:-spk4Max}}}});
+  const fatExcluir=new Set(['1.01.99','1.04.02','1.04.03','1.04.01','1.02.02','1.03.01','1.03.02','1.03.03','1.03.04','1.03.26']);
+  const fatPorMes={};
+  dcL.filter(l=>l.tipo==='entrada'&&!fatExcluir.has(l.categoria)).forEach(l=>{const m=toYM(l.data_vencimento||l.data);if(!m)return;fatPorMes[m]=(fatPorMes[m]||0)+l.valor;});
+  const fatData=m6.map(m=>fatPorMes[m]||0);
+  charts.execSpkFat=new Chart(document.getElementById('exec-sparkFat'),{type:'bar',data:{labels:m6.map(mesNome),datasets:[{data:fatData,backgroundColor:'#4A90FF88',borderColor:'#4A90FF',borderWidth:1,borderRadius:4}]},options:{...sparkOpts,layout:{padding:{top:25}},scales:{x:{display:true,ticks:{color:'rgba(255,255,255,.3)',font:{size:9}},grid:{display:false}},y:{display:false,suggestedMax:Math.max(...fatData)*1.2}}}});
+  const alerts=[];
+  if(pctInad>10)alerts.push({cls:'a-red',txt:`<strong>Inadimplência alta:</strong> ${fmt(vRec)} atrasado (${pctInad.toFixed(1)}% da receita)`});
+  if(runway<4)alerts.push({cls:'a-red',txt:`<strong>Caixa crítico:</strong> apenas ${runwayTxt} meses de operação. Ação urgente necessária.`});
+  if(recMesAnt>0&&recMes<recMesAnt*0.8)alerts.push({cls:'a-yellow',txt:`<strong>Receita caiu ${Math.abs(varRec)}%</strong> em relação ao mês anterior (${fmt(recMesAnt)} → ${fmt(recMes)})`});
+  const projsNeg=Object.values(d.porProj||{}).filter(p=>p.entrada>50000&&(p.entrada-p.saida)<0);
+  if(projsNeg.length)alerts.push({cls:'a-yellow',txt:`<strong>${projsNeg.length} projeto(s) com margem negativa</strong> (receita > R$ 50K): ${projsNeg.slice(0,3).map(p=>p.nome).join(', ')}`});
+  if(orcData&&orcData.dre){const rb=orcData.dre.find(r=>r.label==='Receita Bruta');if(rb){const mr=orcData.meses_com_real||[];let real=0,bpV=0;if(rb.real&&typeof rb.real==='object'){mr.forEach(m=>{real+=(rb.real[m]||0);bpV+=(rb.bp[m]||0)})}else{real=rb.acum_real||0;bpV=rb.acum_bp||0;}if(bpV>0&&real>bpV*1.1)alerts.push({cls:'a-green',txt:`<strong>Receita ${((real/bpV-1)*100).toFixed(0)}% acima do orçado</strong> (Real: ${fmtK(real)} vs BP: ${fmtK(bpV)})`});}}
+  const execAlertsEl=document.getElementById('exec-alerts');
+  if(alerts.length){execAlertsEl.innerHTML=alerts.slice(0,4).map(a=>`<div class="vg-alert ${a.cls}">${a.txt}</div>`).join('');execAlertsEl.style.display=''}else{execAlertsEl.style.display='none'}
+  let dreHtml='<h4>Mini DRE — YTD <span class="regime-badge competencia">Competência</span></h4><p class="chart-note" style="margin-bottom:12px">Fonte: planilha BP (Real vs Orçado). Não vem do Omie.</p>';
+  if(orcData&&orcData.dre){
+    const dreRows=['Receita Bruta','Custos Operacionais','Despesas Gerais e Adm','EBITDA','Lucro Líquido'];
+    const mesesReal=orcData.meses_com_real||[];
+    dreHtml+='<table><thead><tr><th>Linha</th><th style="text-align:right">Real YTD</th><th style="text-align:right">Orçado YTD</th><th style="text-align:right">%</th><th style="text-align:center">Status</th></tr></thead><tbody>';
+    dreRows.forEach(label=>{const row=orcData.dre.find(r=>r.label===label);if(!row)return;let real=0,bp=0;if(row.real&&typeof row.real==='object'){mesesReal.forEach(m=>{real+=(row.real[m]||0);})}else{real=row.acum_real||0;}if(row.bp&&typeof row.bp==='object'){mesesReal.forEach(m=>{bp+=(row.bp[m]||0);})}else{bp=row.acum_bp||0;}const pct=bp?((real/bp)*100).toFixed(0):'--';const isGood=label.includes('Custo')||label.includes('Despesa')?real<=bp:real>=bp;const emoji=pct==='--'?'➖':isGood?'✅':'⚠️';const cls=label==='EBITDA'||label==='Lucro Líquido'?'dre-total':'';dreHtml+=`<tr class="${cls}"><td>${label}</td><td style="text-align:right;color:${real>=0?'#3DDC97':'#FF6B6B'}">${fmtK(real)}</td><td style="text-align:right;color:rgba(255,255,255,.5)">${fmtK(bp)}</td><td style="text-align:right">${pct}%</td><td style="text-align:center">${emoji}</td></tr>`;});
+    dreHtml+='</tbody></table>';
+  }else{
+    dreHtml+='<table><thead><tr><th>Linha</th><th style="text-align:right">Real YTD (Omie)</th></tr></thead><tbody>';
+    [{label:'Receita Bruta',val:d.tE},{label:'Despesas Totais',val:-d.tS},{label:'Resultado',val:d.tE-d.tS,bold:true}].forEach(r=>{dreHtml+=`<tr class="${r.bold?'dre-total':''}"><td>${r.label}</td><td style="text-align:right;color:${r.val>=0?'#3DDC97':'#FF6B6B'}">${fmtK(Math.abs(r.val))}</td></tr>`;});
+    dreHtml+='</tbody></table><p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:8px">Dados em tempo real do Omie • Atualize a BP para ver Real vs Orçado</p>';
+  }
+  document.getElementById('exec-dre').innerHTML=dreHtml;
+  decryptFile('rh_data.enc','koti2025').then(rh=>{if(!rh||!rh.hc)return;const ms=Object.keys(rh.hc).sort();const ultimo=ms[ms.length-1];if(!ultimo)return;const hcVal=rh.hc[ultimo]?.final||0;const el=document.querySelector('#exec-kpis .bar-purple .vg-val');if(el&&hcVal)el.textContent=hcVal;}).catch(()=>{});
+}
 function renderCaixaNovo(){}
 function renderResultado(){}
 function renderProjetosFech(){}
