@@ -162,6 +162,19 @@ tr:hover td{background:rgba(74,144,255,.04)}
 #loginBox button:hover{opacity:.85}
 #loginError{color:var(--red);font-size:12px;margin-top:8px;display:none}
 #appMain{display:none}
+/* === Badges de regime contabil === */
+.regime-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;letter-spacing:.4px;margin-left:6px;vertical-align:middle}
+.regime-caixa{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.regime-comp{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+.regime-misto{background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3)}
+.regime-na{background:rgba(148,163,174,.1);color:#94a3b8;border:1px solid rgba(148,163,174,.2)}
+/* Separador de grupo de abas */
+.tab-group-label{display:flex;align-items:center;padding:0 10px;font-size:10px;font-weight:600;color:rgba(148,163,174,.45);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;border-left:1px solid var(--border);margin-left:4px;margin-right:2px;align-self:stretch}
+/* Placeholder de aba em construcao */
+.page-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;gap:12px;color:var(--muted)}
+.page-placeholder .ph-icon{font-size:40px}
+.page-placeholder h2{font-size:18px;font-weight:600;color:var(--text)}
+.page-placeholder p{font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -202,7 +215,14 @@ tr:hover td{background:rgba(74,144,255,.04)}
   <button class="btn-filter" onclick="gerarRelatorioPDF()" style="margin-left:auto;background:transparent;border:1px solid #334155;color:#94a3b8;transition:all .2s" onmouseover="this.style.borderColor='#4A90FF';this.style.color='#EAF0FA';this.style.boxShadow='0 0 12px rgba(74,144,255,.15)'" onmouseout="this.style.borderColor='#334155';this.style.color='#94a3b8';this.style.boxShadow='none'">📄 Relatório</button>
 </div>
 <div class="tabs" id="tabsContainer" style="display:none">
-  <button class="tab active" data-tab="visao-geral">Visão Geral</button>
+  <button class="tab active" data-tab="exec">Executivo <span class="regime-badge regime-misto">Misto</span></button>
+  <button class="tab" data-tab="caixa-novo">Caixa <span class="regime-badge regime-caixa">Caixa</span></button>
+  <button class="tab" data-tab="resultado">Resultado <span class="regime-badge regime-comp">Competência</span></button>
+  <button class="tab" data-tab="projetos-fech">Projetos &amp; Fechamentos <span class="regime-badge regime-comp">Competência</span></button>
+  <button class="tab" data-tab="fd-concil">FD / Conciliação <span class="regime-badge regime-comp">Competência</span></button>
+  <button class="tab" data-tab="pessoas-folha">Pessoas &amp; Folha <span class="regime-badge regime-na">N/A</span></button>
+  <span class="tab-group-label">Detalhes</span>
+  <button class="tab" data-tab="visao-geral">Visão Geral</button>
   <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
   <button class="tab" data-tab="financeiro">Financeiro</button>
   <button class="tab" data-tab="conciliacao">Conciliação FD</button>
@@ -219,8 +239,90 @@ tr:hover td{background:rgba(74,144,255,.04)}
   </div>
   <div id="dashboardPages" style="display:none">
 
+    <!-- ============ ABAS EXECUTIVAS ============ -->
+
+    <!-- EXECUTIVO -->
+    <div class="page active" id="page-exec">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Executivo <span class="regime-badge regime-misto">Misto</span></h2>
+        <p style="font-size:13px;color:var(--muted)">Visão consolidada de saúde financeira — caixa real e competência.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 3 — reaproveitamento de componentes da Visão Geral</p>
+      </div>
+    </div>
+
+    <!-- CAIXA -->
+    <div class="page" id="page-caixa-novo">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Caixa <span class="regime-badge regime-caixa">Caixa</span></h2>
+        <p style="font-size:13px;color:var(--muted)">Saldo real, entradas vs saídas mensais, aging e inadimplência.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 4 — reaproveitamento do Fluxo de Caixa</p>
+      </div>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="page" id="page-resultado">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Resultado <span class="regime-badge regime-comp">Competência</span></h2>
+        <p style="font-size:13px;color:var(--muted)">DRE executiva: receita operacional, custos, SG&amp;A, EBITDA, real vs orçado.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 4 — reaproveitamento de Financeiro + Real vs Orçado</p>
+      </div>
+    </div>
+
+    <!-- PROJETOS & FECHAMENTOS -->
+    <div class="page" id="page-projetos-fech">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Projetos &amp; Fechamentos <span class="regime-badge regime-comp">Competência</span></h2>
+        <p style="font-size:13px;color:var(--muted)">Margem por projeto: receita SK vs FD, despesas, resultado e ranking.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 4 — reaproveitamento de Projetos</p>
+      </div>
+    </div>
+
+    <!-- FD / CONCILIAÇÃO -->
+    <div class="page" id="page-fd-concil">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">FD / Conciliação <span class="regime-badge regime-comp">Competência</span></h2>
+        <p style="font-size:13px;color:var(--muted)">Faturamento Direto: entradas vs saídas FD por projeto, saldo e equilíbrio.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 4 — reaproveitamento de Conciliação FD</p>
+      </div>
+    </div>
+
+    <!-- PESSOAS & FOLHA -->
+    <div class="page" id="page-pessoas-folha">
+      <div style="padding:24px 0 8px">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Pessoas &amp; Folha <span class="regime-badge regime-na">N/A</span></h2>
+        <p style="font-size:13px;color:var(--muted)">Headcount, custo por colaborador, turnover e estrutura de folha.</p>
+      </div>
+      <div class="page-placeholder">
+        <div class="ph-icon">🚧</div>
+        <h2>Em construção</h2>
+        <p>Bloco 5 — reaproveitamento de RH</p>
+      </div>
+    </div>
+
+    <!-- ============ DETALHES (abas originais) ============ -->
+
     <!-- VISÃO GERAL (Premium) -->
-    <div class="page active" id="page-visao-geral">
+    <div class="page" id="page-visao-geral">
       <div class="vg-grid" id="vg-kpis"></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
         <div class="vg-spark"><h4>Receita vs Despesa (6m)</h4><div style="height:120px"><canvas id="sparkRecDesp"></canvas></div><p class="chart-note">Regime de caixa (data de pagamento)</p></div>
@@ -732,7 +834,7 @@ function renderSaldoGrid(){
 
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};_allPorMes=null;_allFinMesAll=null}
 
-function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH()}
+function renderAll(){destroyCharts();const d=compute();const dc=computeCompetencia();renderVisaoGeral(d,dc);renderFluxoCaixa(d);renderFinanceiro(dc);renderConciliacao();renderVendas(dc);renderClientes();renderProjetos(dc);renderOrcamento();renderRH();renderExecutivo();renderCaixaNovo();renderResultado();renderProjetosFech();renderFDConcil();renderPessoasFolha()}
 
 Chart.register(ChartDataLabels);
 Chart.defaults.color='#94a3be';
@@ -2329,6 +2431,15 @@ function gerarRelatorioPDF(){
   const mesFile=mesAtual||agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0');
   doc.save(`StudioKoti_Relatorio_${mesFile}.pdf`);
 }
+
+// ============ NOVAS ABAS EXECUTIVAS — skeleton (Bloco 2) ============
+// Cada funcao sera preenchida nos blocos seguintes. Placeholders visivos sao renderizados pelo HTML estatico.
+function renderExecutivo(){}
+function renderCaixaNovo(){}
+function renderResultado(){}
+function renderProjetosFech(){}
+function renderFDConcil(){}
+function renderPessoasFolha(){}
 
 window.addEventListener('DOMContentLoaded',()=>{
   if(sessionStorage.getItem('sk_auth')==='1'){
