@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Extrai dados de Real vs Orçado (BP) da planilha Excel
 e escreve no BigQuery (tabela orcamento_dre).
@@ -19,21 +20,31 @@ Uso:
 import os
 import sys
 import glob
+import unicodedata
 from datetime import datetime
 
 from google.cloud import bigquery
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ICLOUD_BP_DIR = os.path.expanduser(
+    "~/Library/Mobile Documents/com~apple~CloudDocs/Studio Koti/Dashboard/Dados BP"
+)
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "")
 BQ_DATASET = os.environ.get("BQ_DATASET", "studio_koti")
 
 
 def find_bp_file() -> str | None:
-    """Busca arquivo BP no diretório do script."""
-    bp = os.path.join(SCRIPT_DIR, "BP.xlsx")
-    if os.path.exists(bp):
-        return bp
+    """Busca arquivo BP no diretório do script e na pasta iCloud da Koti."""
+    candidates = [
+        os.path.join(SCRIPT_DIR, "BP.xlsx"),
+        os.path.join(ICLOUD_BP_DIR, "BP.xlsx"),
+    ]
+    for bp in candidates:
+        if os.path.exists(bp):
+            return bp
+
     matches = glob.glob(os.path.join(SCRIPT_DIR, "BP*.xlsx"))
+    matches += glob.glob(os.path.join(ICLOUD_BP_DIR, "BP*.xlsx"))
     if matches:
         return sorted(matches)[-1]
     return None
@@ -43,43 +54,34 @@ def find_bp_file() -> str | None:
 # (real_row, bp_row, label, section, level)
 # level: 0=total, 1=subtotal, 2=detalhe
 DRE_MAP = [
-    (26, 26, "Receita Bruta", "receita", 0),
-    (27, None, "SK", "receita", 2),
-    (28, 29, "BK", "receita", 2),
-    (29, 30, "RT", "receita", 2),
-    (30, None, "Aditivo", "receita", 2),
-    (None, 32, "Vendas RP", "receita", 2),
-    (35, 35, "Impostos", "impostos", 0),
-    (37, 37, "ICMS", "impostos", 2),
-    (38, 38, "Crédito de ICMS", "impostos", 2),
-    (39, 39, "ISS", "impostos", 2),
-    (40, 40, "PIS/COFINS", "impostos", 2),
-    (42, 42, "Receita Líquida", "receita_liq", 0),
-    (44, 44, "Custos Operacionais", "custos", 0),
-    (45, 45, "Comissões Externas", "custos", 2),
-    (47, 46, "Comissões Internas", "custos", 2),
-    (48, 47, "Obras (Total)", "custos", 1),
-    (73, 71, "Margem de Contribuição", "margem", 0),
-    (76, 74, "Despesas Gerais e Adm", "sga", 0),
-    (78, 76, "Salários e Encargos", "sga", 1),
-    (92, 90, "Despesas Administrativas", "sga", 1),
-    (116, 113, "Despesas Comerciais", "sga", 1),
-    (121, 117, "Despesas com Imóvel", "sga", 1),
-    (131, 127, "Despesas com Veículos", "sga", 1),
-    (137, 133, "Despesas com Diretoria", "sga", 1),
-    (145, 141, "EBITDA", "ebitda", 0),
-    (148, 144, "Receitas/Despesas Financeiras", "financeiro", 1),
-    (163, 159, "IRPJ/CSLL", "impostos_renda", 0),
-    (168, 164, "Lucro Líquido", "ll", 0),
+    (26, 51, "Receita Bruta", "receita", 0),
+    (35, 60, "Impostos", "impostos", 0),
+    (44, 68, "Receita Líquida", "receita_liq", 0),
+    (46, 70, "Custos Operacionais", "custos", 0),
+    (75, 98, "Margem de Contribuição", "margem", 0),
+    (78, 101, "Despesas Gerais e Adm", "sga", 0),
+    (80, 103, "Salários e Encargos", "sga", 1),
+    (147, 168, "EBITDA", "ebitda", 0),
+    (150, 171, "Receitas/Despesas Financeiras", "financeiro", 1),
+    ((41, 42), (236, 238), "IRPJ/CSLL", "impostos_renda", 0),
+    (169, 186, "Lucro Líquido", "ll", 0),
 ]
-
 MONTH_COLS = {f"2026-{m:02d}": 3 + m for m in range(1, 13)}
 
 
-def read_val(ws, row: int | None, col: int) -> float:
+def _norm_label(value: object) -> str:
+    text = str(value or "").strip().lower()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.replace("ç", "c")
+
+
+def read_val(ws, row: int | tuple[int, ...] | None, col: int) -> float:
     """Lê valor numérico de uma célula."""
     if row is None:
         return 0
+    if isinstance(row, tuple):
+        return round(sum(read_val(ws, r, col) for r in row), 2)
     v = ws.cell(row=row, column=col).value
     return round(v, 2) if isinstance(v, (int, float)) else 0
 
@@ -93,11 +95,21 @@ def validate_dre_map(ws_real, ws_bp) -> int:
         for ws, row, aba in [(ws_real, real_row, "Realizado"), (ws_bp, bp_row, "BP")]:
             if row is None:
                 continue
+            if isinstance(row, tuple):
+                continue
             # Label geralmente está na coluna 2 (B) ou 3 (C), testar ambas
             cell_b = ws.cell(row=row, column=2).value
             cell_c = ws.cell(row=row, column=3).value
             cell_val = str(cell_b or "").strip() if cell_b else str(cell_c or "").strip()
-            if cell_val and label.lower() not in cell_val.lower() and cell_val.lower() not in label.lower():
+            found = _norm_label(cell_val)
+            expected = _norm_label(label)
+            aliases = {
+                "impostos": ["imposto retido na fonte", "impostos s/ receita"],
+                "receitas/despesas financeiras": ["receitas e despesas financeiras"],
+                "lucro liquido": ["ll"],
+            }
+            accepted = [expected] + aliases.get(expected, [])
+            if cell_val and not any(a in found or found in a for a in accepted):
                 print(f"  ⚠ WARNING: {aba} row {row} esperado '{label}', encontrado '{cell_val}'")
                 mismatches += 1
     return mismatches

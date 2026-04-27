@@ -262,7 +262,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
     <button class="tab" data-tab="fluxo-caixa">Fluxo de Caixa</button>
     <button class="tab" data-tab="financeiro">Financeiro</button>
     <button class="tab" data-tab="conciliacao">Conciliação FD</button>
-    <button class="tab" data-tab="vendas">Vendas</button>
+    <button class="tab" data-tab="vendas">Receita &amp; Pedidos</button>
     <button class="tab" data-tab="projetos">Projetos</button>
     <button class="tab" data-tab="orcamento">Real vs Orçado</button>
     <button class="tab" data-tab="rh">RH</button>
@@ -478,7 +478,7 @@ tr:hover td{background:rgba(74,144,255,.04)}
 
       <div class="kpi-row" id="kpi-vendas"></div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Vendas por Mês <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div><p class="chart-note">Competência (data de vencimento)</p></div>
+        <div class="chart-card"><h3>Receita &amp; Pedidos por Mês <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartVendasMes"></canvas></div><p class="chart-note">Competência (data de vencimento)</p></div>
         <div class="chart-card"><h3>Pedidos por Etapa <span class="regime-badge competencia">Competência</span></h3><div class="chart-container"><canvas id="chartEtapas"></canvas></div><p class="chart-note">Pipeline de vendas atual</p></div>
       </div>
       <div class="chart-row">
@@ -1586,7 +1586,7 @@ function renderFinanceiro(d){
 
 // ============ VENDAS ============
 function renderVendas(d){
-  // Usar dados filtrados dos lançamentos para vendas
+  // Usar dados filtrados dos lançamentos para receita e pedidos
   const ent=d.ent;
   const totalVendas=d.tE;
   const porMes=d.porMes;
