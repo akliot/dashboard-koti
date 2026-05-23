@@ -1774,10 +1774,8 @@ def sincronizar_documentos_fiscais(
         "natureza_operacao", "origem_dado", "synced_at",
     ]
     doc_compare = ["etapa", "faturado", "recebido", "cancelada", "valor_total_nfe"]
-    doc_delete_filter = f"T.data_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
     counts["documentos_fiscais"] = merge_to_bq(
         client, "documentos_fiscais", documentos, "n_id_receb", doc_compare, doc_cols,
-        delete_filter=doc_delete_filter,
     )
 
     # documentos_fiscais_itens — MERGE idempotente por chave composta (n_id_receb, n_sequencia)
@@ -1792,11 +1790,9 @@ def sincronizar_documentos_fiscais(
         "categoria_cfop", "grupo_ncm", "tipo_compra", "synced_at",
     ]
     item_compare = ["x_prod", "q_com", "v_prod", "tipo_compra"]
-    item_delete_filter = f"T.data_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
     counts["documentos_fiscais_itens"] = merge_to_bq(
         client, "documentos_fiscais_itens", itens,
         ["n_id_receb", "n_sequencia"], item_compare, item_cols,
-        delete_filter=item_delete_filter,
     )
 
     # documentos_fiscais_titulos — MERGE por n_cod_titulo (link unico com lancamentos)
@@ -1806,10 +1802,8 @@ def sincronizar_documentos_fiscais(
         "dt_emissao", "dt_vencimento", "dt_previsao", "n_valor_titulo", "synced_at",
     ]
     tit_compare = ["n_cod_projeto", "dt_vencimento", "n_valor_titulo"]
-    tit_delete_filter = f"T.dt_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
     counts["documentos_fiscais_titulos"] = merge_to_bq(
         client, "documentos_fiscais_titulos", titulos, "n_cod_titulo", tit_compare, tit_cols,
-        delete_filter=tit_delete_filter,
     )
 
     salvar_checkpoint(client, "documentos_fiscais_ultima_fim", data_fim)

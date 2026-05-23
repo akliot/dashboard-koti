@@ -707,8 +707,7 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
         calls = mock_merge.call_args_list
         itens_call = next(c for c in calls if c.args[1] == "documentos_fiscais_itens")
         self.assertEqual(itens_call.args[3], ["n_id_receb", "n_sequencia"])
-        self.assertIn("2026-04-18", itens_call.kwargs.get("delete_filter", ""))
-        self.assertIn("2026-05-18", itens_call.kwargs.get("delete_filter", ""))
+        self.assertIsNone(itens_call.kwargs.get("delete_filter"))
 
 
 if __name__ == "__main__":
