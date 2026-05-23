@@ -319,5 +319,397 @@ class TestDreMapValidation(unittest.TestCase):
         self.assertEqual(bp.DRE_MAP[-1][2], "Lucro Líquido")
 
 
+class TestDocumentosFiscaisV1(unittest.TestCase):
+    """Testa funções isoladas do pipeline de NF-e recebidas (Fase 5)."""
+
+    # ------------------------------------------------------------------
+    # _classificar_cfop
+    # ------------------------------------------------------------------
+
+    def test_cfop_compra_revenda(self):
+        self.assertEqual(pipeline._classificar_cfop("1102"), "compra_revenda")
+
+    def test_cfop_compra_revenda_2xxx(self):
+        self.assertEqual(pipeline._classificar_cfop("2102"), "compra_revenda")
+
+    def test_cfop_uso_consumo(self):
+        self.assertEqual(pipeline._classificar_cfop("1403"), "uso_consumo")
+
+    def test_cfop_ativo_imobilizado(self):
+        self.assertEqual(pipeline._classificar_cfop("1556"), "ativo_imobilizado")
+
+    def test_cfop_remessa_passagem(self):
+        self.assertEqual(pipeline._classificar_cfop("1922"), "remessa_passagem")
+
+    def test_cfop_importacao_3xxx(self):
+        self.assertEqual(pipeline._classificar_cfop("3102"), "importacao")
+
+    def test_cfop_devolucao(self):
+        self.assertEqual(pipeline._classificar_cfop("1201"), "devolucao_venda")
+
+    def test_cfop_desconhecido(self):
+        self.assertEqual(pipeline._classificar_cfop("9999"), "outros")
+
+    def test_cfop_vazio(self):
+        self.assertEqual(pipeline._classificar_cfop(""), "outros")
+
+    def test_cfop_none(self):
+        self.assertEqual(pipeline._classificar_cfop(None), "outros")
+
+    # ------------------------------------------------------------------
+    # _classificar_ncm
+    # ------------------------------------------------------------------
+
+    def test_ncm_moveis(self):
+        self.assertEqual(pipeline._classificar_ncm("94036000"), "moveis_iluminacao")
+
+    def test_ncm_ferro(self):
+        self.assertEqual(pipeline._classificar_ncm("73089000"), "ferro_aco_metais")
+
+    def test_ncm_madeira(self):
+        self.assertEqual(pipeline._classificar_ncm("44079100"), "madeira")
+
+    def test_ncm_eletrico(self):
+        self.assertEqual(pipeline._classificar_ncm("85044010"), "eletrico_eletronico")
+
+    def test_ncm_maquinas(self):
+        self.assertEqual(pipeline._classificar_ncm("84713019"), "maquinas_equipamentos")
+
+    def test_ncm_desconhecido(self):
+        self.assertEqual(pipeline._classificar_ncm("01011010"), "outros")
+
+    def test_ncm_vazio(self):
+        self.assertEqual(pipeline._classificar_ncm(""), "outros")
+
+    def test_ncm_none(self):
+        self.assertEqual(pipeline._classificar_ncm(None), "outros")
+
+    # ------------------------------------------------------------------
+    # _classificar_tipo_compra (CFOP + NCM → tipo_compra)
+    # ------------------------------------------------------------------
+
+    def test_tipo_material_projeto(self):
+        cc, gn, tc = pipeline._classificar_tipo_compra("1102", "94036000")
+        self.assertEqual(tc, "material_projeto")
+        self.assertEqual(cc, "compra_revenda")
+        self.assertEqual(gn, "moveis_iluminacao")
+
+    def test_tipo_ferragem_obra(self):
+        _, _, tc = pipeline._classificar_tipo_compra("2102", "73089000")
+        self.assertEqual(tc, "ferragem_obra")
+
+    def test_tipo_equipamento_projeto(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1102", "85044010")
+        self.assertEqual(tc, "equipamento_projeto")
+
+    def test_tipo_mercadoria_geral(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1102", "01011010")
+        self.assertEqual(tc, "mercadoria_geral")
+
+    def test_tipo_devolucao(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1201", "94036000")
+        self.assertEqual(tc, "devolucao")
+
+    def test_tipo_ativo_imobilizado(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1556", "84713019")
+        self.assertEqual(tc, "ativo_imobilizado")
+
+    def test_tipo_importacao(self):
+        _, _, tc = pipeline._classificar_tipo_compra("3102", "94036000")
+        self.assertEqual(tc, "importacao")
+
+    def test_tipo_uso_consumo(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1403", "01011010")
+        self.assertEqual(tc, "uso_consumo_operacional")
+
+    def test_tipo_remessa(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1922", "73089000")
+        self.assertEqual(tc, "remessa_passagem")
+
+    def test_tipo_nao_classificado(self):
+        _, _, tc = pipeline._classificar_tipo_compra("1949", "94036000")
+        self.assertEqual(tc, "nao_classificado")
+
+    # ------------------------------------------------------------------
+    # _normalizar_titulo_fiscal — chave (n_id_receb, n_cod_titulo)
+    # ------------------------------------------------------------------
+
+    def test_titulo_chave_composta(self):
+        tit = {
+            "nCodTitulo": 999001,
+            "nParcela": 1,
+            "nTotParc": 2,
+            "nCodProjeto": 42,
+            "cCodCateg": "2.01.03",
+            "cDoc": "NF-001",
+            "cNumTitulo": "001/1",
+            "dDtEmissao": "10/04/2026",
+            "dDtVenc": "10/05/2026",
+            "dDtPrevisao": "10/05/2026",
+            "nValorTitulo": 1500.0,
+        }
+        row = pipeline._normalizar_titulo_fiscal(88888, tit, "2026-05-17T00:00:00")
+        self.assertEqual(row["n_id_receb"], 88888)
+        self.assertEqual(row["n_cod_titulo"], 999001)
+        self.assertEqual(row["dt_emissao"], "2026-04-10")
+        self.assertEqual(row["dt_vencimento"], "2026-05-10")
+        self.assertEqual(row["n_valor_titulo"], 1500.0)
+        self.assertEqual(row["n_cod_projeto"], 42)
+
+    def test_titulo_sem_datas(self):
+        tit = {"nCodTitulo": 123, "nValorTitulo": 500.0}
+        row = pipeline._normalizar_titulo_fiscal(1, tit, "2026-05-17T00:00:00")
+        self.assertIsNone(row["dt_emissao"])
+        self.assertIsNone(row["dt_vencimento"])
+
+    def test_titulo_campos_ausentes_viram_none(self):
+        row = pipeline._normalizar_titulo_fiscal(1, {}, "now")
+        self.assertIsNone(row["n_cod_titulo"])
+        self.assertIsNone(row["n_cod_projeto"])
+
+    # ------------------------------------------------------------------
+    # _normalizar_item_fiscal — classificacao embutida
+    # ------------------------------------------------------------------
+
+    def test_item_classificacao_propagada(self):
+        det = {
+            "nItem": 1,
+            "prod": {
+                "xProd": "Fechadura Inox 304",
+                "NCM": "83018090",
+                "CFOP": "2102",
+                "cProd": "FECH-001",
+                "qCom": 10.0,
+                "vUnCom": 45.00,
+                "vProd": 450.00,
+                "vTotItem": 450.00,
+            },
+        }
+        row = pipeline._normalizar_item_fiscal(77777, det, {}, "2026-04-15", "2026-05-17T00:00:00")
+        # CFOP 2102 = compra_revenda, NCM 83 = outros → mercadoria_geral
+        self.assertEqual(row["cfop"], "2102")
+        self.assertEqual(row["ncm"], "83018090")
+        self.assertEqual(row["tipo_compra"], "mercadoria_geral")
+        self.assertEqual(row["n_id_receb"], 77777)
+        self.assertEqual(row["data_emissao"], "2026-04-15")
+
+    def test_item_enriquecimento_omie(self):
+        det = {"nItem": 2, "prod": {"xProd": "Dobradiça", "NCM": "73182100", "CFOP": "2102"}}
+        enrich = {"cDescricaoProduto": "DOBRADIÇA 304", "nIdProduto": 12345, "cIgnorarItem": "N"}
+        row = pipeline._normalizar_item_fiscal(1, det, enrich, "2026-04-15", "now")
+        self.assertEqual(row["c_descricao_produto"], "DOBRADIÇA 304")
+        self.assertEqual(row["n_id_produto"], 12345)
+        self.assertEqual(row["c_ignorar_item"], "N")
+
+    def test_item_n_sequencia_passado_via_seq(self):
+        """seq=3 deve aparecer em n_sequencia; nItem no det não interfere."""
+        det = {"prod": {"xProd": "Parafuso", "NCM": "73181500", "CFOP": "2102"}}
+        row = pipeline._normalizar_item_fiscal(1, det, {}, "2026-04-15", "now", seq=3)
+        self.assertEqual(row["n_sequencia"], 3)
+
+    def test_item_n_sequencia_none_sem_seq(self):
+        """Sem seq, n_sequencia deve ser None (não crashar)."""
+        det = {"prod": {"xProd": "Parafuso", "NCM": "73181500", "CFOP": "2102"}}
+        row = pipeline._normalizar_item_fiscal(1, det, {}, "2026-04-15", "now")
+        self.assertIsNone(row["n_sequencia"])
+
+    def test_coletar_sequencia_positional(self):
+        """coletar_documentos_fiscais deve gerar n_sequencia 1,2,3 por posição no det[]."""
+        import unittest.mock as mock
+
+        def make_det(n_cod_item):
+            return {
+                "nfProdInt": {"nCodItem": n_cod_item},
+                "prod": {"xProd": "X", "NCM": "73181500", "CFOP": "2102"},
+            }
+
+        nf_stub = {
+            "compl": {"nIdReceb": 99},
+            "ide": {"tpNF": 0, "dEmi": "15/04/2026"},
+            "nfDestInt": {}, "nfEmitInt": {},
+            "det": [make_det(1001), make_det(1002), make_det(1003)],
+            "titulos": [],
+        }
+        rec_stub = {
+            "cabec": {}, "totais": {}, "infoCadastro": {},
+            "itensRecebimento": [],
+        }
+        with mock.patch.object(pipeline, "paginar", return_value=[nf_stub]), \
+             mock.patch.object(pipeline, "omie_request", return_value=rec_stub):
+            _, itens, _ = pipeline.coletar_documentos_fiscais("2026-04-01", "2026-04-30")
+
+        self.assertEqual(len(itens), 3)
+        self.assertEqual([it["n_sequencia"] for it in itens], [1, 2, 3])
+
+    def test_coletar_enriquecimento_join_por_n_cod_item(self):
+        """Join nfProdInt.nCodItem = itensCabec.nIdItem deve preencher c_descricao_produto."""
+        import unittest.mock as mock
+
+        nf_stub = {
+            "compl": {"nIdReceb": 42},
+            "ide": {"tpNF": 0, "dEmi": "15/04/2026"},
+            "nfDestInt": {}, "nfEmitInt": {},
+            "det": [{
+                "nfProdInt": {"nCodItem": 8962737091},
+                "prod": {"xProd": "Fechadura", "NCM": "83018090", "CFOP": "2102"},
+            }],
+            "titulos": [],
+        }
+        rec_stub = {
+            "cabec": {}, "totais": {}, "infoCadastro": {},
+            "itensRecebimento": [{
+                "itensCabec": {
+                    "nIdItem": 8962737091,
+                    "nSequencia": 1,
+                    "cDescricaoProduto": "FECHADURA INOX 304",
+                    "nIdProduto": 555,
+                    "cIgnorarItem": "N",
+                },
+            }],
+        }
+        with mock.patch.object(pipeline, "paginar", return_value=[nf_stub]), \
+             mock.patch.object(pipeline, "omie_request", return_value=rec_stub):
+            _, itens, _ = pipeline.coletar_documentos_fiscais("2026-04-01", "2026-04-30")
+
+        self.assertEqual(len(itens), 1)
+        self.assertEqual(itens[0]["c_descricao_produto"], "FECHADURA INOX 304")
+        self.assertEqual(itens[0]["n_id_produto"], 555)
+        self.assertEqual(itens[0]["n_sequencia"], 1)
+
+    # ------------------------------------------------------------------
+    # _normalizar_documento_fiscal — destinatário vs. emitente externo
+    # ------------------------------------------------------------------
+
+    def test_documento_destinatario_e_emitente(self):
+        """
+        Koti é a destinatária (nfDestInt / recebimentonfe.cabec).
+        Fornecedor externo é nfEmitInt — apenas nCodEmp, sem CNPJ direto.
+        """
+        nf_obj = {
+            "compl": {"nIdReceb": 55555, "cChaveNFe": "CHAVE_MASCARADA", "nIdNF": 9001},
+            "ide": {"tpNF": 0, "dEmi": "15/04/2026", "dSaiEnt": "16/04/2026"},
+            "nfDestInt": {"nCodCli": 100, "cRazao": "STUDIO KOTI LTDA", "cnpj_cpf": "00.000.000/0001-00"},
+            "nfEmitInt": {"nCodEmp": 200},
+        }
+        rec_obj = {
+            "cabec": {
+                "nIdFornecedor": 100,
+                "cRazaoSocial": "STUDIO KOTI LTDA",
+                "cCNPJ_CPF": "00.000.000/0001-00",
+                "nValorNFe": 3200.0,
+                "cEtapa": "60",
+                "cNaturezaOperacao": "COMPRA DE MERCADORIA",
+            },
+            "totais": {"vTotalProdutos": 3000.0, "vFrete": 200.0},
+            "infoCadastro": {"cFaturado": "S", "cRecebido": "S", "cCancelada": "N"},
+        }
+        row = pipeline._normalizar_documento_fiscal(nf_obj, rec_obj, "2026-05-17T00:00:00")
+
+        # Destinatário = Koti (campo vem de recebimentonfe.cabec ou nfDestInt)
+        self.assertEqual(row["n_id_destinatario"], 100)
+        self.assertIn("KOTI", row["razao_social_destinatario"].upper())
+        self.assertEqual(row["cnpj_destinatario"], "00.000.000/0001-00")
+
+        # Emitente externo = apenas código Omie interno
+        self.assertEqual(row["n_emit_cod_emp"], 200)
+
+        # Campos que NÃO devem usar o nome "fornecedor" em seus valores
+        self.assertNotIn("fornecedor", str(row.get("razao_social_destinatario", "")).lower())
+
+        # Totais e estado
+        self.assertEqual(row["valor_total_nfe"], 3200.0)
+        self.assertEqual(row["etapa"], "60")
+        self.assertEqual(row["recebido"], "S")
+        self.assertEqual(row["cancelada"], "N")
+        self.assertEqual(row["origem_dado"], "nfconsultar+recebimentonfe")
+
+    def test_documento_sem_rec_obj(self):
+        """Sem recebimento, campos vêm de nfDestInt/ide."""
+        nf_obj = {
+            "compl": {"nIdReceb": 11111},
+            "ide": {"tpNF": 0, "dEmi": "01/03/2026"},
+            "nfDestInt": {"nCodCli": 50, "cRazao": "KOTI", "cnpj_cpf": "XX"},
+            "nfEmitInt": {"nCodEmp": 99},
+        }
+        row = pipeline._normalizar_documento_fiscal(nf_obj, {}, "now")
+        self.assertEqual(row["n_id_receb"], 11111)
+        self.assertEqual(row["n_id_destinatario"], 50)
+        self.assertEqual(row["n_emit_cod_emp"], 99)
+        self.assertIsNone(row["etapa"])
+
+    def test_documento_data_emissao_parse(self):
+        nf_obj = {
+            "compl": {},
+            "ide": {"dEmi": "22/02/2026"},
+            "nfDestInt": {}, "nfEmitInt": {},
+        }
+        rec_obj = {"cabec": {"dEmissaoNFe": "22/02/2026"}, "totais": {}, "infoCadastro": {}}
+        row = pipeline._normalizar_documento_fiscal(nf_obj, rec_obj, "now")
+        self.assertEqual(row["data_emissao"], "2026-02-22")
+
+    # ------------------------------------------------------------------
+    # coletar_documentos_fiscais — dry-run sem API (lista vazia)
+    # ------------------------------------------------------------------
+
+    def test_coletar_lista_vazia(self):
+        """Com lista de NFs vazia, retorna 3 listas vazias sem erros."""
+        import unittest.mock as mock
+        with mock.patch.object(pipeline, "paginar", return_value=[]):
+            docs, itens, titulos = pipeline.coletar_documentos_fiscais("2026-01-01", "2026-01-31")
+        self.assertEqual(docs, [])
+        self.assertEqual(itens, [])
+        self.assertEqual(titulos, [])
+
+    def test_coletar_limite_respeitado(self):
+        """O parâmetro `limite` trunca a lista de NFs."""
+        nf_stub = {
+            "compl": {"nIdReceb": None},
+            "ide": {"tpNF": 0},
+            "nfDestInt": {}, "nfEmitInt": {},
+            "det": [], "titulos": [],
+        }
+        import unittest.mock as mock
+        with mock.patch.object(pipeline, "paginar", return_value=[nf_stub] * 10), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            docs, itens, titulos = pipeline.coletar_documentos_fiscais(
+                "2026-01-01", "2026-01-31", limite=3
+            )
+        self.assertEqual(len(docs), 3)
+
+    # ------------------------------------------------------------------
+    # sincronizar_documentos_fiscais — Fase 9: MERGE idempotente itens
+    # ------------------------------------------------------------------
+
+    def test_sincronizar_aborta_se_n_sequencia_null(self):
+        """Se qualquer item tiver n_sequencia=None, deve levantar ValueError antes de tocar no BQ."""
+        import unittest.mock as mock
+        itens_com_null = [
+            {"n_id_receb": 1, "n_sequencia": 1},
+            {"n_id_receb": 1, "n_sequencia": None},
+        ]
+        with mock.patch.object(pipeline, "coletar_documentos_fiscais",
+                               return_value=([], itens_com_null, [])), \
+             mock.patch.object(pipeline, "merge_to_bq") as mock_merge:
+            with self.assertRaises(ValueError) as ctx:
+                pipeline.sincronizar_documentos_fiscais(mock.MagicMock(), "2026-01-01", "2026-01-31")
+        self.assertIn("n_sequencia NULL", str(ctx.exception))
+        mock_merge.assert_not_called()
+
+    def test_sincronizar_itens_usa_merge_com_chave_composta(self):
+        """sincronizar_documentos_fiscais deve chamar merge_to_bq com chave ["n_id_receb", "n_sequencia"]."""
+        import unittest.mock as mock
+        itens_ok = [{"n_id_receb": 99, "n_sequencia": 1}]
+        with mock.patch.object(pipeline, "coletar_documentos_fiscais",
+                               return_value=([], itens_ok, [])), \
+             mock.patch.object(pipeline, "merge_to_bq", return_value={}) as mock_merge, \
+             mock.patch.object(pipeline, "salvar_checkpoint"):
+            pipeline.sincronizar_documentos_fiscais(mock.MagicMock(), "2026-04-18", "2026-05-18")
+        calls = mock_merge.call_args_list
+        itens_call = next(c for c in calls if c.args[1] == "documentos_fiscais_itens")
+        self.assertEqual(itens_call.args[3], ["n_id_receb", "n_sequencia"])
+        self.assertIn("2026-04-18", itens_call.kwargs.get("delete_filter", ""))
+        self.assertIn("2026-05-18", itens_call.kwargs.get("delete_filter", ""))
+
+
 if __name__ == "__main__":
     unittest.main()
