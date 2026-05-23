@@ -45,6 +45,12 @@ CONTAS_IGNORAR = {
     8754849088,  # BAIXA DE NFS - conta fictícia para baixa de notas
 }
 
+# Contas monitoradas para conciliação bancária diária (v1)
+# BTG - Master excluído da v1; incluir somente com decisão explícita.
+CONTAS_CONCILIACAO_V1: set[int] = {
+    8621155275,  # BTG Pactual
+}
+
 
 # ============================================================
 # BIGQUERY HELPERS
@@ -124,6 +130,22 @@ def ensure_tables(client: bigquery.Client) -> None:
             ) AS rn
             FROM `{ds_ref}.historico_saldos`
         ) WHERE rn = 1""",
+        f"""CREATE TABLE IF NOT EXISTS `{ds_ref}.conciliacao_bancaria_diaria` (
+            data_referencia DATE,
+            banco STRING,
+            conta_id INT64,
+            conta_nome STRING,
+            saldo_final FLOAT64,
+            saldo_conciliado FLOAT64,
+            saldo_ultimo_movimento_dia FLOAT64,
+            gap_conciliacao FLOAT64,
+            qtd_movimentos INT64,
+            sync_timestamp TIMESTAMP,
+            sync_date DATE
+        )
+        PARTITION BY data_referencia
+        CLUSTER BY banco, conta_id
+        OPTIONS(partition_expiration_days = NULL)""",
     ]
 
     created = 0
@@ -148,10 +170,15 @@ def load_to_bq(
         return 0
 
     ref = table_ref(table_name)
+    try:
+        target_schema = client.get_table(ref).schema
+    except Exception:
+        target_schema = None
     job_config = bigquery.LoadJobConfig(
         write_disposition=write_disposition,
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        autodetect=True,
+        schema=target_schema if target_schema else None,
+        autodetect=target_schema is None,
     )
 
     job = client.load_table_from_json(rows, ref, job_config=job_config)
@@ -164,24 +191,36 @@ def merge_to_bq(
     client: bigquery.Client,
     table_name: str,
     rows: list[dict],
-    key_column: str,
+    key_column: str | list[str],
     compare_columns: list[str],
     all_columns: list[str],
+    delete_filter: str | None = None,
 ) -> dict[str, int]:
     """Sync incremental via MERGE: compara por key, atualiza mudanças, insere novos, remove deletados.
+    key_column pode ser str (simples) ou list[str] (chave composta).
+    delete_filter: cláusula SQL extra para limitar o escopo do DELETE (ex: janela de datas).
     Retorna {"inserted": N, "updated": N, "deleted": N, "unchanged": N}."""
     if not rows:
         print(f"  ⚠ {table_name}: 0 registros da API — pulando")
         return {"inserted": 0, "updated": 0, "deleted": 0, "unchanged": 0}
 
+    keys = [key_column] if isinstance(key_column, str) else list(key_column)
+    keys_set = set(keys)
+
     staging = f"{table_ref(table_name)}_staging"
     target = table_ref(table_name)
 
     # 1. Carregar na staging (WRITE_TRUNCATE)
+    # Usa schema da tabela destino para evitar inferência errada de colunas all-null.
+    try:
+        target_schema = client.get_table(target).schema
+    except Exception:
+        target_schema = None
     job_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_TRUNCATE",
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        autodetect=True,
+        schema=target_schema if target_schema else None,
+        autodetect=target_schema is None,
     )
     job = client.load_table_from_json(rows, staging, job_config=job_config)
     job.result()
@@ -193,24 +232,29 @@ def merge_to_bq(
         current_count = 0
 
     # 3. MERGE: insert novos, update mudados, delete removidos
-    update_set = ", ".join(f"T.{c} = S.{c}" for c in all_columns if c != key_column)
+    on_clause = " AND ".join(f"T.{k} = S.{k}" for k in keys)
+    update_set = ", ".join(f"T.{c} = S.{c}" for c in all_columns if c not in keys_set)
     compare_or = " OR ".join(
         f"IFNULL(CAST(T.{c} AS STRING),'') != IFNULL(CAST(S.{c} AS STRING),'')"
         for c in compare_columns
     )
     insert_cols = ", ".join(all_columns)
     insert_vals = ", ".join(f"S.{c}" for c in all_columns)
+    delete_clause = (
+        f"WHEN NOT MATCHED BY SOURCE AND {delete_filter} THEN DELETE"
+        if delete_filter
+        else "WHEN NOT MATCHED BY SOURCE THEN DELETE"
+    )
 
     merge_sql = f"""
     MERGE `{target}` AS T
     USING `{staging}` AS S
-    ON T.{key_column} = S.{key_column}
+    ON {on_clause}
     WHEN MATCHED AND ({compare_or})
         THEN UPDATE SET {update_set}
     WHEN NOT MATCHED BY TARGET
         THEN INSERT ({insert_cols}) VALUES ({insert_vals})
-    WHEN NOT MATCHED BY SOURCE
-        THEN DELETE
+    {delete_clause}
     """
 
     job = client.query(merge_sql)
@@ -296,6 +340,17 @@ def parse_date(date_str: str) -> Optional[str]:
 def _limpar_nome_categoria(desc: str) -> str:
     """Remove prefixo numérico tipo '2.01.03 - ' do nome da categoria."""
     return re.sub(r'^\d+(\.\d+)+ - ', '', desc).strip()
+
+
+def _derivar_banco(conta_nome: str) -> str:
+    nome = conta_nome.lower()
+    if "btg" in nome:
+        return "BTG"
+    if "xp" in nome:
+        return "XP"
+    if "itau" in nome or "itaú" in nome:
+        return "Itau"
+    return "Outro"
 
 
 # ============================================================
@@ -510,6 +565,212 @@ def coletar_saldos_bancarios(
     return saldos, historico
 
 
+def coletar_conciliacao_bancaria(
+    sync_ts: str, sync_date: str, data_ref: Optional[str] = None
+) -> list[dict]:
+    """Coleta conciliação bancária diária para contas monitoradas (v1: BTG Pactual).
+
+    Retorna lista de dicts pronta para load_to_bq — não escreve no BigQuery.
+    BTG - Master excluído da v1; incluir somente com decisão explícita.
+    data_ref: YYYY-MM-DD a coletar (default: D-1).
+    """
+    if data_ref is None:
+        ontem = datetime.now() - timedelta(days=1)
+        data_ref = ontem.strftime("%Y-%m-%d")
+        dia_omie = ontem.strftime("%d/%m/%Y")
+    else:
+        dt_ref = datetime.strptime(data_ref, "%Y-%m-%d")
+        dia_omie = dt_ref.strftime("%d/%m/%Y")
+
+    print(f"\n📥 Conciliação Bancária Diária ({data_ref})...", flush=True)
+
+    data = omie_request("geral/contacorrente", "ListarContasCorrentes",
+                        {"pagina": 1, "registros_por_pagina": 200})
+    if not data:
+        print("  ⚠ Sem dados de contas correntes")
+        return []
+
+    linhas: list[dict] = []
+    for cc in data.get("ListarContasCorrentes", []):
+        cc_id = cc.get("nCodCC")
+        nome = cc.get("descricao", "") or ""
+
+        if cc_id not in CONTAS_CONCILIACAO_V1:
+            continue
+        if "master" in nome.lower():
+            print(f"  ⏭ Excluindo '{nome}' (Master — fora do escopo v1)")
+            continue
+
+        time.sleep(0.2)
+        ext = omie_request("financas/extrato", "ListarExtrato", {
+            "nCodCC": cc_id,
+            "dPeriodoInicial": dia_omie,
+            "dPeriodoFinal": dia_omie,
+        })
+        if not ext:
+            print(f"  ⚠ Sem resposta para {nome} ({data_ref})")
+            continue
+
+        saldo_final = float(ext.get("nSaldoAtual", 0) or 0)
+        saldo_conc = float(ext.get("nSaldoConciliado", 0) or 0)
+        movimentos = ext.get("listaMovimentos") or []
+
+        ult_saldo: Optional[float] = None
+        for m in reversed(movimentos):
+            v = m.get("nSaldo")
+            if v is not None:
+                try:
+                    ult_saldo = float(v)
+                    break
+                except (ValueError, TypeError):
+                    pass
+
+        gap = round(saldo_final - saldo_conc, 2)
+        linhas.append({
+            "data_referencia": data_ref,
+            "banco": _derivar_banco(nome),
+            "conta_id": cc_id,
+            "conta_nome": nome,
+            "saldo_final": round(saldo_final, 2),
+            "saldo_conciliado": round(saldo_conc, 2),
+            "saldo_ultimo_movimento_dia": round(ult_saldo, 2) if ult_saldo is not None else None,
+            "gap_conciliacao": gap,
+            "qtd_movimentos": len(movimentos),
+            "sync_timestamp": sync_ts,
+            "sync_date": sync_date,
+        })
+        print(f"  ✅ {nome}: saldo={saldo_final:.2f} conc={saldo_conc:.2f} gap={gap:+.2f} movs={len(movimentos)}")
+
+    print(f"  ✅ {len(linhas)} linha(s) conciliação bancária ({data_ref})")
+    return linhas
+
+
+def carregar_conciliacao_bancaria(
+    client: bigquery.Client,
+    rows: list[dict],
+    data_ref: str,
+) -> int:
+    """Grava rows em conciliacao_bancaria_diaria por chave (data_referencia, conta_id).
+
+    Idempotente: apaga somente as contas presentes no lote para data_ref e reinsere.
+    Isso permite recarregar apenas BTG em um dia histórico sem apagar XP/Itau do mesmo dia.
+
+    NÃO está plugada no main() — aprovação explícita necessária antes de usar.
+    data_ref: YYYY-MM-DD.
+    """
+    if not rows:
+        print("  ⚠ carregar_conciliacao_bancaria: 0 registros — pulando")
+        return 0
+
+    target = table_ref("conciliacao_bancaria_diaria")
+    staging = f"{target}_staging_{uuid.uuid4().hex}"
+    data_ref_date = datetime.strptime(data_ref, "%Y-%m-%d").date()
+
+    job_config = bigquery.LoadJobConfig(
+        write_disposition="WRITE_TRUNCATE",
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        autodetect=True,
+    )
+    job = client.load_table_from_json(rows, staging, job_config=job_config)
+    job.result()
+
+    cols = [
+        "data_referencia", "banco", "conta_id", "conta_nome",
+        "saldo_final", "saldo_conciliado", "saldo_ultimo_movimento_dia",
+        "gap_conciliacao", "qtd_movimentos", "sync_timestamp", "sync_date",
+    ]
+    col_list = ", ".join(cols)
+    select_list = ", ".join([
+        "DATE(data_referencia) AS data_referencia",
+        "banco",
+        "CAST(conta_id AS INT64) AS conta_id",
+        "conta_nome",
+        "CAST(saldo_final AS FLOAT64) AS saldo_final",
+        "CAST(saldo_conciliado AS FLOAT64) AS saldo_conciliado",
+        "CAST(saldo_ultimo_movimento_dia AS FLOAT64) AS saldo_ultimo_movimento_dia",
+        "CAST(gap_conciliacao AS FLOAT64) AS gap_conciliacao",
+        "CAST(qtd_movimentos AS INT64) AS qtd_movimentos",
+        "TIMESTAMP(sync_timestamp) AS sync_timestamp",
+        "DATE(sync_date) AS sync_date",
+    ])
+
+    job_params = [
+        bigquery.ScalarQueryParameter("data_ref", "DATE", data_ref_date),
+    ]
+
+    try:
+        delete_sql = f"""
+        DELETE FROM `{target}`
+        WHERE data_referencia = @data_ref
+          AND conta_id IN (
+              SELECT DISTINCT CAST(conta_id AS INT64)
+              FROM `{staging}`
+              WHERE DATE(data_referencia) = @data_ref
+          )
+        """
+        client.query(
+            delete_sql,
+            job_config=bigquery.QueryJobConfig(query_parameters=job_params),
+        ).result()
+
+        insert_sql = f"""
+        INSERT INTO `{target}` ({col_list})
+        SELECT {select_list}
+        FROM `{staging}`
+        WHERE DATE(data_referencia) = @data_ref
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY DATE(data_referencia), CAST(conta_id AS INT64)
+            ORDER BY sync_timestamp DESC
+        ) = 1
+        """
+        result = client.query(
+            insert_sql,
+            job_config=bigquery.QueryJobConfig(query_parameters=job_params),
+        ).result()
+        inserted = result.num_dml_affected_rows or len(rows)
+        print(f"  ✅ conciliacao_bancaria_diaria: {inserted} linha(s) gravadas para {data_ref}")
+        return inserted
+    finally:
+        client.delete_table(staging, not_found_ok=True)
+
+
+def gerar_datas_periodo(data_ini: str, data_fim: str) -> list[str]:
+    """Retorna lista de datas YYYY-MM-DD entre data_ini e data_fim (inclusive)."""
+    fmt = "%Y-%m-%d"
+    atual = datetime.strptime(data_ini, fmt)
+    fim = datetime.strptime(data_fim, fmt)
+    datas: list[str] = []
+    while atual <= fim:
+        datas.append(atual.strftime(fmt))
+        atual += timedelta(days=1)
+    return datas
+
+
+def coletar_conciliacao_bancaria_periodo(
+    data_ini: str, data_fim: str, sync_ts: str, sync_date: str
+) -> list[dict]:
+    """Coleta conciliação bancária para um período completo de datas.
+
+    Para cada dia em [data_ini, data_fim], chama coletar_conciliacao_bancaria().
+    Retorna lista plana de todos os registros — não escreve no BigQuery.
+
+    Uso: revalidação retroativa (semanal, fechamento mensal, auditoria histórica).
+    Contexto: Omie e o banco podem ajustar saldos/conciliações retroativamente;
+    um lançamento apagado hoje pode alterar nSaldoConciliado de datas passadas.
+
+    NÃO está plugada no main() — aprovação explícita necessária antes de usar.
+    data_ini, data_fim: YYYY-MM-DD.
+    """
+    datas = gerar_datas_periodo(data_ini, data_fim)
+    print(f"\n📅 Coleta de período: {data_ini} → {data_fim} ({len(datas)} dias)", flush=True)
+    todas: list[dict] = []
+    for data_ref in datas:
+        rows = coletar_conciliacao_bancaria(sync_ts, sync_date, data_ref=data_ref)
+        todas.extend(rows)
+    print(f"  ✅ {len(todas)} linha(s) coletadas no período")
+    return todas
+
+
 def construir_mapa_clientes_bulk() -> tuple[dict[int, str], list[dict]]:
     """Busca TODOS os clientes via ListarClientes (bulk).
     Retorna (cli_map, registros_raw)."""
@@ -577,7 +838,7 @@ def coletar_lancamentos(
     cli_map: dict[int, str],
     sync_ts: str,
     sync_date: str,
-    mf_datas: dict[int, str] | None = None,
+    mf_datas: Optional[dict[int, str]] = None,
 ) -> list[dict]:
     """Coleta lançamentos (contas a receber + pagar) e transforma para schema BQ."""
     lancamentos: list[dict] = []
@@ -597,7 +858,7 @@ def coletar_lancamentos(
     match_mf = 0
     match_fallback = 0
 
-    def _extract_data_pagamento(r: dict) -> str | None:
+    def _extract_data_pagamento(r: dict) -> Optional[str]:
         """Extrai data real de pagamento/recebimento.
         Prioridade: Movimentos Financeiros (dDtPagamento via nCodTitulo) > data_previsao."""
         nonlocal match_mf, match_fallback
@@ -907,6 +1168,7 @@ def main() -> None:
     # Garantir que tabelas existem (DDL)
     print("\n📋 Verificando tabelas BigQuery...")
     ensure_tables(client)
+    ensure_documentos_fiscais_tables(client)
 
     # Registrar início
     log_sync_start(client, sync_id, sync_ts)
@@ -1004,6 +1266,20 @@ def main() -> None:
         except Exception as e:
             print(f"  ⚠ TTL cleanup falhou: {e}")
 
+        # Documentos Fiscais NF-e — MERGE idempotente, janela 60 dias rolantes
+        # Falha isolada: não aborta o sync principal, mas registra o erro com clareza.
+        print("\n📥 Documentos Fiscais NF-e (60 dias)...", flush=True)
+        try:
+            nf_data_ini = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d")
+            nf_data_fim = sync_date
+            nf_counts = sincronizar_documentos_fiscais(client, nf_data_ini, nf_data_fim)
+            counts["documentos_fiscais"] = (
+                nf_counts.get("documentos_fiscais", {}).get("inserted", 0)
+                + nf_counts.get("documentos_fiscais", {}).get("updated", 0)
+            )
+        except Exception as nf_err:
+            print(f"  ❌ sincronizar_documentos_fiscais falhou: {nf_err}", flush=True)
+
         # ---- Registrar sucesso ----
         log_sync_success(client, sync_id, sync_ts, counts)
 
@@ -1017,6 +1293,7 @@ def main() -> None:
         print(f"   Projetos: {counts.get('projetos', 0)}")
         print(f"   Clientes: {counts.get('clientes', 0)}")
         print(f"   Vendas: {len(vendas)}")
+        print(f"   NF-e docs alterados: {counts.get('documentos_fiscais', '❌ falhou')}")
         print(f"   ⏱ Tempo total: {elapsed:.0f}s ({elapsed/60:.1f}min)")
         print("=" * 50)
 
@@ -1030,6 +1307,513 @@ def main() -> None:
             print(f"  ⚠ Erro ao registrar falha no sync_log: {log_err}")
         notify_sync_failed(str(e))
         sys.exit(1)
+
+
+# ============================================================
+# DOCUMENTOS FISCAIS — NF-e RECEBIDAS (v1)
+# Fonte primaria: produtos/nfconsultar/ListarNF (tpNF=0)
+# Enriquecimento: produtos/recebimentonfe/ConsultarRecebimento
+# NAO plugado no main() — requer aprovacao explicita de Antoine.
+# ============================================================
+
+_DDL_SYNC_CHECKPOINTS = """
+CREATE TABLE IF NOT EXISTS `{ds}.sync_checkpoints` (
+  chave STRING NOT NULL,
+  valor STRING,
+  atualizado_em TIMESTAMP
+)
+"""
+
+_DDL_DOCUMENTOS_FISCAIS = """
+CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais` (
+  n_id_receb                INT64   NOT NULL,
+  chave_nfe                 STRING,
+  n_id_nf                   INT64,
+  numero_nfe                STRING,
+  serie_nfe                 STRING,
+  modelo_nfe                STRING,
+  tp_nf                     INT64,
+  data_emissao              DATE,
+  data_entrada              DATE,
+  n_id_destinatario         INT64,
+  razao_social_destinatario STRING,
+  cnpj_destinatario         STRING,
+  n_emit_cod_emp            INT64,
+  compl_cod_categ           STRING,
+  valor_total_nfe           FLOAT64,
+  valor_total_produtos      FLOAT64,
+  valor_total_pis           FLOAT64,
+  valor_total_cofins        FLOAT64,
+  valor_icms                FLOAT64,
+  base_icms                 FLOAT64,
+  valor_frete               FLOAT64,
+  etapa                     STRING,
+  faturado                  STRING,
+  recebido                  STRING,
+  cancelada                 STRING,
+  natureza_operacao         STRING,
+  origem_dado               STRING,
+  synced_at                 TIMESTAMP
+)
+PARTITION BY data_emissao
+CLUSTER BY n_id_destinatario, etapa
+"""
+
+_DDL_DOCUMENTOS_FISCAIS_ITENS = """
+CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais_itens` (
+  n_id_receb          INT64   NOT NULL,
+  n_sequencia         INT64,
+  data_emissao        DATE,
+  x_prod              STRING,
+  ncm                 STRING,
+  cfop                STRING,
+  c_prod              STRING,
+  c_ean               STRING,
+  c_origem            STRING,
+  u_com               STRING,
+  q_com               FLOAT64,
+  v_un_com            FLOAT64,
+  v_prod              FLOAT64,
+  v_tot_item          FLOAT64,
+  v_desc              FLOAT64,
+  v_frete             FLOAT64,
+  p_icms              FLOAT64,
+  v_icms              FLOAT64,
+  v_bc_icms           FLOAT64,
+  p_pis               FLOAT64,
+  v_pis               FLOAT64,
+  v_bc_pis            FLOAT64,
+  p_cofins            FLOAT64,
+  v_cofins            FLOAT64,
+  v_bc_cofins         FLOAT64,
+  v_bc_st             FLOAT64,
+  v_bc_ipi            FLOAT64,
+  c_descricao_produto STRING,
+  c_codigo_produto    STRING,
+  c_unidade_nfe       STRING,
+  n_id_produto        INT64,
+  n_id_item           INT64,
+  c_ignorar_item      STRING,
+  categoria_cfop      STRING,
+  grupo_ncm           STRING,
+  tipo_compra         STRING,
+  synced_at           TIMESTAMP
+)
+PARTITION BY data_emissao
+CLUSTER BY n_id_receb, cfop, ncm
+"""
+
+_DDL_DOCUMENTOS_FISCAIS_TITULOS = """
+CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais_titulos` (
+  n_id_receb      INT64   NOT NULL,
+  n_cod_titulo    INT64   NOT NULL,
+  n_parcela       INT64,
+  n_cod_tit_repet INT64,
+  n_cod_projeto   INT64,
+  c_cod_categ     STRING,
+  c_doc           STRING,
+  c_num_titulo    STRING,
+  n_tot_parc      INT64,
+  dt_emissao      DATE,
+  dt_vencimento   DATE,
+  dt_previsao     DATE,
+  n_valor_titulo  FLOAT64,
+  synced_at       TIMESTAMP
+)
+PARTITION BY dt_vencimento
+CLUSTER BY n_cod_titulo, n_cod_projeto
+"""
+
+
+def ensure_documentos_fiscais_tables(client: bigquery.Client) -> None:
+    """Cria tabelas de documentos fiscais e sync_checkpoints se nao existirem."""
+    ds = f"{GCP_PROJECT_ID}.{BQ_DATASET}"
+    for ddl in [_DDL_SYNC_CHECKPOINTS, _DDL_DOCUMENTOS_FISCAIS,
+                _DDL_DOCUMENTOS_FISCAIS_ITENS, _DDL_DOCUMENTOS_FISCAIS_TITULOS]:
+        try:
+            client.query(ddl.format(ds=ds)).result()
+        except Exception as e:
+            print(f"  ⚠ ensure_documentos_fiscais_tables falhou: {e}")
+
+
+def obter_checkpoint(client: bigquery.Client, chave: str) -> Optional[str]:
+    """Retorna valor do checkpoint ou None se nao existir / tabela ausente."""
+    try:
+        sql = (
+            f"SELECT valor FROM `{table_ref('sync_checkpoints')}`"
+            " WHERE chave = @chave ORDER BY atualizado_em DESC LIMIT 1"
+        )
+        job = client.query(sql, job_config=bigquery.QueryJobConfig(
+            query_parameters=[bigquery.ScalarQueryParameter("chave", "STRING", chave)]
+        ))
+        rows = list(job.result())
+        return rows[0].valor if rows else None
+    except Exception:
+        return None
+
+
+def salvar_checkpoint(client: bigquery.Client, chave: str, valor: str) -> None:
+    """Upserta checkpoint na tabela sync_checkpoints."""
+    try:
+        sql = (
+            f"MERGE `{table_ref('sync_checkpoints')}` T"
+            " USING (SELECT @chave AS chave, @valor AS valor,"
+            "        CURRENT_TIMESTAMP() AS atualizado_em) S"
+            " ON T.chave = S.chave"
+            " WHEN MATCHED THEN UPDATE SET valor = S.valor, atualizado_em = S.atualizado_em"
+            " WHEN NOT MATCHED THEN INSERT (chave, valor, atualizado_em)"
+            "   VALUES (S.chave, S.valor, S.atualizado_em)"
+        )
+        client.query(sql, job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("chave", "STRING", chave),
+                bigquery.ScalarQueryParameter("valor", "STRING", valor),
+            ]
+        )).result()
+    except Exception as e:
+        print(f"  ⚠ salvar_checkpoint falhou: {e}")
+
+
+# ── Classificacao v1 ──────────────────────────────────────────
+_CFOP_MAP_V1 = {
+    "1101": "compra_industrializacao", "2101": "compra_industrializacao",
+    "1102": "compra_revenda",          "2102": "compra_revenda",
+    "1116": "compra_industrializacao", "2116": "compra_industrializacao",
+    "1117": "compra_industrializacao", "2117": "compra_industrializacao",
+    "1201": "devolucao_venda",         "2201": "devolucao_venda",
+    "1202": "devolucao_venda",         "2202": "devolucao_venda",
+    "1301": "servico_transporte",      "2301": "servico_transporte",
+    "1403": "uso_consumo",             "2403": "uso_consumo",
+    "1407": "uso_consumo",             "2407": "uso_consumo",
+    "1556": "ativo_imobilizado",       "2556": "ativo_imobilizado",
+    "1922": "remessa_passagem",        "2922": "remessa_passagem",
+    "1949": "outros",                  "2949": "outros",
+}
+
+_NCM_MAP_V1 = {
+    "44": "madeira",             "48": "papel_papelao",
+    "39": "plasticos",           "63": "texteis_confeccionados",
+    "68": "ceramica_pedra",      "69": "ceramica_pedra",
+    "73": "ferro_aco_metais",    "84": "maquinas_equipamentos",
+    "85": "eletrico_eletronico", "94": "moveis_iluminacao",
+}
+
+
+def _classificar_cfop(cfop: str) -> str:
+    """Retorna categoria_cfop a partir do CFOP do destinatario."""
+    c = str(cfop or "").replace(".", "").strip()
+    if not c:
+        return "outros"
+    if c.startswith("3"):
+        return "importacao"
+    return _CFOP_MAP_V1.get(c, "outros")
+
+
+def _classificar_ncm(ncm: str) -> str:
+    """Retorna grupo_ncm a partir dos 2 primeiros digitos do NCM."""
+    digits = str(ncm or "").replace(".", "").strip()
+    return _NCM_MAP_V1.get(digits[:2], "outros") if digits else "outros"
+
+
+def _classificar_tipo_compra(cfop: str, ncm: str) -> tuple:
+    """Retorna (categoria_cfop, grupo_ncm, tipo_compra)."""
+    cc = _classificar_cfop(cfop)
+    gn = _classificar_ncm(ncm)
+    if cc == "devolucao_venda":   return cc, gn, "devolucao"
+    if cc == "ativo_imobilizado": return cc, gn, "ativo_imobilizado"
+    if cc == "importacao":        return cc, gn, "importacao"
+    if cc == "uso_consumo":       return cc, gn, "uso_consumo_operacional"
+    if cc == "remessa_passagem":  return cc, gn, "remessa_passagem"
+    if cc == "compra_revenda":
+        if gn in ("moveis_iluminacao", "texteis_confeccionados",
+                  "plasticos", "ceramica_pedra", "madeira"):
+            return cc, gn, "material_projeto"
+        if gn == "ferro_aco_metais":
+            return cc, gn, "ferragem_obra"
+        if gn in ("eletrico_eletronico", "maquinas_equipamentos"):
+            return cc, gn, "equipamento_projeto"
+        return cc, gn, "mercadoria_geral"
+    return cc, gn, "nao_classificado"
+
+
+# ── Normalizadores ────────────────────────────────────────────
+def _normalizar_documento_fiscal(nf_obj: dict, rec_obj: dict, now: str) -> dict:
+    """
+    Normaliza um registro de NF-e para documentos_fiscais.
+    nf_obj: registro de nfconsultar (compl, ide, nfDestInt, nfEmitInt, total...)
+    rec_obj: response de ConsultarRecebimento (cabec, totais, infoCadastro) ou {}
+    """
+    compl    = nf_obj.get("compl", {})
+    ide      = nf_obj.get("ide", {})
+    dest     = nf_obj.get("nfDestInt", {})
+    emit     = nf_obj.get("nfEmitInt", {})
+    cabec_r  = rec_obj.get("cabec", {})
+    totais_r = rec_obj.get("totais", {})
+    info_r   = rec_obj.get("infoCadastro", {})
+
+    return {
+        "n_id_receb":                compl.get("nIdReceb"),
+        "chave_nfe":                 compl.get("cChaveNFe"),
+        "n_id_nf":                   compl.get("nIdNF"),
+        "numero_nfe":                cabec_r.get("cNumeroNFe") or ide.get("nNF"),
+        "serie_nfe":                 cabec_r.get("cSerieNFe") or ide.get("serie"),
+        "modelo_nfe":                cabec_r.get("cModeloNFe") or ide.get("mod"),
+        "tp_nf":                     ide.get("tpNF", 0),
+        "data_emissao":              parse_date(cabec_r.get("dEmissaoNFe") or ide.get("dEmi")),
+        "data_entrada":              parse_date(ide.get("dSaiEnt")),
+        # Destinatario = Studio Koti (quem recebeu a NF-e)
+        "n_id_destinatario":         cabec_r.get("nIdFornecedor") or dest.get("nCodCli"),
+        "razao_social_destinatario": cabec_r.get("cRazaoSocial") or dest.get("cRazao"),
+        "cnpj_destinatario":         cabec_r.get("cCNPJ_CPF") or dest.get("cnpj_cpf"),
+        # Emitente externo (fornecedor real) — somente ID interno Omie
+        "n_emit_cod_emp":            emit.get("nCodEmp"),
+        "compl_cod_categ":           compl.get("cCodCateg"),
+        "valor_total_nfe":           cabec_r.get("nValorNFe") or nf_obj.get("total", {}).get("vNF"),
+        "valor_total_produtos":      totais_r.get("vTotalProdutos"),
+        "valor_total_pis":           totais_r.get("vTotalPIS"),
+        "valor_total_cofins":        totais_r.get("vTotalCOFINS"),
+        "valor_icms":                totais_r.get("vICMS"),
+        "base_icms":                 totais_r.get("bcICMS"),
+        "valor_frete":               totais_r.get("vFrete"),
+        "etapa":                     cabec_r.get("cEtapa"),
+        "faturado":                  info_r.get("cFaturado"),
+        "recebido":                  info_r.get("cRecebido"),
+        "cancelada":                 info_r.get("cCancelada"),
+        "natureza_operacao":         cabec_r.get("cNaturezaOperacao"),
+        "origem_dado":               "nfconsultar+recebimentonfe",
+        "synced_at":                 now,
+    }
+
+
+def _normalizar_item_fiscal(
+    n_id_receb: int, det: dict, enrich: dict, data_emissao: Optional[str], now: str,
+    seq: Optional[int] = None,
+) -> dict:
+    """
+    Normaliza um item de nfconsultar.det[] para documentos_fiscais_itens.
+    enrich: itensCabec correspondente de recebimentonfe (ou {}).
+    seq: posição 1-based do item no array det[] (via enumerate).
+    """
+    prod = det.get("prod", {})
+    cfop = prod.get("CFOP", "")
+    ncm  = prod.get("NCM", "")
+    cc, gn, tc = _classificar_tipo_compra(cfop, ncm)
+
+    return {
+        "n_id_receb":          n_id_receb,
+        "n_sequencia":         seq,
+        "data_emissao":        data_emissao,
+        "x_prod":              prod.get("xProd"),
+        "ncm":                 ncm,
+        "cfop":                cfop,
+        "c_prod":              prod.get("cProd"),
+        "c_ean":               prod.get("cEAN"),
+        "c_origem":            prod.get("cOrigem"),
+        "u_com":               prod.get("uCom"),
+        "q_com":               prod.get("qCom"),
+        "v_un_com":            prod.get("vUnCom"),
+        "v_prod":              prod.get("vProd"),
+        "v_tot_item":          prod.get("vTotItem"),
+        "v_desc":              prod.get("vDesc"),
+        "v_frete":             prod.get("vFrete"),
+        "p_icms":              prod.get("pICMS"),
+        "v_icms":              prod.get("vICMS"),
+        "v_bc_icms":           prod.get("vBC"),
+        "p_pis":               prod.get("pPIS"),
+        "v_pis":               prod.get("vPIS"),
+        "v_bc_pis":            prod.get("vBCPIS"),
+        "p_cofins":            prod.get("pCOFINS"),
+        "v_cofins":            prod.get("vCOFINS"),
+        "v_bc_cofins":         prod.get("vBCCOFINS"),
+        "v_bc_st":             prod.get("vBCST"),
+        "v_bc_ipi":            prod.get("vBCIPI"),
+        "c_descricao_produto": enrich.get("cDescricaoProduto"),
+        "c_codigo_produto":    enrich.get("cCodigoProduto"),
+        "c_unidade_nfe":       enrich.get("cUnidadeNfe"),
+        "n_id_produto":        enrich.get("nIdProduto"),
+        "n_id_item":           enrich.get("nIdItem"),
+        "c_ignorar_item":      enrich.get("cIgnorarItem"),
+        "categoria_cfop":      cc,
+        "grupo_ncm":           gn,
+        "tipo_compra":         tc,
+        "synced_at":           now,
+    }
+
+
+def _normalizar_titulo_fiscal(n_id_receb: int, tit: dict, now: str) -> dict:
+    """Normaliza um titulo de nfconsultar.titulos[] para documentos_fiscais_titulos."""
+    return {
+        "n_id_receb":      n_id_receb,
+        "n_cod_titulo":    tit.get("nCodTitulo"),    # link com lancamentos.id
+        "n_parcela":       tit.get("nParcela"),
+        "n_cod_tit_repet": tit.get("nCodTitRepet"),
+        "n_cod_projeto":   tit.get("nCodProjeto"),
+        "c_cod_categ":     tit.get("cCodCateg"),
+        "c_doc":           tit.get("cDoc"),
+        "c_num_titulo":    tit.get("cNumTitulo"),
+        "n_tot_parc":      tit.get("nTotParc"),
+        "dt_emissao":      parse_date(tit.get("dDtEmissao")),
+        "dt_vencimento":   parse_date(tit.get("dDtVenc")),
+        "dt_previsao":     parse_date(tit.get("dDtPrevisao")),
+        "n_valor_titulo":  tit.get("nValorTitulo"),
+        "synced_at":       now,
+    }
+
+
+# ── Coletor (sem escrita BQ) ──────────────────────────────────
+def coletar_documentos_fiscais(
+    data_ini: str, data_fim: str, limite: Optional[int] = None
+) -> tuple:
+    """
+    Coleta NF-e recebidas no periodo [data_ini, data_fim] (YYYY-MM-DD).
+    Retorna (documentos, itens, titulos) — listas de dicts normalizados.
+    NAO escreve em BigQuery.
+    """
+    def _omie_fmt(d: str) -> str:
+        if d and len(d) == 10 and d[4] == "-":
+            return f"{d[8:10]}/{d[5:7]}/{d[0:4]}"
+        return d
+
+    d_ini = _omie_fmt(data_ini)
+    d_fim = _omie_fmt(data_fim)
+
+    print(f"\n📥 Documentos fiscais {data_ini} → {data_fim}...", flush=True)
+
+    nfs = paginar(
+        "produtos/nfconsultar", "ListarNF",
+        {"tpNF": 0, "dEmiInicial": d_ini, "dEmiFinal": d_fim},
+        lista_key="nfCadastro",
+    )
+    print(f"  ListarNF: {len(nfs)} documentos", flush=True)
+
+    if limite:
+        nfs = nfs[:limite]
+
+    # Enriquecimento via ConsultarRecebimento
+    receb_cache: dict = {}
+    sem_nidreceb = 0
+    for nf in nfs:
+        nid = nf.get("compl", {}).get("nIdReceb")
+        if not nid:
+            sem_nidreceb += 1
+            continue
+        if nid in receb_cache:
+            continue
+        det = omie_request("produtos/recebimentonfe", "ConsultarRecebimento",
+                           {"nIdReceb": nid})
+        if det and "cabec" in det:
+            receb_cache[nid] = det
+        time.sleep(0.1)
+
+    if sem_nidreceb:
+        print(f"  Aviso: {sem_nidreceb} NFs sem nIdReceb", flush=True)
+    print(f"  ConsultarRecebimento: {len(receb_cache)} detalhes", flush=True)
+
+    now = datetime.utcnow().isoformat()
+    documentos: list = []
+    itens: list = []
+    titulos: list = []
+
+    for nf in nfs:
+        n_id_receb = nf.get("compl", {}).get("nIdReceb")
+        rec        = receb_cache.get(n_id_receb, {})
+
+        row_doc = _normalizar_documento_fiscal(nf, rec, now)
+        documentos.append(row_doc)
+        data_emissao = row_doc["data_emissao"]
+
+        # Itens — join por nfProdInt.nCodItem = itensCabec.nIdItem; sequência positional
+        receb_by_cod = {
+            it.get("itensCabec", {}).get("nIdItem"): it.get("itensCabec", {})
+            for it in rec.get("itensRecebimento", [])
+        }
+        for seq, det in enumerate(nf.get("det", []), start=1):
+            n_cod_item = det.get("nfProdInt", {}).get("nCodItem")
+            enrich = receb_by_cod.get(n_cod_item, {})
+            itens.append(_normalizar_item_fiscal(n_id_receb, det, enrich, data_emissao, now, seq=seq))
+
+        # Titulos — somente os que tem link CP
+        for tit in nf.get("titulos", []):
+            if tit.get("nCodTitulo"):
+                titulos.append(_normalizar_titulo_fiscal(n_id_receb, tit, now))
+
+    print(
+        f"  Normalizado: {len(documentos)} docs, {len(itens)} itens, {len(titulos)} titulos",
+        flush=True,
+    )
+    return documentos, itens, titulos
+
+
+# ── Sincronizador BigQuery ─────────────────────────────────────
+# NAO chamado pelo main() — requer aprovacao explicita de Antoine.
+def sincronizar_documentos_fiscais(
+    client: bigquery.Client, data_ini: str, data_fim: str
+) -> dict:
+    """
+    Sincroniza NF-e recebidas para BigQuery via MERGE.
+    Janela recomendada: 60 dias rolantes.
+    Requer ensure_documentos_fiscais_tables() antes da primeira execucao.
+    """
+    documentos, itens, titulos = coletar_documentos_fiscais(data_ini, data_fim)
+
+    # Validação prévia: n_sequencia deve ser preenchido em todos os itens
+    if any(it.get("n_sequencia") is None for it in itens):
+        nulls = [it.get("n_id_receb") for it in itens if it.get("n_sequencia") is None]
+        raise ValueError(f"n_sequencia NULL em {len(nulls)} itens (primeiros: {nulls[:5]})")
+
+    counts: dict = {}
+
+    # documentos_fiscais — MERGE por n_id_receb
+    doc_cols = [
+        "n_id_receb", "chave_nfe", "n_id_nf", "numero_nfe", "serie_nfe", "modelo_nfe",
+        "tp_nf", "data_emissao", "data_entrada", "n_id_destinatario",
+        "razao_social_destinatario", "cnpj_destinatario", "n_emit_cod_emp",
+        "compl_cod_categ", "valor_total_nfe", "valor_total_produtos",
+        "valor_total_pis", "valor_total_cofins", "valor_icms", "base_icms",
+        "valor_frete", "etapa", "faturado", "recebido", "cancelada",
+        "natureza_operacao", "origem_dado", "synced_at",
+    ]
+    doc_compare = ["etapa", "faturado", "recebido", "cancelada", "valor_total_nfe"]
+    doc_delete_filter = f"T.data_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
+    counts["documentos_fiscais"] = merge_to_bq(
+        client, "documentos_fiscais", documentos, "n_id_receb", doc_compare, doc_cols,
+        delete_filter=doc_delete_filter,
+    )
+
+    # documentos_fiscais_itens — MERGE idempotente por chave composta (n_id_receb, n_sequencia)
+    item_cols = [
+        "n_id_receb", "n_sequencia", "data_emissao",
+        "x_prod", "ncm", "cfop", "c_prod", "c_ean", "c_origem", "u_com",
+        "q_com", "v_un_com", "v_prod", "v_tot_item", "v_desc", "v_frete",
+        "p_icms", "v_icms", "v_bc_icms", "p_pis", "v_pis", "v_bc_pis",
+        "p_cofins", "v_cofins", "v_bc_cofins", "v_bc_st", "v_bc_ipi",
+        "c_descricao_produto", "c_codigo_produto", "c_unidade_nfe",
+        "n_id_produto", "n_id_item", "c_ignorar_item",
+        "categoria_cfop", "grupo_ncm", "tipo_compra", "synced_at",
+    ]
+    item_compare = ["x_prod", "q_com", "v_prod", "tipo_compra"]
+    item_delete_filter = f"T.data_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
+    counts["documentos_fiscais_itens"] = merge_to_bq(
+        client, "documentos_fiscais_itens", itens,
+        ["n_id_receb", "n_sequencia"], item_compare, item_cols,
+        delete_filter=item_delete_filter,
+    )
+
+    # documentos_fiscais_titulos — MERGE por n_cod_titulo (link unico com lancamentos)
+    tit_cols = [
+        "n_id_receb", "n_cod_titulo", "n_parcela", "n_cod_tit_repet",
+        "n_cod_projeto", "c_cod_categ", "c_doc", "c_num_titulo", "n_tot_parc",
+        "dt_emissao", "dt_vencimento", "dt_previsao", "n_valor_titulo", "synced_at",
+    ]
+    tit_compare = ["n_cod_projeto", "dt_vencimento", "n_valor_titulo"]
+    tit_delete_filter = f"T.dt_emissao BETWEEN DATE('{data_ini}') AND DATE('{data_fim}')"
+    counts["documentos_fiscais_titulos"] = merge_to_bq(
+        client, "documentos_fiscais_titulos", titulos, "n_cod_titulo", tit_compare, tit_cols,
+        delete_filter=tit_delete_filter,
+    )
+
+    salvar_checkpoint(client, "documentos_fiscais_ultima_fim", data_fim)
+    return counts
 
 
 if __name__ == "__main__":
