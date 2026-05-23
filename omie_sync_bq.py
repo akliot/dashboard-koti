@@ -195,10 +195,12 @@ def merge_to_bq(
     compare_columns: list[str],
     all_columns: list[str],
     delete_filter: str | None = None,
+    no_delete: bool = False,
 ) -> dict[str, int]:
     """Sync incremental via MERGE: compara por key, atualiza mudanças, insere novos, remove deletados.
     key_column pode ser str (simples) ou list[str] (chave composta).
-    delete_filter: cláusula SQL extra para limitar o escopo do DELETE (ex: janela de datas).
+    no_delete=True: omite DELETE completamente (tabelas de histórico preservado).
+    delete_filter: limita DELETE a uma janela de datas (ignorado se no_delete=True).
     Retorna {"inserted": N, "updated": N, "deleted": N, "unchanged": N}."""
     if not rows:
         print(f"  ⚠ {table_name}: 0 registros da API — pulando")
@@ -240,11 +242,12 @@ def merge_to_bq(
     )
     insert_cols = ", ".join(all_columns)
     insert_vals = ", ".join(f"S.{c}" for c in all_columns)
-    delete_clause = (
-        f"WHEN NOT MATCHED BY SOURCE AND {delete_filter} THEN DELETE"
-        if delete_filter
-        else "WHEN NOT MATCHED BY SOURCE THEN DELETE"
-    )
+    if no_delete:
+        delete_clause = ""
+    elif delete_filter:
+        delete_clause = f"WHEN NOT MATCHED BY SOURCE AND {delete_filter} THEN DELETE"
+    else:
+        delete_clause = "WHEN NOT MATCHED BY SOURCE THEN DELETE"
 
     merge_sql = f"""
     MERGE `{target}` AS T
@@ -1776,6 +1779,7 @@ def sincronizar_documentos_fiscais(
     doc_compare = ["etapa", "faturado", "recebido", "cancelada", "valor_total_nfe"]
     counts["documentos_fiscais"] = merge_to_bq(
         client, "documentos_fiscais", documentos, "n_id_receb", doc_compare, doc_cols,
+        no_delete=True,
     )
 
     # documentos_fiscais_itens — MERGE idempotente por chave composta (n_id_receb, n_sequencia)
@@ -1793,6 +1797,7 @@ def sincronizar_documentos_fiscais(
     counts["documentos_fiscais_itens"] = merge_to_bq(
         client, "documentos_fiscais_itens", itens,
         ["n_id_receb", "n_sequencia"], item_compare, item_cols,
+        no_delete=True,
     )
 
     # documentos_fiscais_titulos — MERGE por n_cod_titulo (link unico com lancamentos)
@@ -1804,6 +1809,7 @@ def sincronizar_documentos_fiscais(
     tit_compare = ["n_cod_projeto", "dt_vencimento", "n_valor_titulo"]
     counts["documentos_fiscais_titulos"] = merge_to_bq(
         client, "documentos_fiscais_titulos", titulos, "n_cod_titulo", tit_compare, tit_cols,
+        no_delete=True,
     )
 
     salvar_checkpoint(client, "documentos_fiscais_ultima_fim", data_fim)

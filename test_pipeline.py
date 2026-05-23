@@ -696,7 +696,7 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
         mock_merge.assert_not_called()
 
     def test_sincronizar_itens_usa_merge_com_chave_composta(self):
-        """sincronizar_documentos_fiscais deve chamar merge_to_bq com chave ["n_id_receb", "n_sequencia"]."""
+        """sincronizar_documentos_fiscais deve chamar merge_to_bq com chave ["n_id_receb", "n_sequencia"] e no_delete=True."""
         import unittest.mock as mock
         itens_ok = [{"n_id_receb": 99, "n_sequencia": 1}]
         with mock.patch.object(pipeline, "coletar_documentos_fiscais",
@@ -707,7 +707,47 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
         calls = mock_merge.call_args_list
         itens_call = next(c for c in calls if c.args[1] == "documentos_fiscais_itens")
         self.assertEqual(itens_call.args[3], ["n_id_receb", "n_sequencia"])
-        self.assertIsNone(itens_call.kwargs.get("delete_filter"))
+        self.assertTrue(itens_call.kwargs.get("no_delete"))
+
+    def test_sincronizar_fiscais_todas_as_tabelas_usam_no_delete(self):
+        """Todas as 3 tabelas fiscais devem usar no_delete=True — nunca DELETE automático."""
+        import unittest.mock as mock
+        itens_ok = [{"n_id_receb": 1, "n_sequencia": 1}]
+        with mock.patch.object(pipeline, "coletar_documentos_fiscais",
+                               return_value=([{}], itens_ok, [{}])), \
+             mock.patch.object(pipeline, "merge_to_bq", return_value={}) as mock_merge, \
+             mock.patch.object(pipeline, "salvar_checkpoint"):
+            pipeline.sincronizar_documentos_fiscais(mock.MagicMock(), "2026-01-01", "2026-01-31")
+        for table in ["documentos_fiscais", "documentos_fiscais_itens", "documentos_fiscais_titulos"]:
+            call = next(c for c in mock_merge.call_args_list if c.args[1] == table)
+            self.assertTrue(call.kwargs.get("no_delete"), f"{table} deve usar no_delete=True")
+
+    def test_merge_to_bq_no_delete_omite_clausula_delete(self):
+        """merge_to_bq com no_delete=True não deve incluir WHEN NOT MATCHED BY SOURCE THEN DELETE."""
+        import unittest.mock as mock
+        captured_sql = []
+
+        def fake_query(sql, *a, **kw):
+            captured_sql.append(sql)
+            m = mock.MagicMock()
+            m.result.return_value = [mock.MagicMock(c=0)]
+            m.num_dml_affected_rows = 0
+            return m
+
+        mock_client = mock.MagicMock()
+        mock_client.query.side_effect = fake_query
+        mock_client.get_table.return_value.schema = []
+        load_job = mock.MagicMock()
+        load_job.result.return_value = None
+        mock_client.load_table_from_json.return_value = load_job
+
+        pipeline.merge_to_bq(
+            mock_client, "test_table", [{"id": 1, "val": "x"}],
+            "id", ["val"], ["id", "val"],
+            no_delete=True,
+        )
+        merge_sql = next(s for s in captured_sql if "MERGE" in s)
+        self.assertNotIn("NOT MATCHED BY SOURCE", merge_sql)
 
 
 if __name__ == "__main__":
