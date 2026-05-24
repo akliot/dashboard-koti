@@ -1744,6 +1744,29 @@ def coletar_documentos_fiscais(
         f"  Normalizado: {len(documentos)} docs, {len(itens)} itens, {len(titulos)} titulos",
         flush=True,
     )
+
+    # Deduplica por chave primária (API Omie pode retornar o mesmo registro em páginas sobrepostas)
+    # Critério: manter primeira ocorrência (registros duplicados são idênticos na prática)
+    def _dedup(rows: list, key_fn) -> tuple[list, int]:
+        seen: set = set()
+        out: list = []
+        for row in rows:
+            k = key_fn(row)
+            if k not in seen:
+                seen.add(k)
+                out.append(row)
+        return out, len(rows) - len(out)
+
+    documentos, n_dup_docs = _dedup(documentos, lambda r: r.get("n_id_receb"))
+    itens,      n_dup_itens = _dedup(itens, lambda r: (r.get("n_id_receb"), r.get("n_sequencia")))
+    titulos,    n_dup_tit   = _dedup(titulos, lambda r: r.get("n_cod_titulo"))
+
+    if n_dup_docs or n_dup_itens or n_dup_tit:
+        print(
+            f"  ⚠ Deduplicados (API): {n_dup_docs} docs, {n_dup_itens} itens, {n_dup_tit} titulos",
+            flush=True,
+        )
+
     return documentos, itens, titulos
 
 

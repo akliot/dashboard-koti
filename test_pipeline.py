@@ -661,20 +661,81 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
         self.assertEqual(titulos, [])
 
     def test_coletar_limite_respeitado(self):
-        """O parâmetro `limite` trunca a lista de NFs."""
-        nf_stub = {
-            "compl": {"nIdReceb": None},
-            "ide": {"tpNF": 0},
-            "nfDestInt": {}, "nfEmitInt": {},
-            "det": [], "titulos": [],
-        }
+        """O parâmetro `limite` trunca a lista de NFs (IDs distintos para não interferir na dedup)."""
         import unittest.mock as mock
-        with mock.patch.object(pipeline, "paginar", return_value=[nf_stub] * 10), \
+        nf_stubs = [
+            {"compl": {"nIdReceb": i}, "ide": {"tpNF": 0},
+             "nfDestInt": {}, "nfEmitInt": {}, "det": [], "titulos": []}
+            for i in range(1, 11)
+        ]
+        with mock.patch.object(pipeline, "paginar", return_value=nf_stubs), \
              mock.patch.object(pipeline, "omie_request", return_value={}):
             docs, itens, titulos = pipeline.coletar_documentos_fiscais(
                 "2026-01-01", "2026-01-31", limite=3
             )
         self.assertEqual(len(docs), 3)
+
+    # ------------------------------------------------------------------
+    # coletar_documentos_fiscais — deduplicação de resposta API
+    # ------------------------------------------------------------------
+
+    def _nf_stub_com_id(self, n_id_receb, n_cod_titulo=None):
+        """NF mínima com nIdReceb e um item/título opcionais."""
+        tit = [{"nCodTitulo": n_cod_titulo}] if n_cod_titulo else []
+        return {
+            "compl": {"nIdReceb": n_id_receb},
+            "ide": {"tpNF": 0, "dEmi": "01/08/2025"},
+            "nfDestInt": {}, "nfEmitInt": {},
+            "det": [{"prod": {"CFOP": "1102", "NCM": ""}, "nfProdInt": {"nCodItem": 1}}],
+            "titulos": tit,
+        }
+
+    def test_coletar_dedup_docs_duplicados(self):
+        """API retorna o mesmo nIdReceb duas vezes — coletar deve retornar apenas 1 doc."""
+        import unittest.mock as mock
+        nf = self._nf_stub_com_id(999)
+        with mock.patch.object(pipeline, "paginar", return_value=[nf, nf]), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            docs, itens, _ = pipeline.coletar_documentos_fiscais("2025-08-01", "2025-08-31")
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(len(itens), 1)
+
+    def test_coletar_dedup_itens_duplicados(self):
+        """Se normalização gerar dois itens com mesma chave (n_id_receb, n_sequencia), deve manter 1."""
+        import unittest.mock as mock
+        nf = self._nf_stub_com_id(777)
+        # Dois itens com mesmo nCodItem → mesmo seq=1 positional, mesma chave
+        nf2 = dict(nf)
+        nf2["det"] = nf["det"] + nf["det"]  # dois itens idênticos → seq 1 e 2 (diferentes)
+        # Para duplicar (n_id_receb, n_sequencia), precisamos do mesmo nf duas vezes
+        with mock.patch.object(pipeline, "paginar", return_value=[nf, nf]), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            _, itens, _ = pipeline.coletar_documentos_fiscais("2025-08-01", "2025-08-31")
+        # doc deduplicado → 1 doc → 1 item (seq=1); sem duplicata de item
+        seen = set()
+        for it in itens:
+            key = (it["n_id_receb"], it["n_sequencia"])
+            self.assertNotIn(key, seen, f"item duplicado: {key}")
+            seen.add(key)
+
+    def test_coletar_dedup_titulos_duplicados(self):
+        """API retorna o mesmo nCodTitulo duas vezes — coletar deve manter 1 título."""
+        import unittest.mock as mock
+        nf = self._nf_stub_com_id(888, n_cod_titulo=42)
+        with mock.patch.object(pipeline, "paginar", return_value=[nf, nf]), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            _, _, titulos = pipeline.coletar_documentos_fiscais("2025-08-01", "2025-08-31")
+        self.assertEqual(len(titulos), 1)
+
+    def test_coletar_sem_duplicados_nao_altera_resultado(self):
+        """Sem duplicados, dedup não modifica os dados."""
+        import unittest.mock as mock
+        nfs = [self._nf_stub_com_id(i) for i in (1, 2, 3)]
+        with mock.patch.object(pipeline, "paginar", return_value=nfs), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            docs, itens, _ = pipeline.coletar_documentos_fiscais("2025-08-01", "2025-08-31")
+        self.assertEqual(len(docs), 3)
+        self.assertEqual(len(itens), 3)
 
     # ------------------------------------------------------------------
     # sincronizar_documentos_fiscais — Fase 9: MERGE idempotente itens
