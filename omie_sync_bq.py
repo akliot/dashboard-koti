@@ -1359,6 +1359,7 @@ CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais` (
   synced_at                 TIMESTAMP
 )
 PARTITION BY data_emissao
+OPTIONS (partition_expiration_days = NULL)
 CLUSTER BY n_id_destinatario, etapa
 """
 
@@ -1403,6 +1404,7 @@ CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais_itens` (
   synced_at           TIMESTAMP
 )
 PARTITION BY data_emissao
+OPTIONS (partition_expiration_days = NULL)
 CLUSTER BY n_id_receb, cfop, ncm
 """
 
@@ -1424,6 +1426,7 @@ CREATE TABLE IF NOT EXISTS `{ds}.documentos_fiscais_titulos` (
   synced_at       TIMESTAMP
 )
 PARTITION BY dt_vencimento
+OPTIONS (partition_expiration_days = NULL)
 CLUSTER BY n_cod_titulo, n_cod_projeto
 """
 
