@@ -679,9 +679,9 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
     # coletar_documentos_fiscais — deduplicação de resposta API
     # ------------------------------------------------------------------
 
-    def _nf_stub_com_id(self, n_id_receb, n_cod_titulo=None):
+    def _nf_stub_com_id(self, n_id_receb, n_cod_titulo=None, n_parcela=1):
         """NF mínima com nIdReceb e um item/título opcionais."""
-        tit = [{"nCodTitulo": n_cod_titulo}] if n_cod_titulo else []
+        tit = [{"nCodTitulo": n_cod_titulo, "nParcela": n_parcela}] if n_cod_titulo else []
         return {
             "compl": {"nIdReceb": n_id_receb},
             "ide": {"tpNF": 0, "dEmi": "01/08/2025"},
@@ -719,13 +719,33 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
             seen.add(key)
 
     def test_coletar_dedup_titulos_duplicados(self):
-        """API retorna o mesmo nCodTitulo duas vezes — coletar deve manter 1 título."""
+        """API retorna o mesmo (n_id_receb, n_cod_titulo, n_parcela) duas vezes — coletar deve manter 1."""
         import unittest.mock as mock
-        nf = self._nf_stub_com_id(888, n_cod_titulo=42)
+        nf = self._nf_stub_com_id(888, n_cod_titulo=42, n_parcela=1)
         with mock.patch.object(pipeline, "paginar", return_value=[nf, nf]), \
              mock.patch.object(pipeline, "omie_request", return_value={}):
             _, _, titulos = pipeline.coletar_documentos_fiscais("2025-08-01", "2025-08-31")
         self.assertEqual(len(titulos), 1)
+
+    def test_coletar_dedup_titulos_parcelas_distintas_preservadas(self):
+        """Mesmo nCodTitulo com n_parcela diferente = títulos distintos, ambos preservados."""
+        import unittest.mock as mock
+        nf_com_dois_titulos = {
+            "compl": {"nIdReceb": 555},
+            "ide": {"tpNF": 0, "dEmi": "01/03/2026"},
+            "nfDestInt": {}, "nfEmitInt": {},
+            "det": [],
+            "titulos": [
+                {"nCodTitulo": 77, "nParcela": 1},
+                {"nCodTitulo": 77, "nParcela": 2},
+            ],
+        }
+        with mock.patch.object(pipeline, "paginar", return_value=[nf_com_dois_titulos]), \
+             mock.patch.object(pipeline, "omie_request", return_value={}):
+            _, _, titulos = pipeline.coletar_documentos_fiscais("2026-03-01", "2026-03-31")
+        self.assertEqual(len(titulos), 2, "parcelas distintas não devem ser deduplicadas")
+        parcelas = {t["n_parcela"] for t in titulos}
+        self.assertEqual(parcelas, {1, 2})
 
     def test_coletar_sem_duplicados_nao_altera_resultado(self):
         """Sem duplicados, dedup não modifica os dados."""
@@ -769,6 +789,25 @@ class TestDocumentosFiscaisV1(unittest.TestCase):
         itens_call = next(c for c in calls if c.args[1] == "documentos_fiscais_itens")
         self.assertEqual(itens_call.args[3], ["n_id_receb", "n_sequencia"])
         self.assertTrue(itens_call.kwargs.get("no_delete"))
+
+    def test_sincronizar_titulos_usa_chave_composta(self):
+        """sincronizar_documentos_fiscais deve chamar merge_to_bq com chave
+        ["n_id_receb", "n_cod_titulo", "n_parcela"] para documentos_fiscais_titulos."""
+        import unittest.mock as mock
+        itens_ok = [{"n_id_receb": 1, "n_sequencia": 1}]
+        titulo_ok = [{"n_id_receb": 1, "n_cod_titulo": 100, "n_parcela": 1}]
+        with mock.patch.object(pipeline, "coletar_documentos_fiscais",
+                               return_value=([{}], itens_ok, titulo_ok)), \
+             mock.patch.object(pipeline, "merge_to_bq", return_value={}) as mock_merge, \
+             mock.patch.object(pipeline, "salvar_checkpoint"):
+            pipeline.sincronizar_documentos_fiscais(mock.MagicMock(), "2026-03-01", "2026-03-31")
+        calls = mock_merge.call_args_list
+        tit_call = next(c for c in calls if c.args[1] == "documentos_fiscais_titulos")
+        self.assertEqual(
+            tit_call.args[3], ["n_id_receb", "n_cod_titulo", "n_parcela"],
+            "chave composta deve ser (n_id_receb, n_cod_titulo, n_parcela)"
+        )
+        self.assertTrue(tit_call.kwargs.get("no_delete"))
 
     def test_sincronizar_fiscais_todas_as_tabelas_usam_no_delete(self):
         """Todas as 3 tabelas fiscais devem usar no_delete=True — nunca DELETE automático."""

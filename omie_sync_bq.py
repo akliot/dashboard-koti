@@ -1762,7 +1762,10 @@ def coletar_documentos_fiscais(
 
     documentos, n_dup_docs = _dedup(documentos, lambda r: r.get("n_id_receb"))
     itens,      n_dup_itens = _dedup(itens, lambda r: (r.get("n_id_receb"), r.get("n_sequencia")))
-    titulos,    n_dup_tit   = _dedup(titulos, lambda r: r.get("n_cod_titulo"))
+    titulos,    n_dup_tit   = _dedup(
+        titulos,
+        lambda r: (r.get("n_id_receb"), r.get("n_cod_titulo"), r.get("n_parcela"))
+    )
 
     if n_dup_docs or n_dup_itens or n_dup_tit:
         print(
@@ -1826,7 +1829,7 @@ def sincronizar_documentos_fiscais(
         no_delete=True,
     )
 
-    # documentos_fiscais_titulos — MERGE por n_cod_titulo (link unico com lancamentos)
+    # documentos_fiscais_titulos — MERGE por chave composta (n_id_receb, n_cod_titulo, n_parcela)
     tit_cols = [
         "n_id_receb", "n_cod_titulo", "n_parcela", "n_cod_tit_repet",
         "n_cod_projeto", "c_cod_categ", "c_doc", "c_num_titulo", "n_tot_parc",
@@ -1834,7 +1837,8 @@ def sincronizar_documentos_fiscais(
     ]
     tit_compare = ["n_cod_projeto", "dt_vencimento", "n_valor_titulo"]
     counts["documentos_fiscais_titulos"] = merge_to_bq(
-        client, "documentos_fiscais_titulos", titulos, "n_cod_titulo", tit_compare, tit_cols,
+        client, "documentos_fiscais_titulos", titulos,
+        ["n_id_receb", "n_cod_titulo", "n_parcela"], tit_compare, tit_cols,
         no_delete=True,
     )
 
